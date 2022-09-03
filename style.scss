@@ -1,0 +1,55 @@
+.dynamic-table-wrap{
+    ::v-deep.cell{
+        padding-left:5px;
+        padding-right:5px;
+    }
+    ::v-deep.el-table__fixed-right{
+        height: 100% !important;
+    }
+    .dynamic-table{
+        // 开启编辑行时
+        ::v-deep.cell{
+            .el-checkbox-group{
+                .el-checkbox{
+                    margin-right: 10px;
+                }
+            }
+        }
+        ::v-deep.cell.el-tooltip{
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            .cell-text{
+                // 默认展示文本内容
+                max-width: 100%;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            // 输入控件
+            .el-input, .el-select, .el-checkbox-group{
+                flex:1;
+                max-width: calc(100% - 2px);
+            }
+            .el-table__expand-icon+.el-select{
+                max-width: calc(100% - 24px);
+            }
+        }
+        
+    }
+    .action-button-wrap{
+        display: flex;
+        // white-space:nowrap
+    }
+    .el-link+.el-link{
+        margin-left: 10px;
+    }
+    .el-button+.el-button{
+        margin-left: 10px ;
+    }
+    // 分页器
+    .pagination-wrap{
+        display: flex;
+        overflow: hidden;
+        padding: 0.26vw 0.651vw;
+    }
+}

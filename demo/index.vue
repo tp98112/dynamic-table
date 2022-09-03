@@ -1,0 +1,264 @@
+<template>
+    <div>
+        <DynamicTable ref="dynamicTable" v-bind="tableConfig"  :selectOptions="selectOptions" @change="tableChange">
+        <!-- <el-button slot="new-button" size="small" slot-scope="{event, scope}" @click="event">{{scope.row.input}}</el-button> -->
+        <!-- <template v-slot:new-button="{event}">
+            <el-button @click="event"></el-button>
+        </template> -->
+       <!-- <div slot="form-input" slot-scope="{form}">{{form.input}}</div> -->
+       <template v-slot:edit-selectFile="scope">
+        <el-progress :percentage="50"></el-progress>
+       </template>
+        </DynamicTable>
+      <el-button @click="checkTableData">获取表格数据</el-button>
+    </div>
+</template>
+
+<script>
+import DynamicTable from "@/components/DynamicTable";
+import {dateFormat} from "../tools.js";
+export default {
+    name: "demo",
+    components: { DynamicTable},
+    data() {
+        return {
+            formColumn: [
+                {
+                    panel: 1, // 面板
+                    label: "下拉框",
+                    prop: "select",
+                    align: "center",
+                    editType: "select",
+                    optionsKey: 'selectOptions',
+                    
+                },
+            ],
+            selectOptions: [
+                        {
+                            label: "选项一",
+                            value: 1,
+                        },
+                        {
+                            label: "选项二",
+                            value: 2,
+                        },
+                    ],
+            tableConfig: {
+                height: 500,
+                // maxHeight: 200,
+                dynamic: true, 
+                unifiedEdit: true,
+                editMode: 'inline',
+                pagination: true,
+                total: 100002,
+                falsePaging: true,
+                needRefreshEvents: [],
+                initFields: {
+                    input: '输入框',
+                    select: 24
+                },
+                accessControl: {
+                    update: true,
+
+                    
+                },
+                // formDialogButton: [
+                //     {
+                //         icon: 'el-icon-check',
+                //         label: '确 定1',
+                //         type: 'primary',
+                //         emit: '$save'
+                //     },
+                //     {
+                //         icon: 'el-icon-check',
+                //         label: 'hahah',
+                //         type: 'primary',
+                //         emit: '$save2'
+                //     },
+                // ],
+                // newActionButton: [
+                //     {
+                //         label: '面板一',
+                //         target: 'update',
+                //         panel: 1,
+                //     },
+                //     {
+                //         label: '面板二',
+                //         target: 'update',
+                //         panel: 2,
+                //     },
+                //     {
+                //         label: '测试',
+                //         emit: 'haha'
+                //     }
+                // ],
+                column: [
+                    {
+                        type: 'index',
+                        label: '序号'
+                    },
+                    
+                {
+                    label: "输入框",
+                    prop: "input",
+                    align: "center",
+                    editType: "input",
+                    required: true,
+                    sortable: true,
+                    formVisible({form}){
+                        return form.select == 1
+                    },
+                    // columnVisible: false
+                    panel: 1, // 面板
+                    eventName: 'blur',
+                    controlMethod(params){
+                        console.log('blur', params)
+                    },
+                     controlEvents: {
+                            change(params){
+                                console.log(params)
+                                params.scope.row.select = 2;
+                            },
+                        }
+                },
+                {
+                    panel: 1, // 面板
+                    label: "下拉框",
+                    prop: "select",
+                    align: "center",
+                    editType: "select",
+                    optionsKey: 'selectOptions',
+                    optionControl: {
+                        label: 'name',
+                        value: 'id'
+                    }
+                },
+                {
+                    panel: 1, // 面板
+                    label: "日期选择器",
+                    prop: "address",
+                    align: 'center',
+                    editType: "date-picker",
+                },
+                {
+                    panel: 2, // 面板
+                    label: "开关",
+                    prop: "switch",
+                    align: 'center',
+                    editType: "switch",
+                    template(scope){
+                        return scope.row.switch ? '开启' : '关闭'
+                    },
+                    validator({value}){
+                        return value === true
+                    }
+                },
+                {
+                    panel: 2, // 面板
+                    label: "链接",
+                    prop: "link",
+                    align: 'center',
+                    editType: "link",
+                    emit: 'link'
+                },
+                {
+                    panel: 2, // 面板
+                    label: '多选框组',
+                    prop: 'checkbox-group',
+                    editType: 'checkbox-group',
+                    options: [
+                        {
+                            label: '选项一',
+                            value: 1
+                        },
+                        {
+                            label: '选项二',
+                            value: 2
+                        }
+                    ],
+                    align: 'center'
+                },
+                {
+                    panel: 2, // 面板
+                    label: '时段',
+                    prop: 'time-picker',
+                    editType: 'time-picker',
+                    width: 200,
+                },
+                {
+                    label: '选择文件1',
+                    prop: 'selectFile',
+                    cols: 2,
+                    editType: 'upload-select',
+                    formVisible: false,
+                },
+                {
+                    label: '选择文件2',
+                    prop: 'selectFile2',
+                    editType: 'upload-button',
+                    control: {
+                        'show-file-list': true
+                    },
+                    columnVisible: false,
+                    
+                },
+                {
+                    label: '上传图片',
+                    prop: 'img',
+                    editType: 'upload-img',
+                    cols: 2,
+                    columnVisible: false
+                }
+                ],
+                data: [
+                    {
+                        id: '2121',
+                        input: "1",
+                        select: "1",
+                        'checkbox-group': [],
+                        'time-picker': '',
+                       
+                    },
+                    {
+                        input: "1",
+                        select: "2",
+                        'checkbox-group': [],
+                        'time-picker': [new Date(2016, 9, 10, 8, 40), new Date(2016, 9, 10, 9, 40)],
+                    },
+                ],
+            },
+        };
+    },
+    
+    mounted(){
+        let num = 30;
+        let arr = [];
+       while(num){
+        arr.push({
+            input: num,
+            switch: 1
+        })
+        num--
+       }
+       this.$refs.dynamicTable.checkExpectFieldsType(arr)
+       this.tableConfig.data = arr;
+       
+    },
+    methods: {
+        checkTableData(){
+            console.log(this.$refs.dynamicTable.checkTableData())
+        },
+        tableChange(event) {
+            console.log("表格触发事件", event);
+            event.success()
+            // event.close();
+            // let executeFunc = {
+            //   update() {
+            //     console.log(event);
+            //   },
+            // };
+            // executeFunc[event.type]();
+        },
+    },
+};
+</script>

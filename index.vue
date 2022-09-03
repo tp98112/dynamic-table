@@ -1,0 +1,1319 @@
+<script>
+import props from './mixins/props.js';
+import config from './mixins/config.js';
+import DynamicForm from './components/DynamicForm';
+import {loopThroughTheArray, loopThroughTheArrayBySome, dateFormat, getFieldType, deepClone, getId} from "./tools.js";
+
+export default {
+    name: 'dynamicTable',
+    inheritAttrs: false,
+    mixins: [props, config],
+    components: {DynamicForm},
+    
+    data(){
+        return {
+            tableData: [], // 表格data
+            backupTableData: {}, // 备份表数据
+            dicts: {}, // 字典数据
+            initFieldsCollection: {}, // 字段集合
+            currentEditRow: null, // 当前编辑数据行
+            dataLoading: this.loading === true ? true : false, // 表格数据loading
+            currentPage: 1, // 当前页码
+            currentPageSize: this.pageSizes[0], // 当前页大小
+            lastPage: null, // 上一次选中的分页
+            lastPageSize: null, // 上一次选中的当前页大小
+            toolsObject: {},
+            formVisible: false, // 编辑弹窗显隐
+            dialogConfirmLoading: false,
+            operationMode: 'new', // 更新方式 新增或修改已有数据 
+            uniqueKey: this.rowKey ? this.rowKey : '$rowKey', // 唯一键
+            formTitle: '', // 弹窗表单标题
+            formConfig: {
+                // 编辑表单配置
+                initFields: this.initFields, // 初始化字段
+                cols: this.formCols, // 一行放置的表单项数量
+                currentMode: this.operationMode, // 操作模式
+                currentPanel: '', // 当前面板
+                formLabelWidth: this.formLabelWidth, // 表单标签宽度
+                labelPosition: this.formLabelPosition, // 表单标签对齐方式
+                formItemsCover: this.formItemsCover, // 表单项是否占满容器
+                column: this.formColumn ? this.formColumn : [], // 表单项列表
+                gutter: this.formGutter, // 表单项间距
+                colsWidth: this.formColsWidth, // 表单项固定宽度
+                disabledForm: false,
+            }
+        }
+    },
+    watch: {
+        column(){
+            this.initTableColumn();
+        },
+        data() {
+            this.initTableData();
+        },
+        loading(state){
+            this.dataLoading = state;
+        },
+        
+    },
+    created(){
+        /**
+         * 初始化
+         */
+        this.initTableColumn();
+        this.initTableData();
+        if(this.loadData){
+            // 触发分页事件 获取数据
+            this.emitPageChange()
+        }
+    },
+    render(h){
+        /**
+         * =======
+         * 预设内容
+        */ 
+        const setDefaultContent = ({column, scope}) => {
+            if(typeof column.render === 'function'){
+                // 自定义render渲染方法
+                return column.render(h,scope, this.$parent)
+            }else if(typeof column.template === 'function'){
+                // 自定义模板渲染方法
+                let type = typeof column.template(scope);
+                if(type === 'string' || (type === 'object' && typeof column.template(scope).content) === 'string'){
+                    return h('span', {
+                        class: 'cell-text',
+                        on: {
+                            click: () => {column.template(scope).emit ? this.$emit('change', {type: column.template(scope).emit, scope}) : ''}
+                        },
+                        domProps: {
+                            innerHTML: column.template(scope) ? (column.template(scope).content ? column.template(scope).content : column.template(scope)) : 'null'
+                        }
+                    })
+                }else{
+                    console.error(`The custom template rendering method returned an incorrect value. expect[string/object] \n Example1: return '<span>${column.label}</span>' \n Example2: return {emit: 'eventType', content: '<span>${column.label}</span>'}`)
+                    return <span class="cell-text">{scope.row[scope.column.property]}</span>
+                }
+            }else{
+                // 默认内容
+                return <span class="cell-text">{this.getDefaultDisplayValue(column, scope.row[scope.column.property])}</span>
+            }
+        }
+        /**
+         * ============
+         * 预设编辑时内容
+         */
+        const setEditContent = ({column, scope}) => {
+            if(typeof column.editRender === 'function'){
+                // 自定义render渲染方法
+                return column.editRender(h, scope)
+            }else if(column.editType === 'input'){
+                // 输入框
+                return <el-input v-model={scope.row[scope.column.property]}  props={this.setControlProperty(column)} on={this.getControlEvents(column, scope)}></el-input>
+            }else if(column.editType === 'select'){
+                // 下拉框
+                return <el-select v-model={scope.row[scope.column.property]}  props={this.setControlProperty(column)} on={this.getControlEvents(column, scope)} style="width: 100%">
+                {this.returnOptions(column).map(opt => {
+                    return <el-option 
+                    label={column.optionControl ? opt[column.optionControl.label] : opt.label}
+                    value={column.optionControl ? opt[column.optionControl.value] : opt.value}>
+                    </el-option>
+                })}
+                </el-select>
+            }else if(column.editType === 'date-picker'){
+                // 日期选择器
+                return <el-date-picker v-model={scope.row[scope.column.property]} props={this.setControlProperty(column)} on={this.getControlEvents(column, scope)} style="width: 100%"></el-date-picker>
+            }else if(column.editType === 'switch'){
+                // 开关
+                return <el-switch v-model={scope.row[scope.column.property]} props={this.setControlProperty(column)} on={this.getControlEvents(column, scope)}></el-switch>
+            }else if(column.editType === 'link'){
+                // 链接
+                return <el-link on-click={() => {this.reportEvent(column, scope)}} props={this.setControlProperty(column)} on={this.getControlEvents(column, scope)}>{column.linkText ? column.linkText : "链接"}</el-link>
+            }else if(column.editType === 'checkbox-group'){
+                // 多选框组
+                return <el-checkbox-group v-model={scope.row[scope.column.property]} props={this.setControlProperty(column)} on={this.getControlEvents(column, scope)}>
+                    {this.returnOptions(column).map(opt => {
+                        return <el-checkbox label={column.optionControl && column.optionControl.value ? opt[column.optionControl.value] : opt.value}>
+                            {column.optionControl && column.optionControl.label ? opt[column.optionControl.label] : opt.label}
+                        </el-checkbox>
+                    })}
+                </el-checkbox-group>
+            }else if(column.editType === 'time-picker'){
+                // 时段选择器
+                return <el-time-picker
+                        v-model={scope.row[scope.column.property]}
+                        props={this.setControlProperty(column)}
+                        on={this.getControlEvents(column, scope)}
+                        style="width: 100%">
+                    </el-time-picker>
+            }else{
+                // 默认内容
+                return <span class="cell-text">{scope.row[scope.column.property]}</span>
+            }
+        }
+        /**
+         * ==============
+         * column 渲染方法
+         */
+        const renderColumns = columns => {
+            return columns.map((column, index) => {
+                if(column.children){
+                    return (<el-table-column label={column.label} align={column.align} key={'mul-' + index}>
+                        {renderColumns(column.children)}
+                    </el-table-column>)
+                }else{
+                    if(['index', 'selection', 'expand'].indexOf(column.type) > -1){
+                        // 序号
+                        return <el-table-column
+                            type={column.type}
+                            key={column.type}
+                            label={column.label}
+                            align={column.align ? column.align : this.align}
+                            fixed={column.fixed}
+                            width={column.width}
+                            index={this.getIndexMethod}
+                        >
+                        </el-table-column>
+                    }else if(this.getColumnVisible(column)){
+                        return h('el-table-column', {
+                            props: {
+                                key: column.prop,
+                                label: column.label,
+                                prop: column.prop,
+                                width: column.width,
+                                sortable: column.sortable, // 排序
+                                'sort-method': column.sortMethod, // 排序方法
+                                filters: column.filters, // 筛选
+                                'filter-method': column.filterMethod, // 筛选方法
+                                align: column.align ? column.align : this.align,
+                                "min-width": this.getColumnMinWidth(column),
+                                'show-overflow-tooltip': true // todo
+                            },
+                            scopedSlots: {
+                                header: scope => {
+                                    let propName = 'header-' + column.prop;
+                                    return this.$scopedSlots[propName] ? this.$scopedSlots[propName](scope) : this.$slots[propName] || scope.column.label
+                                },
+                                default: scope => {
+                                    if(scope.row.$edit){
+                                        let propName = 'edit-' + column.prop;
+                                        return this.$scopedSlots[propName] ? this.$scopedSlots[propName](scope) : this.$slots[propName] || setEditContent({column, scope})
+                                    }else{
+                                        return this.$scopedSlots[column.prop] ? this.$scopedSlots[column.prop](scope) : this.$slots[column.prop] || setDefaultContent({column, scope})
+                                    }
+                                }
+                            }
+                        })
+                    }
+                    
+                }
+            })
+        }
+        /**
+         * 渲染操作栏表头
+         */
+        const renderActionHeader = (scope, button) => {
+            if(this.getRenderConditions('root', scope)){
+                return this.actionButtonType === 'link' ? 
+                <el-link on-click={() => {this.handleNew(scope, button)}} icon="el-icon-plus" type="primary" size={this.actionButtonSize} key="link-root" title="新增"></el-link> : 
+                <el-button on-click={() => {this.handleNew(scope, button)}} icon="el-icon-plus"  size="mini" size={this.actionButtonSize} key="button-root" title="新增"></el-button>
+            }else{
+                return '操作'
+            }
+        }
+        /**
+         * 渲染按钮
+         */
+        const setDefaultButton = (item, scope, index) => {
+            return this.actionButtonType === 'link' ? 
+            <el-link on-click={() => {this.reportEvent(item, scope)}} 
+                type={item.type} 
+                icon={item.icon} 
+                title={item.title} 
+                disabled={scope.row.$deleteLoading} 
+                underline={item.underline}
+                key={this.getButtonKey(item, index)}
+                size={this.actionButtonSize}>{this.setButtonText(item, scope)}</el-link> :
+            <el-button on-click={() => {this.reportEvent(item, scope)}} 
+                type={item.type} 
+                icon={item.icon} 
+                title={item.title} 
+                plain={item.plain}
+                round={item.round}
+                circle={item.circle}
+                key={this.getButtonKey(item, index)}
+                disabled={scope.row.$deleteLoading} 
+                size={this.actionButtonSize}>{this.setButtonText(item, scope)}</el-button>
+        }
+        /**
+         * 渲染操作栏主体内容
+         */
+        const renderActionContent = scope => {
+            return <div class="action-button-wrap" style={{'justify-content': this.actionAlign}}>
+                {
+                    this.builtInButton.map((item, index) => {
+                        if(this.builtInButtonConditions(item, scope)){
+                            let slotName = item.target + '-button';
+                            return this.$scopedSlots[slotName] ? this.$scopedSlots[slotName]({event: this[this.builtInEvent(item)], scope}) : 
+                            this.$slots[slotName] || setDefaultButton(item, scope, index)
+                        }
+                    })
+                }
+                {
+                    this.newActionButton.map((item, index) => {
+                        if(this.getRenderConditions(item.target || item.emit, scope) && (item.target ? this.builtInButtonConditions(item, scope) : true)){
+                            let slotName = (item.target || item.emit) + '-button';
+                            return this.$scopedSlots[slotName] ? this.$scopedSlots[slotName](item.target ? 
+                            {event: this[this.builtInEvent(item)], scope} : {event: () => {event: this.reportEvent(item, scope)}, scope}) : 
+                            this.$slots[slotName] || setDefaultButton(item, scope, index)
+                        }
+                    })
+                }
+                {
+
+                }
+            </div>
+        }
+        /**
+         * 渲染操作栏
+         */
+        const renderActionColumn = () => {
+            if(this.$scopedSlots.action){
+                // 完全自定义操作栏插槽
+                return this.$scopedSlots.action(this.tableData) || this.$slots.action;
+            }else if(this.dynamic && this.showAction){
+                return <el-table-column align="left" fixed="right" width={this.getActionBarWidth} min-width={this.getActionBarWidth}
+                    {...{
+                        scopedSlots: {
+                            header: scope => {
+                                return this.$scopedSlots['action-header'] ? this.$scopedSlots['action-header'](scope) : this.$slots['action-header'] || renderActionHeader(scope, {actionName: '新增数据'})
+                            },
+                            default: scope => {
+                                return this.$scopedSlots['action-content'] ? this.$scopedSlots['action-content'](scope) : this.$slots['action-content'] || renderActionContent(scope, {actionName: '新增数据'})
+                            }
+                        }
+                    }}
+                />
+            }
+        }
+        /**
+         * 渲染分页器
+         */
+        const renderPagination = () => {
+            return <div class="pagination-wrap" style={{justifyContent: this.footer_justify}}>
+                {this.$scopedSlots['pagination-left'] ? this.$scopedSlots['pagination-left']({currentPage: this.currentPage,total: this.total,currentPageSize: this.currentPageSize}) : this.$slots['pagination-left']}
+                <el-pagination
+                    current-page={this.currentPage}
+                    page-sizes={this.pageSizes}
+                    page-size={this.currentPageSize}
+                    layout={this.layout}
+                    total={this.total}
+                    background
+                    on={{
+                        'size-change': this.handleSizeChange, 
+                        'current-change': this.pageTurning,
+                    }}
+                ></el-pagination>
+                {this.$scopedSlots['pagination-right'] ? this.$scopedSlots['pagination-right']({currentPage: this.currentPage,total: this.total,currentPageSize: this.currentPageSize}) : this.$slots['pagination-right']}
+            </div>
+        }
+        /**
+         * 编辑弹窗
+         */
+        const renderEditDialog = () => {
+            return <el-dialog visible={this.formVisible} on={{['update:visible']: state => {this.formVisible = state}}} title={this.formTitle} width={this.formWidth} append-to-body before-close={this.beforeClose} modal={this.formDialogModal} class="dynamicTable-dialog">
+                <DynamicForm
+                    props={this.formConfig}
+                    attrs={this.$attrs}
+                    ref="dynamicForm"
+                    {...{
+                        scopedSlots: this.getFormSlots
+                    }}
+                >
+                </DynamicForm>
+                <div slot="footer" class="dialog-footer">
+                    {
+                        this.formDialogButton.map((item, index) => {
+                            if(this.getRenderConditions(item.target || item.emit) && (item.target ? this.builtInButtonConditions(item) : true) ){
+                                return <el-button on-click={() => {this.reportEvent(item, {form: this.$refs.dynamicForm?.form})}} 
+                                type={item.type} 
+                                icon={item.icon} 
+                                title={item.title} 
+                                plain={item.plain}
+                                round={item.round}
+                                circle={item.circle}
+                                key={this.getButtonKey(item, index)}
+                                disabled={item.disabled} 
+                                size={this.formDialogButtonSize}>{this.setButtonText(item, this.$refs.dynamicForm?.form)}</el-button>
+                            }
+                            
+                        })
+                    }
+                    
+                </div>
+            </el-dialog>
+        }
+        return (<div class="dynamic-table-wrap">
+            <el-table data={this.returnTableData} 
+            v-loading={this.dataLoading}
+            element-loading-text="正在加载，请稍后..."
+            element-loading-spinner="el-icon-loading"
+            border={this.border}
+            stripe={this.stripe}
+            row-key={this.uniqueKey} 
+            size={this.tableSize}
+            height={this.height}
+            max-height={this.maxHeight}
+            tree-props={this.treeProps}
+            show-summary={this.showSummary}
+            sum-text={this.sumText}
+            summary-method={this.getSummaries}
+            span-method={this.spanMethod}
+            default-expand-all={this.defaultExpandAll}
+            highlight-current-row={this.highlightCurrentRow}
+            default-sort={this.defaultSort}
+            row-class-name={this.rowClassName}
+            cell-style={this.returnCellStyle}
+            on={{'selection-change': this.selectionChange, 'current-change': this.currentRowChange}} 
+            class={this.dynamic && (this.editMode === 'inline' || this.unifiedEdit) ? 'dynamic-table' : ''}>{renderColumns(this.column)}{renderActionColumn()}</el-table>
+            {this.pagination ? renderPagination() : ''}
+            {this.editMode === 'window' && this.dynamic && !this.unifiedEdit ? renderEditDialog() : ''}
+        </div>)
+    },
+    computed: {
+        /**
+         * 返回表格数据
+         */
+        returnTableData(){
+            return this.falsePaging ? this.tableData.slice((this.currentPage - 1) * this.currentPageSize, this.currentPage * this.currentPageSize) : this.tableData
+        },
+        /**
+         * 返回单元格样式
+         */
+        returnCellStyle(){
+            return ({row,column, rowIndex, columnIndex}) => {
+                // {row, column, rowIndex, columnIndex}
+                return row[`$validate-${column.property}`] === false ? this.boxSelectStyle : {};
+            }
+        },
+        /**
+         * 获取表单插槽
+         */
+        getFormSlots(){
+            let scopedSlots = {};
+            for(let i in this.$scopedSlots){
+                if(i.indexOf('form-') > -1){
+                    scopedSlots[i] = params => {
+                        return this.$scopedSlots[i] ? this.$scopedSlots[i](params) : this.$slots[i];
+                    }
+                }
+            }
+            return scopedSlots;
+        },
+        getColumnMinWidth(){
+            return item => {
+                let {width, label: {length}, editType} = item;
+                let minWidth = width ? width : (length > 2 ? length * 20 : length * 22) + (item.sortable ? 24 : 0) + (item.filters ? 12 : 0);
+                return minWidth;
+            }
+        },
+        /**
+         * 获取按钮key值
+         */
+        getButtonKey(){
+            return (item, index) => {
+                return (item.target || item.emit) + index
+            }
+        },
+        /**
+         * 获取表格数据项渲染条件
+         */
+        getColumnVisible(){
+            return item => {
+                let type = typeof item.columnVisible;
+                return type === 'boolean' ? item.columnVisible : (type === 'function' ? item.columnVisible() : true);
+            }
+        },
+        /**
+         * 获取表格下标
+         */
+        getIndexMethod(){
+            return index => {
+                index++;
+                return this.indexSortBy === 'absolute' ? (this.currentPage - 1) * this.currentPageSize + index : index;
+            }
+        },
+        /**
+         * 统一绑定控件事件
+         */
+        getControlEvents(){
+            return (column, scope) => {
+                let controlEvents = {};
+                if(typeof column.controlEvents === 'object'){
+                    for(let i in column.controlEvents){
+                        controlEvents[i] = params => {
+                            typeof column.controlEvents[i] === 'function' ? column.controlEvents[i]({ params, scope, column, that: this }) : () => {console.log(params)}
+                        }
+                    };
+                    return controlEvents;
+                }else{
+                    return controlEvents;
+                }
+            }
+        },
+        getActionBarWidth(){
+            if(this.actionBarWidth){
+                return this.actionBarWidth
+            }else{
+                let wrapWidth = 20;
+                this.newActionButton.forEach((item, index) => {
+                    let textLength = (item.label && item.label.length ? item.label.length : 0) + (item.icon ? 1 : 0);
+                    let buttonWidth = item.width ? item.width : (32 + textLength * this.actionButtonFontSize + (item.label && item.icon ? 5 : 0) + (index ? 10 : 0)); // 图标与文字有5px的margin 除最后一个按钮, 都有5px的margin-left
+                    wrapWidth += buttonWidth;
+                    
+                })
+                return wrapWidth
+            }
+        },
+        returnOptions(){
+            return item => {
+                return this.dicts[item.dict] || this.$attrs[item.optionsKey] || item.options || []
+            }
+        },
+        // 返回控件默认属性
+        setControlProperty() {
+            function config() {
+                return {
+                    select: {
+                        size: "mini",
+                        filterable: true,
+                        placeholder: "请选择",
+                        
+                    },
+                    input: {
+                        type: "input",
+                        size: "mini",
+                        clearable: true,
+                        "show-password": false,
+                        "show-word-limit": false,
+                        maxlength: "",
+                        "suffix-icon": "", // 后缀icon
+                        "prefix-icon": "", // 前缀icon
+                        placeholder: "请输入内容",
+                    },
+                    "date-picker": {
+                        type: "date",
+                        format: "yyyy-MM-dd",
+                        "value-format": "yyyy-MM-dd",
+                        size: "mini",
+                        editable: false,
+                        clearable: false,
+                        readonly: false,
+                        placeholder: "请选择",
+                    },
+                    'time-picker': {
+                        size: 'mini',
+                        'is-range': true,
+                        'range-separator': '至',
+                        'start-placeholder': '开始时间',
+                        'end-placeholder': "结束时间",
+                        placeholder:"选择时间范围"
+                    },
+                    switch: {
+                        "active-text": "",
+                        "inactive-text": "",
+                    },
+                    link: {
+                        type: "primary",
+                        icon: "",
+                        underline: true,
+                    },
+                    'checkbox-group': {}, // 多选框组
+                };
+            }
+            return item => {
+                let {editType, control} = item;
+                let _config = config()[editType];
+                if (control) {
+                    for (let i in control) {
+                        _config[i] = control[i];
+                    }
+                }
+                return _config;
+            };
+        },
+  },
+  mounted(){
+   
+  },
+    methods: {
+        
+        /**
+         * 表头数据初始化
+         */
+        initTableColumn(){
+            if(this.editMode === 'window' && !this.unifiedEdit){
+                // 弹窗编辑
+                if(!this.formColumn){
+                    let formColumn = [];
+                    loopThroughTheArray(this.column, item => {
+                        if(['index', 'selection', 'expand'].indexOf(item.type) < 0 && item.formVisible !== false){
+                            formColumn.push(item)
+                        }
+                    })
+                    this.formConfig.column = formColumn;
+                }
+            }else{
+                // 行内编辑
+            }
+            this.organizeFieldsData();
+        },
+        /**
+         * 整理字段数据
+         */
+        organizeFieldsData(){
+            loopThroughTheArray(this.column, item => {
+                if(item.prop && item.columnVisible !== false){
+                    if(item.prop in this.initFieldsCollection || item.transferProp in this.initFieldsCollection){
+                        console.error(`[DynamicTable warn]: Duplicate prop detected: '${item.prop || item.transferProp}'. This may cause an update error`)
+                        return;
+                    }
+                    this.initFieldsCollection[item.transferProp ? item.transferProp : item.prop] = {
+                        value: this.supportedComponents[item.editType in this.supportedComponents ? item.editType : 'unknown'],
+                        label: item.label,
+                        editType: item.editType,
+                        required: typeof item.required  === 'boolean' ? item.required : false, // 默认字段非必传
+                        validator: item.validator ? item.validator : false // 验证方法
+                    };
+                    this.privateFields.push(`$validate-${item.prop}`); // 将验证字段添加到私有变量列表
+                    // 字典数据
+                    if(item.dict && !(item.dict in this.dicts)){
+                        // this.getDicts(item.dict).then(response => {
+                        //     this.dicts[item.dict] = response.data;
+                        //     // console.log('字典数据', this.dicts)
+                        // });
+                    }
+                }
+            })
+        },
+        /**
+         * 表格数据初始化
+         */
+        initTableData(){
+            if(this.dynamic){
+                // dynamic 未true时开启可编辑表格
+                this.tableData = deepClone(this.data)
+                if(this.unifiedEdit){
+                    // 统一编辑
+                    loopThroughTheArray(this.tableData, item => {
+                        item.$edit = true; // 编辑状态
+                        item.$rowKey = getId()
+                    })
+                }else{
+                    // 单行编辑
+                    if(!this.rowKey){
+                        // 没有传递rowKey时自动生成
+                        this.setTheDataIndex(this.tableData) // 初始化data内字段数据
+                    } 
+                }
+                 
+            }else{
+                // 仅作展示表格
+                this.tableData = this.data;
+            }
+        },
+        
+        // 更新数据索引
+        setTheDataIndex(data, parent){
+            loopThroughTheArray(data, (item, index, parent) => {
+                item.$rowKey = getId()
+                this.backupTableData[item.$rowKey] = deepClone(item);
+            }, parent)
+        },
+        handleNew(scope, button){
+            this.operationMode = 'new'; // 标记当前操作模式
+            this.formTitle = button.actionName; // 标记操作名称
+            if(this.editMode === 'window' && !this.unifiedEdit){
+                // 弹窗编辑
+                this.currentEditRow = scope && scope.row ? scope.row : null;
+                this.formVisible = true;
+            }else{
+                
+                // 行内编辑
+                let newRow = {};
+                for(let i in this.initFieldsCollection){
+                    newRow[i] = this.initFieldsCollection[i].value;
+                };
+                // 当使用自定义模板 创建了非 一对一 管理的表格时 可以传入initFields 指定初始化数据 否则将造成新增错误!
+                // 合并初始化数据字段
+                newRow = Object.assign(newRow, this.initFields)
+                newRow[this.uniqueKey] = getId()
+                let backupRow = deepClone(newRow) // 备份新增数据行
+                newRow.$new = true; // 标记为新增数据
+                newRow.$edit = true; // 默认开启编辑
+                newRow.$saveLoading = false; // 保存按钮loading
+                if(scope && scope.row){
+                    // children子集新增
+                    newRow.parent = {};
+                    for(let i in scope.row){
+                        if(i !== 'children' && this.privateFields.indexOf(i) < 0){
+                            newRow.parent[i] = deepClone(scope.row[i])
+                        }
+                    };
+                    if(scope.row.children){
+                        // 新增数据行
+                        scope.row.children[this.insertDataMethod](newRow);
+                    }else{
+                        this.$set(scope.row, 'children',  [newRow]);
+                    }
+                }else{
+                    // 根节点新增
+                    this.tableData[this.insertDataMethod](newRow);
+                };
+                this.backupTableData[newRow[this.uniqueKey]] = backupRow;
+            }
+            this.$message.info("新增！")
+        },
+        /**
+         * 定位到指定位置的数据
+         */
+        // locateTheDataByIndex(rootIndex, property){
+        //     let targetData = null;
+        //     let indexList = rootIndex.split('-');
+        //     indexList.some((item, index) => {
+        //         // 树形数据 定位源数据位置
+        //         let targetIndex = Number(item);
+        //         targetData = index === 0 ? this[property][targetIndex] : targetData.children[targetIndex];
+        //     });
+        //     return targetData;
+        // },
+        handleEdit({row}, button){
+            // console.log('当前编辑行', row)
+            this.currentEditRow = row; // 标记当前编辑行
+            this.operationMode = 'update'; // 标记当前操作模式
+            if(this.editMode === 'inline'){
+                // 行内编辑
+                this.$set(row, '$edit', true);
+            }else{
+                // 弹窗表单编辑
+                this.formTitle = button.actionName; // 操作名称
+                this.formConfig.disabledForm = false; 
+                this.formConfig.currentPanel = button.panel; // 设置表单的当前面板
+                this.formVisible = true;
+                this.$nextTick(() => {
+                    this.setDynamicForm(deepClone(row));
+                })
+            };
+            // 内置事件存在emit时, 一同触发
+            if(button.emit){
+                this.$emit('change', {type: button.emit, row: this.getEmitData(row)})
+            }
+        },
+        /**
+         * 更新动态表单字段值
+         */
+        setDynamicForm(row){
+            let form = this.$refs.dynamicForm.form;
+            for(let i in row){
+                if(this.initFieldsCollection[i]?.editType === 'time-picker'){
+                    // time-picker 控件的值必须为数组
+                    if(Array.isArray(row[i]) && row[i].length === 2){
+                        form[i] = row[i];
+                    }else{
+                        // 控件绑定值不符合规范 重置为默认值
+                        form[i] = this.$refs.dynamicForm.defaultFieldsValue[i];
+                    }
+                    
+                }else if(this.initFieldsCollection[i]?.editType === 'checkbox-group'){
+                    if(!Array.isArray(row[i])){
+                        form[i] = [];
+                    }
+                }else{
+                    form[i] = row[i];
+                }
+            }
+        },
+        /**
+         * 删除数据
+         */
+        handleDelete(scope){
+            let row = scope.row;
+            if(this.unifiedEdit && !this.deleteReport){
+                // 统一编辑
+                this.executeDelete(scope);
+            }else{
+                this.$set(row, '$deleteLoading', true);
+                this.$confirm(`确认要删除此条数据吗?`, '确认删除', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning',
+                    beforeClose: (action, instance, done) => {
+                        if (action === 'confirm') {
+                            instance.confirmButtonLoading = true;
+                            instance.confirmButtonText = '执行中...';
+                            const success = info => {
+                                if(this.needRefreshEvents.indexOf('delete') > -1){
+                                    if(this.tableData.length === 1 && this.currentPage > 1){
+                                        this.pageTurning(this.currentPage - 1)
+                                    }else{
+                                        this.emitPageChange(); // 刷新
+                                    }
+                                }else{
+                                    // 不刷新 更新本地备份数据
+                                    this.executeDelete(scope);
+                                };
+                                instance.confirmButtonLoading = false;
+                                done();
+                                this.executePromp({type:'success', message: info ? info : '删除成功！'})
+                            };
+                            const fail = info => {
+                                row.$deleteLoading = false;
+                                instance.confirmButtonLoading = false;
+                                done();
+                                this.executePromp({type:'error', message: info ? info : '删除失败！'})
+                            };
+                            this.$emit('change', {type: 'delete', row: this.getEmitData(scope.row), success, fail })
+                        }else{
+                            done()
+                        }
+                    }
+                }).catch(() => {
+                    row.$deleteLoading = false;
+                    this.$message({
+                        type: 'info',
+                        message : '已取消！'
+                    }) 
+                });
+            }
+            
+        },
+        // 获取被emit的数据
+        getEmitData(params){
+            if(this.emitDataType === 'reference'){
+                // 引用数据类型直接返回
+                return params;
+            }
+            let type = Object.prototype.toString.call(params)
+            let newParams = deepClone(params) // 深拷贝
+            // 非引用数据类型 去除组件带来的私有属性
+            if(type === "[object Object]"){
+                this.privateFields.forEach(field => {
+                    delete newParams[field];
+                });
+            }else if(type === "[object Array]"){
+                newParams.forEach(item => {
+                    this.privateFields.forEach(field => {
+                        delete item[field];
+                    });
+                })
+            }
+            return newParams;
+        },
+        handleView({row}, button){
+            this.operationMode = 'view'; // 标记操作模式
+            this.formTitle = button.actionName;
+            this.formConfig.disabledForm = true;
+            this.formConfig.currentPanel = button.panel; // 设置表单的当前面板
+            this.formVisible = true;
+            this.$nextTick(() => {
+                this.setDynamicForm(deepClone(row));
+            })
+        },
+        handleSave(scope){
+            let row = scope.row;
+            let mode = row.$new ? 'new' : 'update';
+            const success = (info) => {
+                if(this.needRefreshEvents.indexOf(mode) > -1){
+                    this.emitPageChange(); // 刷新当前页
+                }else{
+                    // 不刷新 更新本地备份数据
+                    this.backupTableData[row[this.uniqueKey]] = deepClone(row)
+                    row.$saveLoading = false;
+                    row.$new = false;
+                    row.$edit = false;
+                }
+                this.executePromp({type:'success', message: info ? info : '数据已更新！'})
+            };
+            const fail = (info) => {
+                row.$saveLoading = false;
+                this.executePromp({type:'error', message: info ? info : '更新失败！'})
+            };
+            this.$set(row, '$saveLoading', true); // 开启loading
+            // 校验
+            let checkRow = true;
+           
+            for(let i in this.initFieldsCollection){
+                let checkResult = this.checkRequireFields({key: i, row}); // 验证结果
+                if(checkResult.result){
+                    // 通过
+                    if(this.boxSelectErrorFields && row[`$validate-${i}`] === false){
+                        delete row[`$validate-${i}`];
+                    }
+                }else{
+                    // 未通过
+                    checkRow = false;
+                    if(this.boxSelectErrorFields){
+                        this.$set(row, `$validate-${i}`, false)
+                    }else{
+                        this.$message.error(checkResult.info)
+                        break;
+                    }
+                }
+            };
+            if(checkRow){
+                this.$emit('change', {type: row.$new ? 'new' : 'update', row: this.getEmitData(row), success, fail })
+            }else{
+                // 验证失败 恢复当前行状态
+                row.$saveLoading = false;
+                if(this.boxSelectErrorFields){
+                    this.$message.error('校验失败的字段已被标记！请检查后再试')
+                }
+            }
+        },
+        handleRemove(scope){
+            this.executeDelete(scope);
+            this.$message.info("移除！")
+        },
+        /**
+         * 取消编辑 重置控件值
+         */
+        handleCancel({row}){
+            console.log('取消', row)
+            for(let i in row){
+                if(this.privateFields.indexOf(i) < 0 && i.indexOf('$validate-') < 0){
+                    row[i] = deepClone(this.backupTableData[row[this.uniqueKey]][i])
+                }
+                if(i.indexOf('$validate-') === 0){
+                    // 清除字段的校验结果
+                    delete row[i];
+                }
+            }
+            if(!row.$new){
+               this.$set(row, '$edit', false);
+            }
+        },
+        /**
+         * 分页器分页条数改变事件
+         * @val 当前分页大小
+         */
+        handleSizeChange(val){
+            this.lastPageSize = this.currentPageSize; // 记录分页大小
+            this.currentPageSize = val;
+            this.currentPage = 1; // 重新选择分页大小时重置当前页码到1
+            if(!this.falsePaging){
+                this.setTableLoading(true);
+                this.emitPageChange();
+            } 
+        },
+        /**
+         * 分页器当前页码改变事件
+         * @val 当前页码
+         */
+        pageTurning(val){
+            this.lastPage = this.currentPage; // 记录页码
+            this.currentPage = val;
+            if(!this.falsePaging){
+                this.setTableLoading(true);
+                this.emitPageChange();
+            } 
+        },
+        selectionChange(val){
+            this.$emit('selection-change', val)
+        },
+        currentRowChange(currentRow, oldCurrentRow){
+            this.$emit('current-change', currentRow, oldCurrentRow)
+        },
+        /**
+         * 设置表格数据加载loading
+         */
+        setTableLoading(state){
+            if(this.loading){
+                this.$emit('update:loading', state);
+            }else{
+                this.dataLoading = state;
+            }
+        },
+        /**
+         * 行内编辑 检查字段
+         */
+        checkRequireFields({key, row}){
+            // key: 当前列的prop值 | index: 当前行下标 | row: 当前行数据
+            let value = row[key];
+            let field = this.initFieldsCollection[key];
+            if(field.required && value === ""){
+                // 必传字段不能为空
+                return {
+                    result: false,
+                    info: `${field.label}不能为空！`
+                };
+            }
+            if(field.validator){
+                const checkFunc = {
+                    "object": () => {
+                        // 正则
+                        try{
+                            let reg = field.validator;
+                            let result = reg.test(value);
+                            return {
+                                result,
+                                info: result ? '验证通过' : `${field.label}验证不通过！`
+                            }
+                        }catch(error){
+                            console.log(error)
+                            return {
+                                result: false,
+                                info: '未知的验证错误，请检查验证方法或正则是否有误！'
+                            }
+                        }
+                    },
+                    "function": () => {
+                        // 返回当前参数值
+                        let result = field.validator({value, row});
+                        return {
+                            result,
+                            info: result ? '验证通过' : `${field.label}验证不通过！`
+                        }
+                    },
+                    "boolean": () => {
+                        return {  // 不验证
+                            result: true,
+                            info: '不验证'
+                        } 
+                    },
+                    "unknown": () => {
+                        return {  // 不验证
+                            result: true,
+                            info: '不验证'
+                        } 
+                    }
+                }
+                let type = typeof field.validator;
+                type = (type in checkFunc) ? type : 'unknown';
+                return checkFunc[type]();
+            };
+            return {
+                result: true,
+                info: '通过'
+            };
+        },
+        /**
+         * 删除本地数据 并更新备份
+         */
+        executeDelete({row}){
+            loopThroughTheArrayBySome(this.tableData, (item, index, parent) => {
+                if(parent && item[this.uniqueKey] === row[this.uniqueKey]){
+                    parent.children.splice(index, 1)
+                    delete this.backupTableData[item[this.uniqueKey]];
+                    return true;
+                }else if(item[this.uniqueKey] === row[this.uniqueKey]){
+                    this.tableData.splice(index, 1)
+                    delete this.backupTableData[item[this.uniqueKey]];
+                    return true;
+                }
+            })
+            row.$deleteLoading = false;
+        },
+        /**
+         * 上报分页器事件
+         */
+        emitPageChange(){
+            const success = info => {
+                this.setTableLoading(false);
+                this.executePromp({
+                    type: 'success',
+                    message: info ? info : '表格数据已更新！',
+                })
+            };
+            const fail = info => {
+                this.currentPage = this.lastPage; // 重置
+                this.setTableLoading(false);
+                this.executePromp({
+                    type: 'error',
+                    message: info ? info : '刷新表格数据失败！',
+                })
+            };
+            this.$emit('change', {
+                type: 'pageChange',
+                currentPage: this.currentPage,
+                currentPageSize: this.currentPageSize,
+                success,
+                fail
+            })
+        },
+        
+        /**
+         * 动态设置按钮label 
+         * @item 按钮配置项
+         * @scope 当前数据行
+         */
+        setButtonText(item, scope){
+            if(item.label){
+                let type = typeof item.label;
+                return type === 'string' ? item.label : type === 'function' ? item.label(scope) : '';
+            }else if(this.actionButtonType === 'link'){
+                return item.title || item.target || item.emit;
+            }
+        },
+        /**
+         * 返回内置事件名
+         */
+        builtInEvent(item){
+            let target = {
+                new: 'handleNew',
+                update: 'handleEdit',
+                delete: 'handleDelete',
+                view: 'handleView',
+                save: 'handleSave',
+                remove: 'handleRemove',
+                cancel: 'handleCancel',
+                // 表单弹窗事件
+                $update: 'dialogConfirm',
+                $cancel: 'closeDialog',
+                $close: 'closeDialog',
+            };
+            return item.target in target ? target[item.target] : 'unknownMethod'
+        },
+        unknownMethod(){
+            this.$message.error("未知的调用方法！")
+        },
+        /**
+         * 触发内置事件或将事件类型上报
+         * @trigger 触发事件的按钮配置
+         * @scope 当前数据行
+         */
+        reportEvent(trigger, scope){
+            if(trigger.target){
+                this[this.builtInEvent(trigger)](scope, trigger);
+            }else if(trigger.emit){
+                // 表单触发
+                if(scope.form){
+                    this.$emit('change', {type: trigger.emit, trigger, scope, close: this.closeDialog, save: this.dialogConfirm})
+                }else{
+                    this.$emit('change', {type: trigger.emit, trigger, scope})
+                }
+                
+            }  
+        },
+        /**
+         * 内置功能按钮基本渲染条件
+         */
+        builtInButtonConditions(item, params){
+            let execute = null;
+            if(params){
+                // 行内编辑
+                execute = {
+                    new: (!this.unifiedEdit && !params.row.$new && !params.row.$edit) || this.unifiedEdit,
+                    update: !params.row.$edit && !this.unifiedEdit,
+                    delete: (!params.row.$new && !params.row.$edit) || this.unifiedEdit,
+                    view: this.editMode === 'window' && !this.unifiedEdit && !params.row.$new && !params.row.$edit,
+                    save: params.row.$edit && !this.unifiedEdit,
+                    remove: params.row.$new && !this.unifiedEdit,
+                    cancel: params.row.$edit && !this.unifiedEdit,
+                };
+            }else{
+                // 表单弹窗 this.$refs.dynamicForm?.form
+                execute = {
+                    ///// 表单弹窗控制属性
+                    $update: this.operationMode === 'update' || this.operationMode === 'new',
+                    $cancel: this.operationMode === 'update' || this.operationMode === 'new',
+                    $close: this.operationMode === 'view'
+                };
+            }
+            return item.target in execute ? execute[item.target] : false;
+        },
+        /**
+         * 获取按钮的渲染条件
+         * @type 按钮唯一键
+         * @scope 当前数据行
+         */
+        getRenderConditions(type, scope){
+            if(type in this.defaultAccessControl){
+                let target = this.defaultAccessControl[type];
+                let validateType = typeof target;
+                let executeFunc = {
+                    string: () => {
+                        return scope.row[target] === true || scope.row[target] == '1';
+                    },
+                    boolean: () => {
+                        return target;
+                    },
+                    function: () => {
+                        try{
+                            return target(scope);
+                        }catch(error){
+                            console.log('自定义验证函数错误！', error);
+                            return false;
+                        }
+                    }
+                };
+                return executeFunc[validateType]();
+            }else{
+                // 没有控制 默认为true
+                return true;
+            };
+        },
+        /**
+         * 刷新当前页
+         */
+        reload(){
+            this.lastPage = this.currentPage;
+            this.setTableLoading(true);
+            this.emitPageChange();
+        },
+        /**
+         * 内置信息提示
+         */
+        executePromp(info){
+            if(this.defaultPrompt){
+                this.$message(info);
+            }
+        },
+        /**
+         * 表单关闭前清除验证
+         */
+        beforeClose(done){
+            if(this.currentEditRow){
+              
+                // 如果是编辑数据则在关闭时重置表单
+                this.$refs.dynamicForm.resetForm() // 重置表单
+                
+            }
+            
+            done()
+        },
+        /**
+         * 编辑弹窗确认dialogConfir
+         */
+        dialogConfirm(){
+            this.$refs.dynamicForm.validate((valid, form) => {
+                if(valid){
+                    this.dialogConfirmLoading = true; // 开启loading
+                    const success = () => {
+                        this.executePromp({type: 'success', message: `${this.operationMode === 'new' ? '新增': '更新'}数据成功！`})
+                        this.$refs.dynamicForm.resetForm() // 重置表单
+                        this.formVisible = false;
+                        this.reload() // 刷新当前页
+                    };
+                    const fail = () => {
+                        this.executePromp({type: 'error', message: `${this.operationMode === 'new' ? '新增': '更新'}数据失败！`})
+                        this.dialogConfirmLoading = false;
+                    }
+                    if(this.needRefreshEvents.indexOf(this.operationMode) > -1){
+                        // 刷新表格当前页
+                        this.dialogConfirmLoading = true;
+                        this.$emit('change', {type: this.operationMode === 'new' ? 'new' : 'update', row: form, success, fail})
+                    }else{
+                        // 本地更新
+                        if(this.operationMode === 'new'){
+                            let copyForm = deepClone(form);
+                            copyForm[this.uniqueKey] = getId(); // 随机id
+                            if(this.currentEditRow){
+                                // children
+                                if(this.currentEditRow.children){
+                                   this.currentEditRow.children[this.insertDataMethod](copyForm)
+                                }else{
+                                    // 无children
+                                    this.$set(this.currentEditRow, 'children', [copyForm])
+                                }
+                            }else{
+                                this.tableData[this.insertDataMethod](copyForm)
+                            }
+                            this.backupTableData[copyForm[this.uniqueKey]] = deepClone(form);
+                        }else{
+                            // 更新当前行数据
+                            let data = deepClone(form)
+                            for(let i in data){
+                                this.currentEditRow[i] = deepClone(data[i]);
+                                this.backupTableData[this.currentEditRow[this.uniqueKey]][i] = deepClone(data[i]); // 更新备份数据
+                            };
+                        }
+                        this.formVisible = false;
+                        // this.$refs.dynamicForm.resetForm(); // 确认后重置表单
+                        this.executePromp({type: 'success', message: '数据已更新！'})
+                    }
+                    
+                }else{
+
+                }
+            })
+        },
+        /**
+         * 编辑弹窗取消
+         */
+        closeDialog(){
+            this.$refs.dynamicForm.resetForm();
+            this.formVisible = false;
+        },
+        /**
+         * 获取表格默认展示值
+         */
+        getDefaultDisplayValue(column, value){
+            if(column.editType === 'time-picker' && Array.isArray(value) && value.length){
+                return dateFormat(value[0], 'HH:MM:SS') + '~' + dateFormat(value[1], 'HH:MM:SS')
+            }else{
+                return value;
+            }
+        },
+        /**
+         * 检查字段类型是否符合控件期望
+         */
+        checkExpectFieldsType(data){
+            // 解决编辑控件期望的绑定值与实际值类型不一致时报错的问题
+            if(this.column.length){
+                if(getFieldType(data) === 'Object'){
+                for(let i in this.initFieldsCollection){
+                        if(Array.isArray(this.supportedComponents[this.initFieldsCollection[i]?.editType]) && !Array.isArray(data[i])){
+                            data[i] = []; // 当控件期望绑定值为数组 实际绑定值不符时会引起报错 此处重置为空数组
+                        }
+                    } 
+                }else if(getFieldType(data) === 'Array'){
+                    data.forEach(item => {
+                        this.checkExpectFieldsType(item)
+                    })
+                }
+            }else{
+                this.$message.error('表格字段数据尚未初始化, 暂无法校正字段类型!')
+            }
+            
+        },
+        /**
+         * 检查并返回表格数据
+         */
+        checkTableData(){
+           // 数据校验
+            let finalResult = true;
+            loopThroughTheArray(this.tableData, (item, index, parent) => {
+                for(let i in this.initFieldsCollection){
+                    let checkResult = this.checkRequireFields({key: i, row: item}); // 验证结果
+                    console.log(checkResult, i)
+                    if(checkResult.result){
+                       this.$delete(item, `$validate-${i}`)
+                    }else{
+                        // 校验失败 框选标记出该字段位置
+                        finalResult = false;
+                        this.$set(item, `$validate-${i}`, false)
+                    }
+                };
+                
+            })
+            if(finalResult){
+                // checkTableData方法返回的数据默认经过深拷贝
+                let sendData = deepClone(this.tableData)
+                loopThroughTheArray(sendData, (item, index) => {
+                    // 移除组件带来的私有变量
+                    this.privateFields.forEach(field => {
+                        delete item[field];
+                    })
+                })
+                return sendData;
+            }else{
+                this.$message.error('表格数据校验失败，请检查完善后再试！')
+                return false;
+            }
+        },
+    },
+}
+</script>
+
+<style lang="scss" scoped>
+@import './style' 
+</style>
