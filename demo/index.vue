@@ -47,15 +47,16 @@ export default {
                 height: 500,
                 // maxHeight: 200,
                 dynamic: true, 
-                unifiedEdit: true,
-                editMode: 'inline',
+                // unifiedEdit: false,
+                editMode: 'window',
                 pagination: true,
                 total: 100002,
                 falsePaging: true,
                 needRefreshEvents: [],
                 initFields: {
                     input: '输入框',
-                    select: 24
+                    select: 24,
+                   
                 },
                 accessControl: {
                     update: true,
@@ -104,22 +105,22 @@ export default {
                     align: "center",
                     editType: "input",
                     required: true,
-                    sortable: true,
-                    formVisible({form}){
-                        return form.select == 1
-                    },
+                    // sortable: true,
+                    // formVisible({form}){
+                    //     return form.select == 1
+                    // },
                     // columnVisible: false
                     panel: 1, // 面板
                     eventName: 'blur',
                     controlMethod(params){
                         console.log('blur', params)
                     },
-                     controlEvents: {
-                            change(params){
-                                console.log(params)
-                                params.scope.row.select = 2;
-                            },
-                        }
+                    //  controlEvents: {
+                    //         change(params){
+                    //             console.log(params)
+                    //             params.scope.row.select = 2;
+                    //         },
+                    //     }
                 },
                 {
                     panel: 1, // 面板
@@ -128,10 +129,7 @@ export default {
                     align: "center",
                     editType: "select",
                     optionsKey: 'selectOptions',
-                    optionControl: {
-                        label: 'name',
-                        value: 'id'
-                    }
+                    
                 },
                 {
                     panel: 1, // 面板
@@ -149,9 +147,7 @@ export default {
                     template(scope){
                         return scope.row.switch ? '开启' : '关闭'
                     },
-                    validator({value}){
-                        return value === true
-                    }
+                   
                 },
                 {
                     panel: 2, // 面板
@@ -195,20 +191,15 @@ export default {
                 {
                     label: '选择文件2',
                     prop: 'selectFile2',
-                    editType: 'upload-button',
+                    cols:2,
+                    editType: 'upload-img',
                     control: {
+                        limit: 3,
                         'show-file-list': true
                     },
                     columnVisible: false,
                     
                 },
-                {
-                    label: '上传图片',
-                    prop: 'img',
-                    editType: 'upload-img',
-                    cols: 2,
-                    columnVisible: false
-                }
                 ],
                 data: [
                     {
@@ -246,7 +237,8 @@ export default {
     },
     methods: {
         checkTableData(){
-            console.log(this.$refs.dynamicTable.checkTableData())
+            console.log(this.tableConfig.data )
+           
         },
         tableChange(event) {
             console.log("表格触发事件", event);

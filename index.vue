@@ -24,7 +24,7 @@ export default {
             lastPageSize: null, // 上一次选中的当前页大小
             toolsObject: {},
             formVisible: false, // 编辑弹窗显隐
-            dialogConfirmLoading: false,
+            dialogConfirmLoading: false, // 弹窗loading
             operationMode: 'new', // 更新方式 新增或修改已有数据 
             uniqueKey: this.rowKey ? this.rowKey : '$rowKey', // 唯一键
             formTitle: '', // 弹窗表单标题
@@ -108,32 +108,32 @@ export default {
                 return column.editRender(h, scope)
             }else if(column.editType === 'input'){
                 // 输入框
-                return <el-input v-model={scope.row[scope.column.property]}  props={this.setControlProperty(column)} on={this.getControlEvents(column, scope)}></el-input>
+                return <el-input v-model={scope.row[scope.column.property]}  props={this.setControlProperty(column)} on={this.getControlEvents(column, scope)} disabled={this.setDisabledState(column, scope)} ></el-input>
             }else if(column.editType === 'select'){
                 // 下拉框
-                return <el-select v-model={scope.row[scope.column.property]}  props={this.setControlProperty(column)} on={this.getControlEvents(column, scope)} style="width: 100%">
+                return <el-select v-model={scope.row[scope.column.property]}  props={this.setControlProperty(column)} on={this.getControlEvents(column, scope)} disabled={this.setDisabledState(column, scope)} style="width: 100%">
                 {this.returnOptions(column).map(opt => {
                     return <el-option 
-                    label={column.optionControl ? opt[column.optionControl.label] : opt.label}
-                    value={column.optionControl ? opt[column.optionControl.value] : opt.value}>
+                    label={column.optionControl?.label ? opt[column.optionControl.label] : opt[this.optionControl.label]}
+                    value={column.optionControl?.value ? opt[column.optionControl.value] : opt[this.optionControl.value]}>
                     </el-option>
                 })}
                 </el-select>
             }else if(column.editType === 'date-picker'){
                 // 日期选择器
-                return <el-date-picker v-model={scope.row[scope.column.property]} props={this.setControlProperty(column)} on={this.getControlEvents(column, scope)} style="width: 100%"></el-date-picker>
+                return <el-date-picker v-model={scope.row[scope.column.property]} props={this.setControlProperty(column)} on={this.getControlEvents(column, scope)} disabled={this.setDisabledState(column, scope)} style="width: 100%"></el-date-picker>
             }else if(column.editType === 'switch'){
                 // 开关
-                return <el-switch v-model={scope.row[scope.column.property]} props={this.setControlProperty(column)} on={this.getControlEvents(column, scope)}></el-switch>
+                return <el-switch v-model={scope.row[scope.column.property]} props={this.setControlProperty(column)} on={this.getControlEvents(column, scope)} disabled={this.setDisabledState(column, scope)}></el-switch>
             }else if(column.editType === 'link'){
                 // 链接
-                return <el-link on-click={() => {this.reportEvent(column, scope)}} props={this.setControlProperty(column)} on={this.getControlEvents(column, scope)}>{column.linkText ? column.linkText : "链接"}</el-link>
+                return <el-link on-click={() => {this.reportEvent(column, scope)}} props={this.setControlProperty(column)} on={this.getControlEvents(column, scope)} disabled={this.setDisabledState(column, scope)}>{column.linkText ? column.linkText : "链接"}</el-link>
             }else if(column.editType === 'checkbox-group'){
                 // 多选框组
-                return <el-checkbox-group v-model={scope.row[scope.column.property]} props={this.setControlProperty(column)} on={this.getControlEvents(column, scope)}>
+                return <el-checkbox-group v-model={scope.row[scope.column.property]} props={this.setControlProperty(column)} on={this.getControlEvents(column, scope)} disabled={this.setDisabledState(column, scope)}>
                     {this.returnOptions(column).map(opt => {
-                        return <el-checkbox label={column.optionControl && column.optionControl.value ? opt[column.optionControl.value] : opt.value}>
-                            {column.optionControl && column.optionControl.label ? opt[column.optionControl.label] : opt.label}
+                        return <el-checkbox label={column.optionControl?.value ? opt[column.optionControl.value] : opt[this.optionControl.value]}>
+                            {column.optionControl?.label ? opt[column.optionControl.label] : opt[this.optionControl.label]}
                         </el-checkbox>
                     })}
                 </el-checkbox-group>
@@ -143,6 +143,7 @@ export default {
                         v-model={scope.row[scope.column.property]}
                         props={this.setControlProperty(column)}
                         on={this.getControlEvents(column, scope)}
+                        disabled={this.setDisabledState(column, scope)}
                         style="width: 100%">
                     </el-time-picker>
             }else{
@@ -161,7 +162,7 @@ export default {
                         {renderColumns(column.children)}
                     </el-table-column>)
                 }else{
-                    if(['index', 'selection', 'expand'].indexOf(column.type) > -1){
+                    if(['index', 'selection', 'expand'].indexOf(column.type) > -1 && this.getColumnVisible(column)){
                         // 序号
                         return <el-table-column
                             type={column.type}
@@ -226,22 +227,25 @@ export default {
         const setDefaultButton = (item, scope, index) => {
             return this.actionButtonType === 'link' ? 
             <el-link on-click={() => {this.reportEvent(item, scope)}} 
-                type={item.type} 
-                icon={item.icon} 
-                title={item.title} 
-                disabled={scope.row.$deleteLoading} 
+                type={typeof item.type === 'function' ? (item.type(scope)) : item.type} 
+                icon={typeof item.icon === 'function' ? (item.icon(scope)) : item.icon} 
+                title={typeof item.title === 'function' ? (item.title(scope)) : item.title} 
+                disabled={this.setDisabledState(item, scope)} 
                 underline={item.underline}
+                class={item.class}
                 key={this.getButtonKey(item, index)}
                 size={this.actionButtonSize}>{this.setButtonText(item, scope)}</el-link> :
             <el-button on-click={() => {this.reportEvent(item, scope)}} 
-                type={item.type} 
-                icon={item.icon} 
-                title={item.title} 
+                type={typeof item.type === 'function' ? (item.type(scope)) : item.type} 
+                icon={typeof item.icon === 'function' ? (item.icon(scope)) : item.icon} 
+                title={typeof item.title === 'function' ? (item.title(scope)) : item.title} 
                 plain={item.plain}
                 round={item.round}
                 circle={item.circle}
+                class={item.class}
                 key={this.getButtonKey(item, index)}
-                disabled={scope.row.$deleteLoading} 
+                disabled={this.setDisabledState(item, scope)} 
+                loading={item.target === 'save' ? scope.row.$saveLoading : item.target === 'delete' ? scope.row.$deleteLoading : false}
                 size={this.actionButtonSize}>{this.setButtonText(item, scope)}</el-button>
         }
         /**
@@ -279,9 +283,9 @@ export default {
         const renderActionColumn = () => {
             if(this.$scopedSlots.action){
                 // 完全自定义操作栏插槽
-                return this.$scopedSlots.action(this.tableData) || this.$slots.action;
+                return this.$scopedSlots.action(this.data) || this.$slots.action;
             }else if(this.dynamic && this.showAction){
-                return <el-table-column align="left" fixed="right" width={this.getActionBarWidth} min-width={this.getActionBarWidth}
+                return <el-table-column align={this.align} fixed="right" width={this.getActionBarWidth} min-width={this.getActionBarWidth}
                     {...{
                         scopedSlots: {
                             header: scope => {
@@ -343,6 +347,7 @@ export default {
                                 circle={item.circle}
                                 key={this.getButtonKey(item, index)}
                                 disabled={item.disabled} 
+                                loading={item.target === '$update' ? this.dialogConfirmLoading : false}
                                 size={this.formDialogButtonSize}>{this.setButtonText(item, this.$refs.dynamicForm?.form)}</el-button>
                             }
                             
@@ -384,7 +389,7 @@ export default {
          * 返回表格数据
          */
         returnTableData(){
-            return this.falsePaging ? this.tableData.slice((this.currentPage - 1) * this.currentPageSize, this.currentPage * this.currentPageSize) : this.tableData
+            return this.falsePaging ? this.data.slice((this.currentPage - 1) * this.currentPageSize, this.currentPage * this.currentPageSize) : this.data
         },
         /**
          * 返回单元格样式
@@ -601,10 +606,9 @@ export default {
         initTableData(){
             if(this.dynamic){
                 // dynamic 未true时开启可编辑表格
-                this.tableData = deepClone(this.data)
                 if(this.unifiedEdit){
                     // 统一编辑
-                    loopThroughTheArray(this.tableData, item => {
+                    loopThroughTheArray(this.data, item => {
                         item.$edit = true; // 编辑状态
                         item.$rowKey = getId()
                     })
@@ -612,13 +616,13 @@ export default {
                     // 单行编辑
                     if(!this.rowKey){
                         // 没有传递rowKey时自动生成
-                        this.setTheDataIndex(this.tableData) // 初始化data内字段数据
+                        this.setTheDataIndex(this.data) // 初始化data内字段数据
                     } 
                 }
                  
             }else{
                 // 仅作展示表格
-                this.tableData = this.data;
+                // TODO
             }
         },
         
@@ -630,11 +634,16 @@ export default {
             }, parent)
         },
         handleNew(scope, button){
+            if(typeof button.premise === 'function' && !(button.premise(scope))){
+                // 未通过前置条件
+                return;
+            };
             this.operationMode = 'new'; // 标记当前操作模式
             this.formTitle = button.actionName; // 标记操作名称
             if(this.editMode === 'window' && !this.unifiedEdit){
                 // 弹窗编辑
                 this.currentEditRow = scope && scope.row ? scope.row : null;
+                this.formConfig.disabledForm = false; 
                 this.formVisible = true;
             }else{
                 
@@ -667,7 +676,7 @@ export default {
                     }
                 }else{
                     // 根节点新增
-                    this.tableData[this.insertDataMethod](newRow);
+                    this.data[this.insertDataMethod](newRow);
                 };
                 this.backupTableData[newRow[this.uniqueKey]] = backupRow;
             }
@@ -686,8 +695,13 @@ export default {
         //     });
         //     return targetData;
         // },
-        handleEdit({row}, button){
+        handleEdit(scope, button){
             // console.log('当前编辑行', row)
+            if(typeof button.premise === 'function' && !(button.premise(scope))){
+                // 未通过前置条件
+                return;
+            };
+            let row = scope.row;
             this.currentEditRow = row; // 标记当前编辑行
             this.operationMode = 'update'; // 标记当前操作模式
             if(this.editMode === 'inline'){
@@ -735,7 +749,11 @@ export default {
         /**
          * 删除数据
          */
-        handleDelete(scope){
+        handleDelete(scope, button){
+            if(typeof button.premise === 'function' && !(button.premise(scope))){
+                // 未通过前置条件
+                return;
+            };
             let row = scope.row;
             if(this.unifiedEdit && !this.deleteReport){
                 // 统一编辑
@@ -752,7 +770,7 @@ export default {
                             instance.confirmButtonText = '执行中...';
                             const success = info => {
                                 if(this.needRefreshEvents.indexOf('delete') > -1){
-                                    if(this.tableData.length === 1 && this.currentPage > 1){
+                                    if(this.data.length === 1 && this.currentPage > 1){
                                         this.pageTurning(this.currentPage - 1)
                                     }else{
                                         this.emitPageChange(); // 刷新
@@ -808,7 +826,12 @@ export default {
             }
             return newParams;
         },
-        handleView({row}, button){
+        handleView(scope, button){
+            if(typeof button.premise === 'function' && !(button.premise(scope))){
+                // 未通过前置条件
+                return;
+            };
+            let row = scope.row;
             this.operationMode = 'view'; // 标记操作模式
             this.formTitle = button.actionName;
             this.formConfig.disabledForm = true;
@@ -999,13 +1022,13 @@ export default {
          * 删除本地数据 并更新备份
          */
         executeDelete({row}){
-            loopThroughTheArrayBySome(this.tableData, (item, index, parent) => {
+            loopThroughTheArrayBySome(this.data, (item, index, parent) => {
                 if(parent && item[this.uniqueKey] === row[this.uniqueKey]){
                     parent.children.splice(index, 1)
                     delete this.backupTableData[item[this.uniqueKey]];
                     return true;
                 }else if(item[this.uniqueKey] === row[this.uniqueKey]){
-                    this.tableData.splice(index, 1)
+                    this.data.splice(index, 1)
                     delete this.backupTableData[item[this.uniqueKey]];
                     return true;
                 }
@@ -1039,7 +1062,13 @@ export default {
                 fail
             })
         },
-        
+         /**
+         * 设置预置控件的禁用状态
+         */
+        setDisabledState(column, scope){
+            let row = scope.row;
+            return row.$saveLoading || row.$deleteLoading || (typeof column.disabled === 'function' ? column.disabled(row) : false)
+        },
         /**
          * 动态设置按钮label 
          * @item 按钮配置项
@@ -1131,7 +1160,7 @@ export default {
                 let validateType = typeof target;
                 let executeFunc = {
                     string: () => {
-                        return scope.row[target] === true || scope.row[target] == '1';
+                        return scope.row[target] === true || scope.row[target] == '1' || (Array.isArray(scope.row[target]) && scope.row[target].length > 0);
                     },
                     boolean: () => {
                         return target;
@@ -1186,50 +1215,27 @@ export default {
         dialogConfirm(){
             this.$refs.dynamicForm.validate((valid, form) => {
                 if(valid){
-                    this.dialogConfirmLoading = true; // 开启loading
-                    const success = () => {
-                        this.executePromp({type: 'success', message: `${this.operationMode === 'new' ? '新增': '更新'}数据成功！`})
+                    const success = info => {
+                        if(this.needRefreshEvents.indexOf(this.operationMode) > -1){
+                            this.emitPageChange() // 刷新当前页
+                        }else{
+                            this.saveFormDataToTable(form)
+                        };
                         this.$refs.dynamicForm.resetForm() // 重置表单
-                        this.formVisible = false;
-                        this.reload() // 刷新当前页
+                        this.dialogConfirmLoading = false; // 关闭loading
+                        this.formVisible = false; // 关闭弹窗
+                        this.executePromp({type: 'success', message: info ? info : `${this.operationMode === 'new' ? '新增': '更新'}数据成功！`})
                     };
-                    const fail = () => {
-                        this.executePromp({type: 'error', message: `${this.operationMode === 'new' ? '新增': '更新'}数据失败！`})
+                    const fail = info => {
+                        this.executePromp({type: 'error', message: info ? info : `${this.operationMode === 'new' ? '新增': '更新'}数据失败！`})
                         this.dialogConfirmLoading = false;
                     }
-                    if(this.needRefreshEvents.indexOf(this.operationMode) > -1){
-                        // 刷新表格当前页
-                        this.dialogConfirmLoading = true;
-                        this.$emit('change', {type: this.operationMode === 'new' ? 'new' : 'update', row: form, success, fail})
-                    }else{
-                        // 本地更新
-                        if(this.operationMode === 'new'){
-                            let copyForm = deepClone(form);
-                            copyForm[this.uniqueKey] = getId(); // 随机id
-                            if(this.currentEditRow){
-                                // children
-                                if(this.currentEditRow.children){
-                                   this.currentEditRow.children[this.insertDataMethod](copyForm)
-                                }else{
-                                    // 无children
-                                    this.$set(this.currentEditRow, 'children', [copyForm])
-                                }
-                            }else{
-                                this.tableData[this.insertDataMethod](copyForm)
-                            }
-                            this.backupTableData[copyForm[this.uniqueKey]] = deepClone(form);
-                        }else{
-                            // 更新当前行数据
-                            let data = deepClone(form)
-                            for(let i in data){
-                                this.currentEditRow[i] = deepClone(data[i]);
-                                this.backupTableData[this.currentEditRow[this.uniqueKey]][i] = deepClone(data[i]); // 更新备份数据
-                            };
-                        }
-                        this.formVisible = false;
-                        // this.$refs.dynamicForm.resetForm(); // 确认后重置表单
-                        this.executePromp({type: 'success', message: '数据已更新！'})
+                    this.dialogConfirmLoading = true;
+                    let row = this.getEmitData(form);
+                    if(this.operationMode === 'new'){
+                        row.parent = this.getEmitData(this.currentEditRow);
                     }
+                    this.$emit('change', {type: this.operationMode === 'new' ? 'new' : 'update', row, success, fail})
                     
                 }else{
 
@@ -1244,11 +1250,47 @@ export default {
             this.formVisible = false;
         },
         /**
+         * 保存表单数据到表格 本地更新
+         */
+        saveFormDataToTable(form){
+            // 本地更新
+            if(this.operationMode === 'new'){
+                let copyForm = deepClone(form);
+                copyForm[this.uniqueKey] = getId(); // 随机id
+                if(this.currentEditRow){
+                    // children
+                    if(this.currentEditRow.children){
+                        this.currentEditRow.children[this.insertDataMethod](copyForm)
+                    }else{
+                        // 无children
+                        this.$set(this.currentEditRow, 'children', [copyForm])
+                    }
+                }else{
+                    this.data[this.insertDataMethod](copyForm)
+                }
+                this.backupTableData[copyForm[this.uniqueKey]] = deepClone(form);
+            }else{
+                // 更新当前行数据
+                let data = deepClone(form)
+                for(let i in data){
+                    this.currentEditRow[i] = deepClone(data[i]);
+                    this.backupTableData[this.currentEditRow[this.uniqueKey]][i] = deepClone(data[i]); // 更新备份数据
+                };
+            }
+            this.formVisible = false;
+            // this.$refs.dynamicForm.resetForm(); // 确认后重置表单
+        },
+        /**
          * 获取表格默认展示值
          */
         getDefaultDisplayValue(column, value){
             if(column.editType === 'time-picker' && Array.isArray(value) && value.length){
                 return dateFormat(value[0], 'HH:MM:SS') + '~' + dateFormat(value[1], 'HH:MM:SS')
+            }else if(value && column.editType === 'select'){
+                let arr = this.dicts[column.dict] || this.$attrs[column.optionsKey] || column.options || [];
+                let target = arr.find(item => item[column.optionControl?.value ? column.optionControl.value : this.optionControl.value] === value);
+                return target ? target[column.optionControl?.label ? column.optionControl.label : this.optionControl.label] : '无匹配数据'
+                
             }else{
                 return value;
             }
@@ -1281,7 +1323,7 @@ export default {
         checkTableData(){
            // 数据校验
             let finalResult = true;
-            loopThroughTheArray(this.tableData, (item, index, parent) => {
+            loopThroughTheArray(this.data, (item, index, parent) => {
                 for(let i in this.initFieldsCollection){
                     let checkResult = this.checkRequireFields({key: i, row: item}); // 验证结果
                     console.log(checkResult, i)
@@ -1297,7 +1339,7 @@ export default {
             })
             if(finalResult){
                 // checkTableData方法返回的数据默认经过深拷贝
-                let sendData = deepClone(this.tableData)
+                let sendData = deepClone(this.data)
                 loopThroughTheArray(sendData, (item, index) => {
                     // 移除组件带来的私有变量
                     this.privateFields.forEach(field => {

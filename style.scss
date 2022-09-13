@@ -28,7 +28,7 @@
             // 输入控件
             .el-input, .el-select, .el-checkbox-group{
                 flex:1;
-                max-width: calc(100% - 2px);
+                max-width: calc(100% - 24px);
             }
             .el-table__expand-icon+.el-select{
                 max-width: calc(100% - 24px);

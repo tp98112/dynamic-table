@@ -64,15 +64,9 @@
                 >
                 <el-option
                     v-for="opt in returnOptions(item)"
-                    :key="
-                    item.optionControl ? opt[item.optionControl.value] : opt.value
-                    "
-                    :label="
-                    item.optionControl ? opt[item.optionControl.label] : opt.label
-                    "
-                    :value="
-                    item.optionControl ? opt[item.optionControl.value] : opt.value
-                    "
+                    :key="item.optionControl ? opt[item.optionControl.value] : opt[optionControl.value]"
+                    :label="item.optionControl ? opt[item.optionControl.label] : opt[optionControl.label]"
+                    :value="item.optionControl ? opt[item.optionControl.value] : opt[optionControl.value]"
                 >
                 </el-option>
                 </el-select>
@@ -100,13 +94,13 @@
                     :label="
                     item.optionControl
                         ? radio[item.optionControl.value]
-                        : radio.value
+                        : radio[optionControl.value]
                     "
                     :disabled="disabled(item.disabled)"
                 > {{
                     item.optionControl
                         ? radio[item.optionControl.label]
-                        : radio.label
+                        : radio[optionControl.label]
                     }} </el-radio>
                 </template>
                 <!-- 单选框组 -->
@@ -124,12 +118,12 @@
                     :label="
                     item.optionControl
                         ? opt[item.optionControl.value]
-                        : opt.value
+                        : opt[optionControl.value]
                     "
                 > {{
                     item.optionControl
                         ? opt[item.optionControl.label]
-                        : opt.label
+                        : opt[optionControl.label]
                     }} </el-radio>
                 </el-radio-group>
                 <!-- switch开关 -->
@@ -190,12 +184,12 @@
                     :label="
                     item.optionControl
                         ? opt[item.optionControl.value]
-                        : opt.value
+                        : opt[optionControl.value]
                     "
                     > {{
                     item.optionControl
                         ? opt[item.optionControl.label]
-                        : opt.label
+                        : opt[optionControl.label]
                     }} </el-checkbox>
                 </el-checkbox-group>
                 </template>
@@ -238,6 +232,7 @@
                     v-else-if="isRender(item.editType, 'upload-button')"
                     v-bind="returnControlProperty(item)"
                     :file-list="form[item.prop]"
+                    :on-exceed="(file,fileList) => { exceedQuantityLimit(file, fileList, item) }"
                     :on-change="(file,fileList) => {return handleUploadChange(file, fileList, item)}"
                     :on-remove="(file,fileList) => {handleUploadRemove(file,fileList, item)}"
                     >
@@ -245,20 +240,21 @@
                         <el-button size="small" type="primary">点击上传</el-button>
                     </el-badge>
                 </el-upload>
-                <!-- 图片上传 -->
+                <!-- 照片墙图片上传 -->
                 <template v-else-if="isRender(item.editType, 'upload-img')">
                     <el-upload
                       v-bind="returnControlProperty(item)"
                       :ref="item.prop"
                       :show-file-list="true"
                       :file-list="form[item.prop]"
-                      :id="'upload-' + item.prop"
+                      :id="setElementId('upload', item.prop)"
                       list-type="picture-card"
                       style="height: 148px"
+                      :on-exceed="(file,fileList) => { exceedQuantityLimit(file, fileList, item) }"
                       :on-change="(file,fileList) => {return handleUploadChange(file, fileList, item)}"
                       :on-error="(err, file,fileList) => {handleUploadError(err, file,fileList, item)}"
                       >
-                      <i class="el-icon-plus"></i>
+                      <i class="el-icon-plus" slot="trigger"></i>
                       <div slot="file" slot-scope="{file}">
                         <el-image 
                           class="el-upload-list__item-thumbnail"
@@ -304,6 +300,7 @@
                         v-bind="returnControlProperty(item)"
                         :file-list="form[item.prop]"
                         :show-file-list="false"
+                        :on-exceed="(file,fileList) => { exceedQuantityLimit(file, fileList, item) }"
                         :on-change="(file,fileList) => {return fileSelectUpload(file, fileList, item)}"
                         style="line-height: initial;"
                     >
@@ -312,6 +309,7 @@
                         </el-badge>
                     </el-upload>
                 </div>
+                <!-- 按钮组 -->
                 <div v-else-if="isRender(item.editType, 'button-group')">
                     <el-button
                         v-for="(opt, index) of item.options"
@@ -338,6 +336,7 @@
 </template>
 
 <script>
+import {getId} from '../../tools.js';
 const renderColumn = {
   props: {
     data: Object,
@@ -420,49 +419,57 @@ export default {
         type: [Number, String],
         default: 14
     },
-    formLabelFillWidth: {
-        // 表单标签补充宽度
-        // 表单标签宽度由标签文字长度和其他边距共同决定
-        // 项目环境不同可能导致的宽度不一致, 设置该值以补全宽度
-        type: Number,
-        default: 12
-    },
     formItemsCover: {
       // 表单项是否铺满容器
       type: Boolean,
       default: true
-    }
+    },
+    optionControl: {
+            // 选项列表字段控制
+            type: Object,
+            default(){
+                return {
+                    label: 'label',
+                    value: 'value'
+                }
+            }
+        },
   },
   data() {
     return {
-      form: {}, // 表单
-      rules: {}, // 验证规则
-      dicts: {},
-      formItemList: [], // 表单列表
-      defaultFieldsValue: {},
-      otherData: {}, // 文件上传-下拉选择器数据
-      formLabelLength: 2, // 表单项标签文本长度
-      supportedComponents: Object.freeze({
-        'date-picker': '', // 时间选择器
-        input: '', // 文本输入框
-        'input.number': '', // 数字输入框
-        switch: false, // 开关
-        select: '', // 下拉选择器
-        link: '', // 文字链接
-        'time-picker': this.getPickerInitTime(), // 时间范围选择器
-        radio: '', // 单选框
-        'radio-group': '', // 单选框组
-        checkbox: '', // 多选框
-        'checkbox-group': [], // 多选框组
-        'input-number': 0, // 计数器
-        cascader: '', // 级联选择器
-        autocomplete: '', // 远程搜索
-        'upload-img': [], // 图片上传
-        'upload-button': [], // 上传-按钮
-        'upload-select': [], // 上传-下拉框
-        'button-group': '',
-        unknown: '' // 未知的
-      }), // 受支持的预设控件
+        imageUrl: '',
+        componentId: getId(true),
+        form: {}, // 表单
+        rules: {}, // 验证规则
+        dicts: {},
+        formItemList: [], // 表单列表
+        defaultFieldsValue: {},
+        timer: null, // 定时器
+        hiddenUploadIds: [], // 被隐藏的上传区域集合
+        otherData: {}, // 文件上传-下拉选择器数据
+        formLabelLength: 2, // 表单项标签文本长度
+        formLabelFillWidth: 12, // 表单项标签补充宽度
+        supportedComponents: Object.freeze({
+            'date-picker': '', // 时间选择器
+            input: '', // 文本输入框
+            'input.number': '', // 数字输入框
+            switch: false, // 开关
+            select: '', // 下拉选择器
+            link: '', // 文字链接
+            'time-picker': this.getPickerInitTime(), // 时间范围选择器
+            radio: '', // 单选框
+            'radio-group': '', // 单选框组
+            checkbox: '', // 多选框
+            'checkbox-group': [], // 多选框组
+            'input-number': 0, // 计数器
+            cascader: '', // 级联选择器
+            autocomplete: '', // 远程搜索
+            'upload-img': [], // 图片上传
+            'upload-button': [], // 上传-按钮
+            'upload-select': [], // 上传-下拉框
+            'button-group': '',
+            unknown: '' // 未知的
+        }), // 受支持的预设控件
     }
   },
   watch: {
@@ -646,7 +653,7 @@ export default {
             action: '',
             'auto-upload': false,
             multiple: true,
-          }
+          },
         }
       }
       return (item) => {
@@ -690,6 +697,7 @@ export default {
     },
     // 整理数据结构
     collatingDataStructures() {
+        let hasRequired = false;
       this.formItemList.forEach(item => {
         item.editType = item.editType in this.supportedComponents ? item.editType : 'unknown'
         let defaultValue = this.initFields.hasOwnProperty(item.prop) ? this.initFields[item.prop] : this.supportedComponents[item.editType];
@@ -697,6 +705,11 @@ export default {
         this.defaultFieldsValue[item.prop] = defaultValue; // 初始化字段默认值
         // 检查最长标签长度
         this.formLabelLength = item.label?.length > this.formLabelLength ? item.label.length : this.formLabelLength;
+        if(!hasRequired && item.required){
+            // 存在必传项时要加10px的宽度
+            this.formLabelFillWidth = this.formLabelFillWidth + 10;
+            hasRequired = true;
+        }
         
         //// 获取字典
         if (item.dict && !(item.dict in this.dicts)) {
@@ -713,20 +726,22 @@ export default {
           this.controlMethod(this.form[item.prop], item)
         }
 
-        if (Array.isArray(item.validator)) {
-          this.rules[item.prop] = item.validator // 数组 直接赋值
+        // 校验
+        let validator = item.formValidator || item.validator;
+        if (Array.isArray(validator)) {
+          this.rules[item.prop] = validator // 数组 直接赋值
           return
         }
         let validate = { required: item.required === true ? true : false, trigger: item.validateTrigger ? item.validateTrigger : 'blur' } // 验证
-        if (item.validator) {
+        
+        if (validator) {
           // 自定义验证
           let func = null
-          if (Object.prototype.toString.call(item.validator) === '[object RegExp]') {
+          if (Object.prototype.toString.call(validator) === '[object RegExp]') {
             // 正则
             func = (rule, value, callback) => {
               if (value) {
-                let reg = item.validator
-                if (reg.test(value)) {
+                if (validator.test(value)) {
                   callback()
                 } else {
                   callback(new Error(item.validationTips ? item.validationTips : '校验失败, 请检查后重新输入'))
@@ -736,24 +751,15 @@ export default {
               }
               callback()
             }
-          } else if (typeof item.validator === 'function') {
+          } else if (typeof validator === 'function') {
             func = (rule, value, callback) => {
-              item.validator(this.form, callback)
+              validator(this.form, callback)
             }
           }
           validate.validator = func
         } else {
           validate.message = item.validationTips ? item.validationTips : `${item.label}不能为空`
-          if (item.editType === 'fixed-time-select') {
-            delete validate.message
-            validate.validator = (rule, value, callback) => {
-              if (value.startTime === null || value.endTime === null || value.startTime === '' || value.endTime === '') {
-                callback(new Error('校验失败, 请完善时段设置'))
-              } else {
-                callback()
-              }
-            }
-          }
+          
         }
         this.rules[item.prop] = [validate]
       })
@@ -819,7 +825,12 @@ export default {
         for(let i in this.form){
           this.form[i] = this.defaultFieldsValue[i];
         }
-      }
+      };
+      // 恢复上传区域
+      this.hiddenUploadIds.forEach(elementId => {
+        let p = document.getElementById(elementId)
+        p.getElementsByClassName('el-upload')[0].style.display = 'inline-block';
+      })
     },
     fileSelectChange(arr, item){
         // 设置待上传列表
@@ -838,13 +849,18 @@ export default {
     },
     handleUploadChange(file, fileList, item){
         // console.log(file, fileList, item)
-        if(file.status === "ready"){
-            this.form[item.prop] = fileList;
-            // 只能上传一个文件时隐藏上传区域
-            if(item.control?.limit == 1){
-                let p = document.getElementById(`upload-${item.prop}`)
-                p.getElementsByClassName('el-upload')[0].style.display = 'none';
+        clearTimeout(this.timer); // 清除未执行的代码，重置回初始化状态
+        this.timer = setTimeout(() => {
+            if(file.status === "ready"){
+                this.form[item.prop] = fileList;
             }
+        }, 20);
+        // 当达到最大上传数量时隐藏上传区域
+        if(item.control?.limit == fileList.length){
+            let id = `${this.componentId}-upload-${item.prop}`;
+            this.hiddenUploadIds.push(id);
+            let p = document.getElementById(id)
+            p.getElementsByClassName('el-upload')[0].style.display = 'none';
         }
     },
     handleUploadRemove(file, fileList, item){
@@ -852,17 +868,23 @@ export default {
             this.form[item.prop] = fileList;
         }
     },
+    // 文件超出限制数量
+    exceedQuantityLimit(file, fileList, item){
+        this.$message.error(`${item.label}的上传文件数量不能超过${item.control.limit}个！`)
+    },
     removeUploadImg(file, column){
         // 移除上传图片
         this.form[column.prop].some((item, index) => {
             if(item.uid === file.uid){
                 this.form[column.prop].splice(index, 1)
-                if(column.control?.limit == 1){
+                if(column.control?.limit > this.form[column.prop].length){
+                    let id = `${this.componentId}-upload-${column.prop}`;
+                    this.hiddenUploadIds.splice(this.hiddenUploadIds.indexOf(id), 1); // 移除
                     setTimeout(() => {
                         // 图片移除时有约一秒钟的动画 避免容器被撑大
-                        let p = document.getElementById(`upload-${column.prop}`)
-                        p.getElementsByClassName('el-upload')[0].style.display = 'block';
-                    }, 1000)
+                        let p = document.getElementById(id)
+                        p.getElementsByClassName('el-upload')[0].style.display = 'inline-block';
+                    }, 600)
                 }
                 return true;
             }
@@ -885,6 +907,9 @@ export default {
       // 上传失败
       console.log(file, fileList, item)
     },
+    setElementId(prefix, prop){
+        return `${this.componentId}-${prefix}-${prop}`
+    }
   }
 }
 </script>
@@ -910,6 +935,10 @@ export default {
                 cursor: default;
                 background-color: #fff;
             }
+            .el-textarea__inner{
+                cursor: default;
+                background-color: #fff;
+            }
             .el-switch__core{
                 cursor: default;
             }
@@ -921,54 +950,9 @@ export default {
             }
             
         }
+       
+  
     }
-  .separator {
-    display: inline-block;
-    width: 30px;
-    text-align: center;
-  }
-  // 图片选择器
-  ::v-deep.avatar-uploader {
-    display: flex;
-    align-items: center;
-    width: 5.859vw;
-    height: 5.859vw;
-    .el-upload {
-      border: 1px dashed #d9d9d9;
-      border-radius: 6px;
-      cursor: pointer;
-      position: relative;
-      // overflow: hidden;
-      .img-wrap {
-        i {
-          position: absolute;
-          top: -5px;
-          right: -5px;
-          color: #909399;
-          &:hover {
-            color: #f56c6c;
-          }
-        }
-        .avatar {
-          width: 5.208vw;
-          height: 5.208vw;
-          border-radius: 6px;
-          display: block;
-        }
-      }
-      .avatar-uploader-icon {
-        font-size: 28px;
-        color: #8c939d;
-        width: 5.208vw;
-        height: 5.208vw;
-        line-height: 5.208vw;
-        text-align: center;
-      }
-    }
-    .el-upload:hover {
-      border-color: #409eff;
-    }
-  }
 }
 .form-items-cover{
   ::v-deep.el-form-item__content{
@@ -982,4 +966,6 @@ export default {
         align-items: center;
     }
 }
+
+
 </style>

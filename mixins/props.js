@@ -52,6 +52,16 @@ export default{
               return {}
             }
         },
+        optionControl: {
+            // 选项列表字段控制
+            type: Object,
+            default(){
+                return {
+                    label: 'label',
+                    value: 'value'
+                }
+            }
+        },
         loading: {
             // 表格数据loading
             type: Boolean,
@@ -151,7 +161,7 @@ export default{
             default(){
                 // ['new', 'delete', 'update']
                 // 更新默认不请求翻页
-                return ['new', 'delete']
+                return ['new', 'delete', 'update']
             }
         },
         insertDataMethod: {
