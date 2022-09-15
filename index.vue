@@ -425,7 +425,8 @@ export default {
         getColumnMinWidth(){
             return item => {
                 let {minWidth, label: {length}, editType} = item;
-                let clacWidth = minWidth ? minWidth : (length > 2 ? length * 20 : length * 22) + (item.sortable ? 24 : 0) + (item.filters ? 12 : 0);
+                let clacWidth = minWidth ? minWidth : 20 + length * 13 + (item.sortable ? 24 : 0) + (item.filters ? 12 : 0);
+                // console.log(item.label, clacWidth)
                 return clacWidth;
             }
         },
