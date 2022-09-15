@@ -324,11 +324,12 @@ export default {
          * 编辑弹窗
          */
         const renderEditDialog = () => {
-            return <el-dialog visible={this.formVisible} on={{['update:visible']: state => {this.formVisible = state}}} title={this.formTitle} width={this.formWidth} append-to-body before-close={this.beforeClose} modal={this.formDialogModal} class="dynamicTable-dialog">
+            return <el-dialog visible={this.formVisible} on={{['update:visible']: state => {this.formVisible = state}}} title={this.formTitle} width={this.formDialogWidth} append-to-body before-close={this.beforeClose} modal={this.formDialogModal} class="dynamicTable-dialog">
                 <DynamicForm
                     props={this.formConfig}
                     attrs={this.$attrs}
                     ref="dynamicForm"
+                    on={{change: this.emitDynamicFormEvents}}
                     {...{
                         scopedSlots: this.getFormSlots
                     }}
@@ -1184,7 +1185,7 @@ export default {
         /**
          * 刷新当前页
          */
-        reload(){
+        refreshTableData(){
             this.lastPage = this.currentPage;
             this.setTableLoading(true);
             this.emitPageChange();
@@ -1317,6 +1318,12 @@ export default {
                 this.$message.error('表格字段数据尚未初始化, 暂无法校正字段类型!')
             }
             
+        },
+        /**
+         * 传递表单emit的事件
+         */
+        emitDynamicFormEvents(events){
+            this.$emit('change', events)
         },
         /**
          * 检查并返回表格数据

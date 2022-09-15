@@ -4,7 +4,7 @@ export default {
             actionButtonFontSize: 12, // 操作栏按钮文字大小
             defaultAccessControl: {
                 // 操作栏按钮访问控制
-                root: true, // 根节点新增
+                root: false, // 根节点新增
                 new: true,
                 view: true,
                 update: true,
