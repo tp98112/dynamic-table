@@ -475,6 +475,7 @@ export default {
   watch: {
     column(){
         this.collatingDataStructures()
+        this.$emit('created', {form: this.form});
     },
     currentPanel(){
         // 切换面板
@@ -488,6 +489,7 @@ export default {
             })
             // 初始化
             this.collatingDataStructures()
+            this.$emit('created', {form: this.form});
         };
     }
   },
@@ -681,7 +683,8 @@ export default {
     }else{
         this.formItemList = this.column;
     }
-    this.collatingDataStructures()
+    this.collatingDataStructures();
+    this.$emit('created', {form: this.form});
   },
   methods: {
     // 返回时间范围选择器初始值

@@ -27,6 +27,7 @@ export default {
             dialogConfirmLoading: false, // 弹窗loading
             operationMode: 'new', // 更新方式 新增或修改已有数据 
             uniqueKey: this.rowKey ? this.rowKey : '$rowKey', // 唯一键
+            formReady: false, // 表单初始化状态
             formTitle: '', // 弹窗表单标题
             formConfig: {
                 // 编辑表单配置
@@ -229,20 +230,20 @@ export default {
             <el-link on-click={() => {this.reportEvent(item, scope)}} 
                 type={typeof item.type === 'function' ? (item.type(scope)) : item.type} 
                 icon={typeof item.icon === 'function' ? (item.icon(scope)) : item.icon} 
-                title={typeof item.title === 'function' ? (item.title(scope)) : item.title} 
+                title={typeof item.title === 'function' ? (item.title(scope)) : item.title}
+                class={typeof item.class === 'function' ? (item.class(scope)) : item.class} 
                 disabled={this.setDisabledState(item, scope)} 
                 underline={item.underline}
-                class={item.class}
                 key={this.getButtonKey(item, index)}
                 size={this.actionButtonSize}>{this.setButtonText(item, scope)}</el-link> :
             <el-button on-click={() => {this.reportEvent(item, scope)}} 
                 type={typeof item.type === 'function' ? (item.type(scope)) : item.type} 
                 icon={typeof item.icon === 'function' ? (item.icon(scope)) : item.icon} 
                 title={typeof item.title === 'function' ? (item.title(scope)) : item.title} 
-                plain={item.plain}
+                plain={typeof item.plain === 'function' ? (item.plain(scope)) : item.plain} 
+                class={typeof item.class === 'function' ? (item.class(scope)) : item.class} 
                 round={item.round}
                 circle={item.circle}
-                class={item.class}
                 key={this.getButtonKey(item, index)}
                 disabled={this.setDisabledState(item, scope)} 
                 loading={item.target === 'save' ? scope.row.$saveLoading : item.target === 'delete' ? scope.row.$deleteLoading : false}
@@ -321,6 +322,32 @@ export default {
             </div>
         }
         /**
+         * 渲染弹窗按钮
+         */
+        const renderDialogButton = () => {
+            return <div slot="footer" class="dialog-footer">
+                {
+                    this.formDialogButton.map((item, index) => {
+                        if(this.getRenderConditions(item.target || item.emit) && (item.target ? this.builtInButtonConditions(item) : true) ){
+                            return <el-button on-click={() => {this.reportEvent(item, {form: this.$refs.dynamicForm?.form})}} 
+                            type={typeof item.type === 'function' ? (item.type({form: this.$refs.dynamicForm?.form})) : item.type} 
+                            icon={typeof item.icon === 'function' ? (item.icon({form: this.$refs.dynamicForm?.form})) : item.icon} 
+                            title={typeof item.title === 'function' ? (item.title({form: this.$refs.dynamicForm?.form})) : item.title} 
+                            plain={typeof item.plain === 'function' ? (item.plain({form: this.$refs.dynamicForm?.form})) : item.plain} 
+                            class={typeof item.class === 'function' ? (item.class({form: this.$refs.dynamicForm?.form})) : item.class} 
+                            round={item.round}
+                            circle={item.circle}
+                            key={this.getButtonKey(item, index)}
+                            disabled={item.disabled} 
+                            loading={item.target === '$update' ? this.dialogConfirmLoading : false}
+                            size={this.formDialogButtonSize}>{this.setButtonText(item, this.$refs.dynamicForm?.form)}</el-button>
+                        }
+                        
+                    })
+                }
+            </div>
+        }
+        /**
          * 编辑弹窗
          */
         const renderEditDialog = () => {
@@ -329,33 +356,13 @@ export default {
                     props={this.formConfig}
                     attrs={this.$attrs}
                     ref="dynamicForm"
-                    on={{change: this.emitDynamicFormEvents}}
+                    on={{'created': () => {this.formReady = true}, change: this.emitDynamicFormEvents}}
                     {...{
                         scopedSlots: this.getFormSlots
                     }}
                 >
                 </DynamicForm>
-                <div slot="footer" class="dialog-footer">
-                    {
-                        this.formDialogButton.map((item, index) => {
-                            if(this.getRenderConditions(item.target || item.emit) && (item.target ? this.builtInButtonConditions(item) : true) ){
-                                return <el-button on-click={() => {this.reportEvent(item, {form: this.$refs.dynamicForm?.form})}} 
-                                type={item.type} 
-                                icon={item.icon} 
-                                title={item.title} 
-                                plain={item.plain}
-                                round={item.round}
-                                circle={item.circle}
-                                key={this.getButtonKey(item, index)}
-                                disabled={item.disabled} 
-                                loading={item.target === '$update' ? this.dialogConfirmLoading : false}
-                                size={this.formDialogButtonSize}>{this.setButtonText(item, this.$refs.dynamicForm?.form)}</el-button>
-                            }
-                            
-                        })
-                    }
-                    
-                </div>
+                { this.formReady ? renderDialogButton() : ''}
             </el-dialog>
         }
         return (<div class="dynamic-table-wrap">
@@ -419,7 +426,7 @@ export default {
             return item => {
                 let {minWidth, label: {length}, editType} = item;
                 let clacWidth = minWidth ? minWidth : 20 + length * 13 + (item.sortable ? 24 : 0) + (item.filters ? 12 : 0);
-                console.log(item.label, clacWidth)
+                // console.log(item.label, clacWidth)
                 return clacWidth;
             }
         },
@@ -474,7 +481,7 @@ export default {
                 let wrapWidth = 20;
                 this.newActionButton.forEach((item, index) => {
                     let textLength = (item.label && item.label.length ? item.label.length : 0) + (item.icon ? 1 : 0);
-                    let buttonWidth = item.width ? item.width : (32 + textLength * this.actionButtonFontSize + (item.label && item.icon ? 5 : 0) + (index ? 10 : 0)); // 图标与文字有5px的margin 除最后一个按钮, 都有5px的margin-left
+                    let buttonWidth = item.width ? item.width : (32 + textLength * this.actionButtonFontSize[this.actionButtonType] + (item.label && item.icon ? 5 : 0) + (index ? 10 : 0)); // 图标与文字有5px的margin 除最后一个按钮, 都有5px的margin-left
                     wrapWidth += buttonWidth;
                     
                 })
@@ -1117,7 +1124,7 @@ export default {
             }else if(trigger.emit){
                 // 表单触发
                 if(scope.form){
-                    this.$emit('change', {type: trigger.emit, trigger, scope, close: this.closeDialog, save: this.dialogConfirm})
+                    this.$emit('change', {type: trigger.emit, trigger, scope, cancel: this.closeDialog, save: this.dialogConfirm})
                 }else{
                     this.$emit('change', {type: trigger.emit, trigger, scope})
                 }

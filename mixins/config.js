@@ -1,7 +1,10 @@
 export default {
     data(){
         return {
-            actionButtonFontSize: 12, // 操作栏按钮文字大小
+            actionButtonFontSize:{
+                button: 12,
+                link: 14
+            }, // 操作栏按钮文字大小
             defaultAccessControl: {
                 // 操作栏按钮访问控制
                 root: false, // 根节点新增
