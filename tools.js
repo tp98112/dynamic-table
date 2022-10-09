@@ -1,3 +1,6 @@
+export function isEmpty(value){
+    return value === '' || value === null ||  value === undefined || value.length === 0;
+}
 /**
  * 递归遍历数组执行
  * @data 遍历的数组
@@ -39,6 +42,10 @@ export function deepClone(target, map = new Map()){
     // 基本数据类型直接返回
     if(target instanceof Date){
         // 时间类型直接返回
+        return target;
+    }
+    if(target instanceof File){
+        // 文件类型直接返回
         return target;
     }
     if(typeof target !== 'object'){

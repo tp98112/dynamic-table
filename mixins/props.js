@@ -138,17 +138,17 @@ export default{
             // 树形表格配置
             type: String,
         },
-        boxSelectErrorFields: {
-            // 行内编辑时 当字段值校验失败时是否框选出该单元格
-            type: Boolean,
-            default: true
-        },
         boxSelectStyle: {
             // 校验失败的标记样式 在el-table__cell上
             type: Object,
             default(){
                 return {background: '#EBEEF5'}
             }
+        },
+        dblClickToEditCell: {
+            // 双击编辑单元格
+            type: Boolean,
+            default: false
         },
         editMode: {
             // 编辑方式 表格内编辑 / 弹窗编辑
@@ -301,6 +301,10 @@ export default{
                     }
                 ]
             }
+        },
+        cellDblclick: {
+            // 单元格双击事件
+            type: Function,
         },
         formColumn: {
             // 编辑表单数据项配置 该值不传时取column

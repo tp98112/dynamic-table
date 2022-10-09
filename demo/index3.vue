@@ -6,9 +6,7 @@
             <el-button @click="event"></el-button>
         </template> -->
        <!-- <div slot="form-input" slot-scope="{form}">{{form.input}}</div> -->
-       <template v-slot:edit-selectFile="scope">
-        <el-progress :percentage="50"></el-progress>
-       </template>
+       
         </DynamicTable>
       <el-button @click="checkTableData">获取表格数据</el-button>
     </div>
@@ -49,6 +47,7 @@ export default {
                 dynamic: true, 
                 // unifiedEdit: false,
                 editMode: 'window',
+                rowKey: 'id',
                 pagination: true,
                 total: 100002,
                 falsePaging: true,
@@ -185,16 +184,17 @@ export default {
                     label: '选择文件1',
                     prop: 'selectFile',
                     cols: 2,
-                    editType: 'upload-select',
-                    formVisible: false,
+                    minWidth: 200,
+                    editType: 'upload-button',
+                    // formVisible: false,
                 },
                 {
                     label: '选择文件2',
-                    prop: 'selectFile2',
+                    prop: 'uploadImage',
                     cols:2,
-                    editType: 'upload-img',
+                    editType: 'upload-image',
                     control: {
-                        limit: 3,
+                        // limit: 5,
                         'show-file-list': true
                     },
                     columnVisible: false,
@@ -208,9 +208,21 @@ export default {
                         select: "1",
                         'checkbox-group': [],
                         'time-picker': '',
-                       
+                       uploadImage: [
+                        {url: 'http://mms2.baidu.com/it/u=4016242268,4022037871&fm=253&app=120&f=JPEG&fmt=auto&q=75?w=501&h=500'}
+                       ],
+                       children:[
+                        {id: '2121',
+                        input: "1",
+                        select: "1",
+                        'checkbox-group': [],
+                        'time-picker': '',
+
+                        }
+                       ]
                     },
                     {
+                        id: '12',
                         input: "1",
                         select: "2",
                         'checkbox-group': [],
@@ -232,7 +244,7 @@ export default {
         num--
        }
        this.$refs.dynamicTable.checkExpectFieldsType(arr)
-       this.tableConfig.data = arr;
+    //    this.tableConfig.data = arr;
        
     },
     methods: {

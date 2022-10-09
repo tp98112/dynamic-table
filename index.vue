@@ -1,18 +1,19 @@
 <script>
 import props from './mixins/props.js';
 import config from './mixins/config.js';
-import DynamicForm from './components/DynamicForm';
-import {loopThroughTheArray, loopThroughTheArrayBySome, dateFormat, getFieldType, deepClone, getId} from "./tools.js";
+import {loopThroughTheArray, loopThroughTheArrayBySome, dateFormat, getFieldType, deepClone, getId, isEmpty} from "./tools.js";
 
 export default {
-    name: 'dynamicTable',
+    name: 'TpStupidTable',
     inheritAttrs: false,
     mixins: [props, config],
-    components: {DynamicForm},
+    components: {
+        DynamicForm: () => import('./components/DynamicForm'), 
+        TpUploadButton: () => import('./components/TpUpload/Button.vue')
+    },
     
     data(){
         return {
-            tableData: [], // 表格data
             backupTableData: {}, // 备份表数据
             dicts: {}, // 字典数据
             initFieldsCollection: {}, // 字段集合
@@ -23,6 +24,7 @@ export default {
             lastPage: null, // 上一次选中的分页
             lastPageSize: null, // 上一次选中的当前页大小
             toolsObject: {},
+            validateObject: {}, // 验证对象
             formVisible: false, // 编辑弹窗显隐
             dialogConfirmLoading: false, // 弹窗loading
             operationMode: 'new', // 更新方式 新增或修改已有数据 
@@ -49,8 +51,10 @@ export default {
         column(){
             this.initTableColumn();
         },
-        data() {
-            this.initTableData();
+        "data.length": {
+            handler(){
+                this.initTableData();
+            }
         },
         loading(state){
             this.dataLoading = state;
@@ -67,43 +71,23 @@ export default {
             // 触发分页事件 获取数据
             this.emitPageChange()
         }
+    
     },
     render(h){
-        /**
-         * =======
-         * 预设内容
-        */ 
-        const setDefaultContent = ({column, scope}) => {
-            if(typeof column.render === 'function'){
-                // 自定义render渲染方法
-                return column.render(h,scope, this.$parent)
-            }else if(typeof column.template === 'function'){
-                // 自定义模板渲染方法
-                let type = typeof column.template(scope);
-                if(type === 'string' || (type === 'object' && typeof column.template(scope).content) === 'string'){
-                    return h('span', {
-                        class: 'cell-text',
-                        on: {
-                            click: () => {column.template(scope).emit ? this.$emit('change', {type: column.template(scope).emit, scope}) : ''}
-                        },
-                        domProps: {
-                            innerHTML: column.template(scope) ? (column.template(scope).content ? column.template(scope).content : column.template(scope)) : 'null'
-                        }
-                    })
-                }else{
-                    console.error(`The custom template rendering method returned an incorrect value. expect[string/object] \n Example1: return '<span>${column.label}</span>' \n Example2: return {emit: 'eventType', content: '<span>${column.label}</span>'}`)
-                    return <span class="cell-text">{scope.row[scope.column.property]}</span>
-                }
-            }else{
-                // 默认内容
-                return <span class="cell-text">{this.getDefaultDisplayValue(column, scope.row[scope.column.property])}</span>
+        const setEditContent = ({column, scope}) => {
+            if(this.validateObject[`${column.prop}-${scope.row[this.uniqueKey]}`] === false){
+                return <el-tooltip  placement="bottom" effect="light">
+                       <span slot="content">{this.returnValidateTips(column, scope.row)}</span>
+                       {setEditControl({column, scope})}
+                </el-tooltip>
             }
+            return setEditControl({column, scope})
         }
         /**
          * ============
          * 预设编辑时内容
          */
-        const setEditContent = ({column, scope}) => {
+        const setEditControl = ({column, scope}) => {
             if(typeof column.editRender === 'function'){
                 // 自定义render渲染方法
                 return column.editRender(h, scope)
@@ -147,10 +131,69 @@ export default {
                         disabled={this.setDisabledState(column, scope)}
                         style="width: 100%">
                     </el-time-picker>
+            }else if(column.editType === 'upload-button'){
+                return <tp-upload-button 
+                    contol={this.setControlProperty(column)} 
+                    fileList={scope.row[scope.column.property]} >
+                </tp-upload-button>
             }else{
                 // 默认内容
                 return <span class="cell-text">{scope.row[scope.column.property]}</span>
             }
+        }
+        /**
+         * =======
+         * 预设内容
+        */ 
+        const setDefaultContent = ({column, scope}) => {
+            if(column.prop in this.toolsObject || `${column.prop}-${scope.row[this.uniqueKey]}` in this.toolsObject){
+                return this.$scopedSlots['edit-' + column.prop] ? this.$scopedSlots['edit-' + column.prop](scope) : setEditContent({column, scope})
+            }else if(typeof column.render === 'function'){
+                // 自定义render渲染方法
+                return column.render(h,scope, this.$parent)
+            }else if(typeof column.template === 'function'){
+                // 自定义模板渲染方法
+                let type = typeof column.template(scope);
+                if(type === 'string' || (type === 'object' && typeof column.template(scope).content) === 'string'){
+                    return h('span', {
+                        class: 'cell-text',
+                        on: {
+                            click: () => {column.template(scope).emit ? this.$emit('change', {type: column.template(scope).emit, scope}) : ''}
+                        },
+                        domProps: {
+                            innerHTML: column.template(scope) ? (column.template(scope).content ? column.template(scope).content : column.template(scope)) : 'null'
+                        }
+                    })
+                }else{
+                    console.error(`The custom template rendering method returned an incorrect value. expect[string/object] \n Example1: return '<span>${column.label}</span>' \n Example2: return {emit: 'eventType', content: '<span>${column.label}</span>'}`)
+                    return <span class="cell-text">{scope.row[scope.column.property]}</span>
+                }
+            }else{
+                // 默认内容
+                return <span class="cell-text">{this.getDefaultDisplayValue(column, scope.row[scope.column.property])}</span>
+            }
+        }
+        /**
+         * 渲染默认表头
+         */
+        const setDefaultHeader = (column, scope) => {
+            if(column.verticalEdit){
+                return <el-link
+                onclick={() => {this.headerClick(column, scope)}} 
+                icon={scope.column.$edit ? 
+                'el-icon-circle-check' : 'el-icon-edit-outline'}
+                underline={scope.column.$edit === true}
+                style="font-size: inherit;font-weight: bold;">
+                {scope.column.label}
+                </el-link>
+            }else{
+                return <span>
+                {column.headerIcon ? <i class={column.headerIcon} style="margin-right: 4px"></i> : ''}
+                {scope.column.label}
+                </span>
+            }
+            
+            // return scope.column.label
         }
         /**
          * ==============
@@ -159,7 +202,7 @@ export default {
         const renderColumns = columns => {
             return columns.map((column, index) => {
                 if(column.children){
-                    return (<el-table-column label={column.label} align={column.align} key={'mul-' + index}>
+                    return (<el-table-column label={column.label} align={column.align ? column.align : this.align} key={'mul-' + index}>
                         {renderColumns(column.children)}
                     </el-table-column>)
                 }else{
@@ -173,6 +216,9 @@ export default {
                             fixed={column.fixed}
                             width={column.width}
                             index={this.getIndexMethod}
+                            {
+                                ...this.getIndexSelectionExpandSlots(column.type)
+                            }
                         >
                         </el-table-column>
                     }else if(this.getColumnVisible(column)){
@@ -188,19 +234,20 @@ export default {
                                 'filter-method': column.filterMethod, // 筛选方法
                                 align: column.align ? column.align : this.align,
                                 "min-width": this.getColumnMinWidth(column),
-                                'show-overflow-tooltip': true // todo
+                                'show-overflow-tooltip': false // todo
                             },
                             scopedSlots: {
                                 header: scope => {
                                     let propName = 'header-' + column.prop;
-                                    return this.$scopedSlots[propName] ? this.$scopedSlots[propName](scope) : this.$slots[propName] || scope.column.label
+                                    return this.$scopedSlots[propName] ? this.$scopedSlots[propName]({scope, $edit: () => {this.headerClick(column, scope)}}) : setDefaultHeader(column,scope)
                                 },
                                 default: scope => {
                                     if(scope.row.$edit){
                                         let propName = 'edit-' + column.prop;
-                                        return this.$scopedSlots[propName] ? this.$scopedSlots[propName](scope) : this.$slots[propName] || setEditContent({column, scope})
+                                        return this.$scopedSlots[propName] ? this.$scopedSlots[propName](scope) : setEditContent({column, scope})
                                     }else{
-                                        return this.$scopedSlots[column.prop] ? this.$scopedSlots[column.prop](scope) : this.$slots[column.prop] || setDefaultContent({column, scope})
+                                        let propName = 'default-' + column.prop;
+                                        return this.$scopedSlots[propName] ? this.$scopedSlots[propName](scope) : setDefaultContent({column, scope})
                                     }
                                 }
                             }
@@ -256,10 +303,10 @@ export default {
             return <div class="action-button-wrap" style={{'justify-content': this.actionAlign}}>
                 {
                     this.builtInButton.map((item, index) => {
-                        if(this.builtInButtonConditions(item, scope)){
+                        if(this.builtInButtonConditions(item, scope) && this.getRenderConditions(item.target, scope)){
                             let slotName = item.target + '-button';
                             return this.$scopedSlots[slotName] ? this.$scopedSlots[slotName]({event: this[this.builtInEvent(item)], scope}) : 
-                            this.$slots[slotName] || setDefaultButton(item, scope, index)
+                            setDefaultButton(item, scope, index)
                         }
                     })
                 }
@@ -269,7 +316,7 @@ export default {
                             let slotName = (item.target || item.emit) + '-button';
                             return this.$scopedSlots[slotName] ? this.$scopedSlots[slotName](item.target ? 
                             {event: this[this.builtInEvent(item)], scope} : {event: () => {event: this.reportEvent(item, scope)}, scope}) : 
-                            this.$slots[slotName] || setDefaultButton(item, scope, index)
+                            setDefaultButton(item, scope, index)
                         }
                     })
                 }
@@ -284,16 +331,16 @@ export default {
         const renderActionColumn = () => {
             if(this.$scopedSlots.action){
                 // 完全自定义操作栏插槽
-                return this.$scopedSlots.action(this.data) || this.$slots.action;
+                return this.$scopedSlots.action(this.data);
             }else if(this.dynamic && this.showAction){
                 return <el-table-column align={this.align} fixed="right" width={this.getActionBarWidth} min-width={this.getActionBarWidth}
                     {...{
                         scopedSlots: {
                             header: scope => {
-                                return this.$scopedSlots['action-header'] ? this.$scopedSlots['action-header'](scope) : this.$slots['action-header'] || renderActionHeader(scope, {actionName: '新增数据'})
+                                return this.$scopedSlots['action-header'] ? this.$scopedSlots['action-header'](scope) : renderActionHeader(scope, {actionName: '新增数据'})
                             },
                             default: scope => {
-                                return this.$scopedSlots['action-content'] ? this.$scopedSlots['action-content'](scope) : this.$slots['action-content'] || renderActionContent(scope, {actionName: '新增数据'})
+                                return this.$scopedSlots['action-content'] ? this.$scopedSlots['action-content'](scope) : renderActionContent(scope, {actionName: '新增数据'})
                             }
                         }
                     }}
@@ -386,8 +433,12 @@ export default {
             default-sort={this.defaultSort}
             row-class-name={this.rowClassName}
             cell-style={this.returnCellStyle}
-            on={{'selection-change': this.selectionChange, 'current-change': this.currentRowChange}} 
-            class={this.dynamic && (this.editMode === 'inline' || this.unifiedEdit) ? 'dynamic-table' : ''}>{renderColumns(this.column)}{renderActionColumn()}</el-table>
+            on={{'selection-change': this.selectionChange, 'current-change': this.currentRowChange, 'cell-dblclick': this.handleCellDblclick}} 
+            class={this.dynamic && (this.editMode === 'inline' || this.unifiedEdit) ? 'dynamic-table' : ''}>
+                {renderColumns(this.column)}{renderActionColumn()}
+                <template slot="empty">{this.$slots['table-empty']}</template>
+                <template slot="append">{this.$slots['table-append']}</template>
+            </el-table>
             {this.pagination ? renderPagination() : ''}
             {this.editMode === 'window' && this.dynamic && !this.unifiedEdit ? renderEditDialog() : ''}
         </div>)
@@ -405,7 +456,22 @@ export default {
         returnCellStyle(){
             return ({row,column, rowIndex, columnIndex}) => {
                 // {row, column, rowIndex, columnIndex}
-                return row[`$validate-${column.property}`] === false ? this.boxSelectStyle : {};
+                return this.validateObject[`${column.property}-${row[this.uniqueKey]}`] === false ? this.boxSelectStyle : {};
+            }
+        },
+        returnValidateTips(){
+            return (column, row) => {
+                if(column.required && isEmpty(row[column.prop])){
+                    return <span><i class="el-icon-warning-outline" style="margin-right: 4px"></i>{`${column.label}不能为空`}</span>
+                }else if(column.validator && !isEmpty(row[column.prop]) ){
+                    let result = this.checkRequireFields({key: column.prop, row});
+                    if(result.result){
+                        return <el-link onclick={() => {this.$delete(this.validateObject, `${column.prop}-${row[this.uniqueKey]}`)}} style="font-size: 12px" icon="el-icon-circle-check">校验通过</el-link>;
+                    }else{
+                        return <span><i class="el-icon-circle-close" style="margin-right: 4px"></i>{column.validateTips ? column.validateTips : '校验失败!'}</span> 
+                    }
+                    
+                }
             }
         },
         /**
@@ -421,6 +487,25 @@ export default {
                 }
             }
             return scopedSlots;
+        },
+        /**
+         * 获取expand, index, selection插槽
+         */
+        getIndexSelectionExpandSlots(){
+            return type => {
+                let scopedSlots = {};
+                if(this.$scopedSlots[type] || this.$slots[type]){
+                    scopedSlots =  {
+                        scopedSlots: {
+                            default: scope => {
+                                return this.$scopedSlots[type](scope) || this.$slots[type]
+                            }
+                        }
+                    }
+                };
+                return scopedSlots;
+            }
+            
         },
         getColumnMinWidth(){
             return item => {
@@ -542,6 +627,12 @@ export default {
                         underline: true,
                     },
                     'checkbox-group': {}, // 多选框组
+                    'upload-button': {
+                        action: "",
+                        'auto-upload': false,
+                        multiple: true,
+                        'show-file-list': false, // 不展示上传列表
+                    }
                 };
             }
             return item => {
@@ -598,7 +689,6 @@ export default {
                         required: typeof item.required  === 'boolean' ? item.required : false, // 默认字段非必传
                         validator: item.validator ? item.validator : false // 验证方法
                     };
-                    this.privateFields.push(`$validate-${item.prop}`); // 将验证字段添加到私有变量列表
                     // 字典数据
                     if(item.dict && !(item.dict in this.dicts)){
                         // this.getDicts(item.dict).then(response => {
@@ -638,7 +728,7 @@ export default {
         // 更新数据索引
         setTheDataIndex(data, parent){
             loopThroughTheArray(data, (item, index, parent) => {
-                item.$rowKey = getId()
+                item.$rowKey = getId(true);
                 this.backupTableData[item.$rowKey] = deepClone(item);
             }, parent)
         },
@@ -850,6 +940,9 @@ export default {
                 this.setDynamicForm(deepClone(row));
             })
         },
+        /**
+         * 保存
+         */
         handleSave(scope){
             let row = scope.row;
             let mode = row.$new ? 'new' : 'update';
@@ -877,18 +970,16 @@ export default {
                 let checkResult = this.checkRequireFields({key: i, row}); // 验证结果
                 if(checkResult.result){
                     // 通过
-                    if(this.boxSelectErrorFields && row[`$validate-${i}`] === false){
-                        delete row[`$validate-${i}`];
+                    if(this.validateObject[`${i}-${row[this.uniqueKey]}`] === false){
+                        this.$delete(this.validateObject, `${i}-${row[this.uniqueKey]}`); // 移除验证标记
                     }
                 }else{
                     // 未通过
                     checkRow = false;
-                    if(this.boxSelectErrorFields){
-                        this.$set(row, `$validate-${i}`, false)
-                    }else{
-                        this.$message.error(checkResult.info)
-                        break;
-                    }
+                    this.$nextTick(() => {
+                        this.$set(this.validateObject, `${i}-${row[this.uniqueKey]}`, false); // 标记验证失败
+                    })
+                    
                 }
             };
             if(checkRow){
@@ -896,9 +987,7 @@ export default {
             }else{
                 // 验证失败 恢复当前行状态
                 row.$saveLoading = false;
-                if(this.boxSelectErrorFields){
-                    this.$message.error('校验失败的字段已被标记！请检查后再试')
-                }
+                this.$message.error('校验失败的字段已被标记！请检查后再试')
             }
         },
         handleRemove(scope){
@@ -911,12 +1000,8 @@ export default {
         handleCancel({row}){
             console.log('取消', row)
             for(let i in row){
-                if(this.privateFields.indexOf(i) < 0 && i.indexOf('$validate-') < 0){
+                if(this.privateFields.indexOf(i) < 0){
                     row[i] = deepClone(this.backupTableData[row[this.uniqueKey]][i])
-                }
-                if(i.indexOf('$validate-') === 0){
-                    // 清除字段的校验结果
-                    delete row[i];
                 }
             }
             if(!row.$new){
@@ -968,7 +1053,7 @@ export default {
          * 行内编辑 检查字段
          */
         checkRequireFields({key, row}){
-            // key: 当前列的prop值 | index: 当前行下标 | row: 当前行数据
+            // key: 当前列的prop值 | row: 当前行数据
             let value = row[key];
             let field = this.initFieldsCollection[key];
             if(field.required && value === ""){
@@ -1212,7 +1297,7 @@ export default {
             if(this.currentEditRow){
               
                 // 如果是编辑数据则在关闭时重置表单
-                this.$refs.dynamicForm.resetForm() // 重置表单
+                this.$refs.dynamicForm.resetFields() // 重置表单
                 
             }
             
@@ -1230,7 +1315,7 @@ export default {
                         }else{
                             this.saveFormDataToTable(form)
                         };
-                        this.$refs.dynamicForm.resetForm() // 重置表单
+                        this.$refs.dynamicForm.resetFields() // 重置表单
                         this.dialogConfirmLoading = false; // 关闭loading
                         this.formVisible = false; // 关闭弹窗
                         this.executePromp({type: 'success', message: info ? info : `${this.operationMode === 'new' ? '新增': '更新'}数据成功！`})
@@ -1255,8 +1340,39 @@ export default {
          * 编辑弹窗取消
          */
         closeDialog(){
-            this.$refs.dynamicForm.resetForm();
+            this.$refs.dynamicForm.resetFields();
             this.formVisible = false;
+        },
+        /**
+         * 表头双击事件
+         */
+        headerClick(column, scope){
+            if(scope.column.$edit){
+                let checkResult = true;
+                this.data.forEach(row => {
+                    let check = this.checkRequireFields({key: column.prop, row}); // 验证结果
+                    if(check.result){
+                        // 通过
+                        if(this.validateObject[`${column.prop}-${row[this.uniqueKey]}`] === false){
+                            this.$delete(this.validateObject, `${column.prop}-${row[this.uniqueKey]}`);
+                        }
+                    }else{
+                        // 未通过
+                        checkResult = false;
+                        this.$set(this.validateObject, `${column.prop}-${row[this.uniqueKey]}`, false);
+                    }
+                })
+                if(checkResult){
+                    this.$set(scope.column, '$edit', false)
+                    this.$delete(this.toolsObject, column.prop)
+                }else{
+                    this.$message.error("保存校验失败，请检查纠正后再试！")
+                }
+                
+            }else{
+                this.$set(scope.column, '$edit', true)
+                this.$set(this.toolsObject, column.prop, true)
+            }
         },
         /**
          * 保存表单数据到表格 本地更新
@@ -1287,7 +1403,7 @@ export default {
                 };
             }
             this.formVisible = false;
-            // this.$refs.dynamicForm.resetForm(); // 确认后重置表单
+            // this.$refs.dynamicForm.resetFields(); // 确认后重置表单
         },
         /**
          * 获取表格默认展示值
@@ -1335,13 +1451,12 @@ export default {
             loopThroughTheArray(this.data, (item, index, parent) => {
                 for(let i in this.initFieldsCollection){
                     let checkResult = this.checkRequireFields({key: i, row: item}); // 验证结果
-                    console.log(checkResult, i)
                     if(checkResult.result){
-                       this.$delete(item, `$validate-${i}`)
+                       this.$delete(this.validateObject, `${i}-${item[this.uniqueKey]}`)
                     }else{
                         // 校验失败 框选标记出该字段位置
                         finalResult = false;
-                        this.$set(item, `$validate-${i}`, false)
+                        this.$set(this.validateObject, `${i}-${item[this.uniqueKey]}`, false)
                     }
                 };
                 
@@ -1361,6 +1476,32 @@ export default {
                 return false;
             }
         },
+        /**
+         * 处理单元格双击事件
+         */
+        handleCellDblclick(row, column, cell, event){
+            // console.log(row, column, cell, event)
+            if(this.cellDblclick){
+                // 自定义单元格双击事件
+                this.cellDblclick(row, column, cell, event)
+            }
+            if(this.dblClickToEditCell){
+                // 双击编辑单元格
+                if(this.toolsObject[`${column.property}-${row[this.uniqueKey]}`]){
+                    let check = this.checkRequireFields({key: column.property, row}); // 验证结果
+                    if(check.result){
+                        this.$delete(this.validateObject, `${column.property}-${row[this.uniqueKey]}`);
+                        this.$delete(this.toolsObject, `${column.property}-${row[this.uniqueKey]}`)
+                    }else{
+                        this.$set(this.validateObject, `${column.property}-${row[this.uniqueKey]}`, false)
+                        this.$message.error("校验失败，请检查完善后再试！")
+                    }
+                    
+                }else{
+                    this.$set(this.toolsObject, `${column.property}-${row[this.uniqueKey]}`, true)
+                }
+            }
+        }
     },
 }
 </script>

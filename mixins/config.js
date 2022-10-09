@@ -7,11 +7,12 @@ export default {
             }, // 操作栏按钮文字大小
             defaultAccessControl: {
                 // 操作栏按钮访问控制
-                root: true, // 根节点新增
+                root: false, // 根节点新增
                 new: true,
                 view: true,
                 update: true,
                 delete: true,
+                cancel: true,
                 // $开头的为表单弹窗按钮
                 $save: true,
                 $cancel: true,
