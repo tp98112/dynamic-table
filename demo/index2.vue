@@ -37,14 +37,20 @@ export default {
                 align: 'center',
                 column: [
                     {
+                        fixed: 'left',
                         type: 'index',
-                        label: '序号'
+                        label: '序号',
+                        
                     },
                     {
+                        fixed: 'left',
                         label: "基本信息",
+                       width: 300,
                         children: [
                             {
+                                fixed: 'left',
                                 label: "设备类型",
+                                width: 150,
                                 verticalEdit: true, // 纵向编辑 开启后点击表头编辑当前列
                                 prop: 'sblx',
                                 editType: 'input',
@@ -55,6 +61,8 @@ export default {
                                 }
                             },
                             {
+                                fixed: 'left',
+                                width: 150,
                                 label: "性能指标",
                                 prop: 'xnzb',
                                 verticalEdit: true,
@@ -68,12 +76,14 @@ export default {
                         label: "系统遥测智",
                         children: [
                             {
+                                width: 150,
                                 label: "日测值",
                                 prop: 'rcz',
                                 verticalEdit: true,
                                 editType: 'input'
                             },
                             {
+                                width: 150,
                                 label: "周测值",
                                 prop: 'zcz',
                                 verticalEdit: true,
@@ -86,12 +96,14 @@ export default {
                         label: "阈值告警",
                         children: [
                             {
+                                width: 150,
                                 label: "注意上限",
                                 prop: 'zysx',
                                 headerIcon: 'el-icon-edit',
                                 editType: 'input'
                             },
                             {
+                                width: 150,
                                 label: "注意下限",
                                 prop: 'zyxx',
                                 editType: 'input'

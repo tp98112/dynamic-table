@@ -302,6 +302,14 @@ export default{
                 ]
             }
         },
+        rowClick: {
+            // 行单击事件
+            type: Function,
+        },
+        rowDblclick: {
+            // 行双击事件
+            type: Function,
+        },
         cellDblclick: {
             // 单元格双击事件
             type: Function,

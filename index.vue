@@ -202,7 +202,7 @@ export default {
         const renderColumns = columns => {
             return columns.map((column, index) => {
                 if(column.children){
-                    return (<el-table-column label={column.label} align={column.align ? column.align : this.align} key={'mul-' + index}>
+                    return (<el-table-column width={column.width} label={column.label} align={column.align ? column.align : this.align} fixed={column.fixed} key={'mul-' + index}>
                         {renderColumns(column.children)}
                     </el-table-column>)
                 }else{
@@ -234,6 +234,7 @@ export default {
                                 'filter-method': column.filterMethod, // 筛选方法
                                 align: column.align ? column.align : this.align,
                                 "min-width": this.getColumnMinWidth(column),
+                                fixed: column.fixed,
                                 'show-overflow-tooltip': false // todo
                             },
                             scopedSlots: {
@@ -433,7 +434,13 @@ export default {
             default-sort={this.defaultSort}
             row-class-name={this.rowClassName}
             cell-style={this.returnCellStyle}
-            on={{'selection-change': this.selectionChange, 'current-change': this.currentRowChange, 'cell-dblclick': this.handleCellDblclick}} 
+            on={{
+                'selection-change': this.selectionChange, 
+                'current-change': this.currentRowChange, 
+                'cell-dblclick': this.handleCellDblclick,
+                'row-click': this.rowClick,
+                'row-dblclick': this.rowDblclick
+            }} 
             class={this.dynamic && (this.editMode === 'inline' || this.unifiedEdit) ? 'dynamic-table' : ''}>
                 {renderColumns(this.column)}{renderActionColumn()}
                 <template slot="empty">{this.$slots['table-empty']}</template>
