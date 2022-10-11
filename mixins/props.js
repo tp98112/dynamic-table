@@ -153,7 +153,7 @@ export default{
         editMode: {
             // 编辑方式 表格内编辑 / 弹窗编辑
             type: String,
-            default: 'inline'
+            default: 'window'
         },
         needRefreshEvents: {
             // 当设置内的事件被触发时, 将触发一次刷新当前页的事件

@@ -283,7 +283,7 @@
               <el-button
                 v-for="(opt, index) of item.options"
                 :key="index"
-                @click="customEventEmit(opt)"
+                @click="customButtonEvents(opt)"
                 :type="opt.type"
                 :icon="opt.icon"
                 :title="opt.title"
@@ -833,25 +833,21 @@ export default {
 
     // 控制方法
     controlMethod($event, item) {
-      if (typeof item.controlMethod === "function") {
-        item.controlMethod({
-          params: $event,
-          form: this.form,
-          item,
-          that: this,
-        });
-      } else {
-        this.$emit("change", {
-          params: $event,
-          form: this.form,
-          item,
-          that: this,
-        });
+      if (typeof item.controlMethod === 'function') {
+        item.controlMethod({ params: $event, form: this.form, item, that: this })
+      } else if(item.emit){
+        this.$emit('change', {type: item.emit, params: $event, form: this.form, trigger: item, that: this })
       }
     },
     // 表单 自定义按钮触发事件
-    customEventEmit(item) {
-      this.$emit(item.emit, this.form);
+    customButtonEvents(item) {
+      if(item.target === 'reset'){
+        console.log("resetreset")
+        this.resetForm()
+      }else{
+        this.$emit(item.emit, this.form)
+      }
+      
     },
     // 校验并获取表单数据
     validate(func) {
