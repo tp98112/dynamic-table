@@ -1,6 +1,6 @@
 <template>
     <div>
-        <DynamicTable ref="dynamicTable" v-bind="tableConfig"  @change="tableChange">
+        <DynamicTable @row-dblclick="rowDblclick" @cell-dblclick="cellDblclick"  ref="dynamicTable" v-bind="tableConfig"  @change="tableChange">
             <span slot="header-sblx" slot-scope="{scope, $edit}">
                 <el-button @click="$edit" size="mini">{{scope.column.$edit ? '保存' : scope.column.label}}</el-button>
             </span>
@@ -124,6 +124,12 @@ export default {
        
     },
     methods: {
+        cellDblclick(row, column, cell, event){
+            console.log(row, column, cell, event)
+        },
+        rowDblclick(data){
+            console.log(data)
+        },
         checkTableData(){
             console.log(this.$refs.dynamicTable.checkTableData() )
            

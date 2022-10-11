@@ -61,6 +61,9 @@ export default {
         },
         
     },
+    beforeCreate(){
+        delete this.$listeners.change; // 移除自定义事件
+    },
     created(){
         /**
          * 初始化
@@ -71,7 +74,6 @@ export default {
             // 触发分页事件 获取数据
             this.emitPageChange()
         }
-    
     },
     render(h){
         const setEditContent = ({column, scope}) => {
@@ -435,11 +437,8 @@ export default {
             row-class-name={this.rowClassName}
             cell-style={this.returnCellStyle}
             on={{
-                'selection-change': this.selectionChange, 
-                'current-change': this.currentRowChange, 
-                'cell-dblclick': this.handleCellDblclick,
-                'row-click': this.rowClick,
-                'row-dblclick': this.rowDblclick
+                ...this.$listeners,
+                'cell-dblclick': this.handleCellDblclick
             }} 
             class={this.dynamic && (this.editMode === 'inline' || this.unifiedEdit) ? 'dynamic-table' : ''}>
                 {renderColumns(this.column)}{renderActionColumn()}
@@ -1040,12 +1039,6 @@ export default {
                 this.emitPageChange();
             } 
         },
-        selectionChange(val){
-            this.$emit('selection-change', val)
-        },
-        currentRowChange(currentRow, oldCurrentRow){
-            this.$emit('current-change', currentRow, oldCurrentRow)
-        },
         /**
          * 设置表格数据加载loading
          */
@@ -1493,10 +1486,10 @@ export default {
          * 处理单元格双击事件
          */
         handleCellDblclick(row, column, cell, event){
-            // console.log(row, column, cell, event)
-            if(this.cellDblclick){
+            console.log(row, column, cell, event, '处理单元格双击事件')
+            if(this.$listeners['cell-dblclick']){
                 // 自定义单元格双击事件
-                this.cellDblclick(row, column, cell, event)
+                this.$listeners['cell-dblclick'](row, column, cell, event)
             }
             if(this.dblClickToEditCell){
                 // 双击编辑单元格
