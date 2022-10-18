@@ -61,9 +61,6 @@ export default {
         },
         
     },
-    beforeCreate(){
-        delete this.$listeners.change; // 移除自定义事件
-    },
     created(){
         /**
          * 初始化
@@ -1211,7 +1208,7 @@ export default {
                 if(scope.form){
                     this.$emit('change', {type: trigger.emit, trigger, scope, cancel: this.closeDialog, save: this.dialogConfirm})
                 }else{
-                    this.$emit('change', {type: trigger.emit, trigger, scope})
+                    this.$emit('change', {type: trigger.emit, trigger, scope, row: this.getEmitData(scope.row)})
                 }
                 
             }  
