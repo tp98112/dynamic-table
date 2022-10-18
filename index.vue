@@ -816,8 +816,8 @@ export default {
                 this.formConfig.currentPanel = button.panel; // 设置表单的当前面板
                 this.formVisible = true;
                 this.$nextTick(() => {
-                    if(typeof button.formDataSource === 'function'){
-                        button.formDataSource({row:  this.getEmitData(row), callBack: data => {
+                    if(typeof button.getFormData === 'function'){
+                        button.getFormData({row:  this.getEmitData(row), callBack: data => {
                             this.setDynamicForm(data);
                         }} )
                     }else{
