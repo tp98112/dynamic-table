@@ -817,9 +817,9 @@ export default {
                 this.formVisible = true;
                 this.$nextTick(() => {
                     if(typeof button.formDataSource === 'function'){
-                        button.formDataSource(data => {
+                        button.formDataSource({row:  this.getEmitData(row), callBack: data => {
                             this.setDynamicForm(data);
-                        })
+                        }} )
                     }else{
                         this.setDynamicForm(deepClone(row));
                     }
