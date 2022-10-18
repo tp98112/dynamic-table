@@ -816,7 +816,14 @@ export default {
                 this.formConfig.currentPanel = button.panel; // 设置表单的当前面板
                 this.formVisible = true;
                 this.$nextTick(() => {
-                    this.setDynamicForm(deepClone(row));
+                    if(button.formDataSource === 'remote'){
+                        const callback = data => {
+                            this.setDynamicForm(data);
+                        }
+                        this.$emit('change', {type: button.target, row: this.getEmitData(row), callback})
+                    }else{
+                        this.setDynamicForm(deepClone(row));
+                    }
                 })
             };
             // 内置事件存在emit时, 一同触发
