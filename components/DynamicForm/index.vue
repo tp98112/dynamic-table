@@ -845,7 +845,7 @@ export default {
         console.log("resetreset")
         this.resetForm()
       }else{
-        this.$emit(item.emit, this.form)
+        this.$emit('change', {type: item.emit, form: this.form, dicts: this.dicts, mode: this.currentMode, panel: this.currentPanel})
       }
       
     },
