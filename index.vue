@@ -27,7 +27,6 @@ export default {
             validateObject: {}, // 验证对象
             formVisible: false, // 编辑弹窗显隐
             dialogConfirmLoading: false, // 弹窗loading
-            operationMode: 'new', // 更新方式 新增或修改已有数据 
             uniqueKey: this.rowKey ? this.rowKey : '$rowKey', // 唯一键
             formReady: false, // 表单初始化状态
             formTitle: '', // 弹窗表单标题
@@ -35,7 +34,7 @@ export default {
                 // 编辑表单配置
                 initFields: this.initFields, // 初始化字段
                 cols: this.formCols, // 一行放置的表单项数量
-                currentMode: this.operationMode, // 操作模式
+                currentMode: 'new', // 操作模式
                 currentPanel: '', // 当前面板
                 formLabelWidth: this.formLabelWidth, // 表单标签宽度
                 labelPosition: this.formLabelPosition, // 表单标签对齐方式
@@ -398,7 +397,7 @@ export default {
          * 编辑弹窗
          */
         const renderEditDialog = () => {
-            return <el-dialog visible={this.formVisible} on={{['update:visible']: state => {this.formVisible = state}}} title={this.formTitle} width={this.formDialogWidth} append-to-body before-close={this.beforeClose} modal={this.formDialogModal} class="dynamicTable-dialog">
+            return <el-dialog  visible={this.formVisible} on={{['update:visible']: state => {this.formVisible = state}}} title={this.formTitle} width={this.formDialogWidth} append-to-body before-close={this.beforeClose} modal={this.formDialogModal} class="dynamicTable-dialog">
                 <DynamicForm
                     props={this.formConfig}
                     attrs={this.$attrs}
@@ -740,13 +739,18 @@ export default {
                 // 未通过前置条件
                 return;
             };
-            this.operationMode = 'new'; // 标记当前操作模式
+            this.formConfig.currentMode = 'new'; // 标记当前操作模式
+            
+            
             this.formTitle = button.actionName; // 标记操作名称
             if(this.editMode === 'window' && !this.unifiedEdit){
                 // 弹窗编辑
                 this.currentEditRow = scope && scope.row ? scope.row : null;
                 this.formConfig.disabledForm = false; 
                 this.formVisible = true;
+                this.$nextTick(() => {
+                    console.log(this.formConfig.currentMode, this.$refs.dynamicForm.currentMode)
+                })
             }else{
                 
                 // 行内编辑
@@ -805,7 +809,7 @@ export default {
             };
             let row = scope.row;
             this.currentEditRow = row; // 标记当前编辑行
-            this.operationMode = 'update'; // 标记当前操作模式
+            this.formConfig.currentMode = 'update'; // 标记当前操作模式
             if(this.editMode === 'inline'){
                 // 行内编辑
                 this.$set(row, '$edit', true);
@@ -940,7 +944,7 @@ export default {
                 return;
             };
             let row = scope.row;
-            this.operationMode = 'view'; // 标记操作模式
+            this.formConfig.currentMode = 'view'; // 标记操作模式
             this.formTitle = button.actionName;
             this.formConfig.disabledForm = true;
             this.formConfig.currentPanel = button.panel; // 设置表单的当前面板
@@ -1239,9 +1243,9 @@ export default {
                 // 表单弹窗 this.$refs.dynamicForm?.form
                 execute = {
                     ///// 表单弹窗控制属性
-                    $update: this.operationMode === 'update' || this.operationMode === 'new',
-                    $cancel: this.operationMode === 'update' || this.operationMode === 'new',
-                    $close: this.operationMode === 'view'
+                    $update: this.formConfig.currentMode === 'update' || this.formConfig.currentMode === 'new',
+                    $cancel: this.formConfig.currentMode === 'update' || this.formConfig.currentMode === 'new',
+                    $close: this.formConfig.currentMode === 'view'
                 };
             }
             return item.target in execute ? execute[item.target] : false;
@@ -1310,10 +1314,10 @@ export default {
          * 编辑弹窗确认dialogConfir
          */
         dialogConfirm(){
-            this.$refs.dynamicForm.validate((valid, form) => {
+            this.$refs.dynamicForm.validate(({valid, form}) => {
                 if(valid){
                     const success = info => {
-                        if(this.needRefreshEvents.indexOf(this.operationMode) > -1){
+                        if(this.needRefreshEvents.indexOf(this.formConfig.currentMode) > -1){
                             this.emitPageChange() // 刷新当前页
                         }else{
                             this.saveFormDataToTable(form)
@@ -1321,18 +1325,18 @@ export default {
                         this.$refs.dynamicForm.resetFields() // 重置表单
                         this.dialogConfirmLoading = false; // 关闭loading
                         this.formVisible = false; // 关闭弹窗
-                        this.executePromp({type: 'success', message: info ? info : `${this.operationMode === 'new' ? '新增': '更新'}数据成功！`})
+                        this.executePromp({type: 'success', message: info ? info : `${this.formConfig.currentMode === 'new' ? '新增': '更新'}数据成功！`})
                     };
                     const fail = info => {
-                        this.executePromp({type: 'error', message: info ? info : `${this.operationMode === 'new' ? '新增': '更新'}数据失败！`})
+                        this.executePromp({type: 'error', message: info ? info : `${this.formConfig.currentMode === 'new' ? '新增': '更新'}数据失败！`})
                         this.dialogConfirmLoading = false;
                     }
                     this.dialogConfirmLoading = true;
                     let row = this.getEmitData(form);
-                    if(this.operationMode === 'new'){
+                    if(this.formConfig.currentMode === 'new'){
                         row.parent = this.getEmitData(this.currentEditRow);
                     }
-                    this.$emit('change', {type: this.operationMode === 'new' ? 'new' : 'update', row, success, fail})
+                    this.$emit('change', {type: this.formConfig.currentMode === 'new' ? 'new' : 'update', row, success, fail})
                     
                 }else{
 
@@ -1382,7 +1386,7 @@ export default {
          */
         saveFormDataToTable(form){
             // 本地更新
-            if(this.operationMode === 'new'){
+            if(this.formConfig.currentMode === 'new'){
                 let copyForm = deepClone(form);
                 copyForm[this.uniqueKey] = getId(); // 随机id
                 if(this.currentEditRow){

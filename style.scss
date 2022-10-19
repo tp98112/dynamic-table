@@ -53,3 +53,9 @@
         padding: 0.26vw 0.651vw;
     }
 }
+
+.dynamicTable-dialog{
+    ::v-deep .el-dialog{
+        min-width: 400px;
+    }
+}
