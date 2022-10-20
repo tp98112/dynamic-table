@@ -19,6 +19,7 @@
           width: formItemWidth(item),
           paddingLeft: gutter / 2 + 'px',
           paddingRight: gutter / 2 + 'px',
+          flex: item.flex
         }"
         :ref="`el-form-item-${item.prop}`"
         :key="index"
@@ -278,8 +279,14 @@
                 </el-badge>
               </el-upload>
             </div>
+            <el-select-tree 
+            v-else-if="isRender(item.editType, 'select-tree')"
+            v-model="form[item.prop]"
+            :data="returnOptions(item)"
+            :size="size"
+            />
             <!-- 按钮组 -->
-            <div v-else-if="isRender(item.editType, 'button-group')">
+            <div v-else-if="isRender(item.editType, 'button-group')" :style="{display: 'flex', alignItems: 'center', height: '100%', justifyContent: item.justifyContent}">
               <el-button
                 v-for="(opt, index) of item.options"
                 :key="index"
@@ -316,6 +323,7 @@ const renderColumn = {
     return this.renderContent(h, this.data);
   },
 };
+import ElSelectTree from "../el-select-tree";
 export default {
   /**
    * 动态表单
@@ -326,6 +334,7 @@ export default {
     renderColumn,
     TpUploadButton: () => import('../TpUpload/Button.vue'),
     TpUploadImages: () => import('../TpUpload/Image.vue'),
+    ElSelectTree
   },
   props: {
     column: {
@@ -437,6 +446,7 @@ export default {
         "upload-image": [], // 图片上传
         "upload-button": [], // 上传-按钮
         "upload-select": [], // 上传-下拉框
+        'select-tree': [], // 选择树
         "button-group": "",
         unknown: "", // 未知的
       }), // 受支持的预设控件
@@ -678,6 +688,9 @@ export default {
             "auto-upload": false,
             multiple: true,
           },
+          'select-tree': {
+
+          }
         };
       }
       return (item) => {
@@ -729,7 +742,8 @@ export default {
         const prop = item.module ? `${item.module}-${item.prop}` : item.prop; // 分模块
         let defaultValue = this.initFields.hasOwnProperty(prop)
           ? this.initFields[prop]
-          : this.supportedComponents[item.editType]; // todo select
+          : this.supportedComponents[item.editType];
+        
         this.$set(this.form, prop, defaultValue); // 初始化表单字段数据
         this.defaultFieldsValue[prop] = JSON.parse(JSON.stringify(defaultValue)); // 初始化字段默认值
         // 检查最长标签长度

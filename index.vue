@@ -25,6 +25,7 @@ export default {
             lastPageSize: null, // 上一次选中的当前页大小
             toolsObject: {},
             validateObject: {}, // 验证对象
+            selectionList: [], // 多选列表
             formVisible: false, // 编辑弹窗显隐
             dialogConfirmLoading: false, // 弹窗loading
             uniqueKey: this.rowKey ? this.rowKey : '$rowKey', // 唯一键
@@ -434,7 +435,8 @@ export default {
             cell-style={this.returnCellStyle}
             on={{
                 ...this.$listeners,
-                'cell-dblclick': this.handleCellDblclick
+                'cell-dblclick': this.handleCellDblclick,
+                'selection-change': this.handleSelectionChange
             }} 
             class={this.dynamic && (this.editMode === 'inline' || this.unifiedEdit) ? 'dynamic-table' : ''}>
                 {renderColumns(this.column)}{renderActionColumn()}
@@ -911,6 +913,58 @@ export default {
             }
             
         },
+        /**
+         * 批量删除
+         */
+        batchDelete(){
+            if(!this.selectionList.length){
+                this.$message.info("请先选中要删除的数据！");
+                return;
+            }
+            this.$confirm(`确认删除选中的${this.selectionList.length}条数据吗?`, '确认删除', {
+                confirmButtonText: '确定',
+                cancelButtonText: '取消',
+                type: 'warning',
+                beforeClose: (action, instance, done) => {
+                    if (action === 'confirm') {
+                        this.setTableLoading(true);
+                        instance.confirmButtonLoading = true;
+                        instance.confirmButtonText = '执行中...';
+                        const success = info => {
+                            if(this.needRefreshEvents.indexOf('delete') > -1){
+                                if(this.data.length === 1 && this.currentPage > 1){
+                                    this.pageTurning(this.currentPage - 1)
+                                }else{
+                                    this.emitPageChange(); // 刷新
+                                }
+                            }else{
+                                // 不刷新 更新本地备份数据
+                                this.executeBatchDelete(this.selectionList);
+                            };
+                            this.setTableLoading(false);
+                            instance.confirmButtonLoading = false;
+                            done();
+                            this.executePromp({type:'success', message: info ? info : '删除成功！'})
+                        };
+                        const fail = info => {
+                            this.setTableLoading(false);
+                            instance.confirmButtonLoading = false;
+                            done();
+                            this.executePromp({type:'error', message: info ? info : '删除失败！'})
+                        };
+                        this.$emit('change', {type: 'delete', selection: this.selectionList, success, fail })
+                    }else{
+                        done()
+                    }
+                }
+            }).catch(() => {
+                
+                this.$message({
+                    type: 'info',
+                    message : '已取消！'
+                }) 
+            });
+        },
         // 获取被emit的数据
         getEmitData(params){
             if(this.emitDataType === 'reference'){
@@ -1130,6 +1184,25 @@ export default {
                 }
             })
             row.$deleteLoading = false;
+        },
+        /**
+         * 批量删除本地数据 并更新备份
+         */
+        executeBatchDelete(list){
+            let keys = list.map(item => item[this.uniqueKey]);
+            keys.forEach(key => {
+                delete this.backupTableData[key]; // 删除备份数据
+                loopThroughTheArrayBySome(this.data, (item, index, parent) => {
+                    if(parent && item[this.uniqueKey] === key){
+                        parent.children.splice(index, 1)
+                        return true;
+                    }else if(item[this.uniqueKey] === key){
+                        this.data.splice(index, 1)
+                        return true;
+                    }
+                })
+            })
+
         },
         /**
          * 上报分页器事件
@@ -1508,6 +1581,12 @@ export default {
                 }else{
                     this.$set(this.toolsObject, `${column.property}-${row[this.uniqueKey]}`, true)
                 }
+            }
+        },
+        handleSelectionChange(selection){
+            this.selectionList = selection;
+            if(this.$listeners['selection-change']){
+                this.$listeners['selection-change'](selection)
             }
         }
     },

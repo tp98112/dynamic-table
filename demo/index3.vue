@@ -181,6 +181,23 @@ export default {
                     width: 200,
                 },
                 {
+                    panel: 2, // 面板
+                    label: '下拉树',
+                    prop: 'select-tree',
+                    editType: 'select-tree',
+                    options: [
+                        {
+                            label: '乌鲁木齐市',
+                            value: '2',
+                            children: [
+                            { label: '达坂城区', value: '7' },
+                            { label: '头屯河区', value: '8' },
+                            { label: '乌鲁木齐县', value: '9' }
+                            ]
+                        }
+                    ]
+                },
+                {
                     label: '选择文件1',
                     prop: 'selectFile',
                     cols: 2,
@@ -211,15 +228,6 @@ export default {
                        uploadImage: [
                         {url: 'http://mms2.baidu.com/it/u=4016242268,4022037871&fm=253&app=120&f=JPEG&fmt=auto&q=75?w=501&h=500'}
                        ],
-                       children:[
-                        {id: '2121',
-                        input: "1",
-                        select: "1",
-                        'checkbox-group': [],
-                        'time-picker': '',
-
-                        }
-                       ]
                     },
                     {
                         id: '12',
