@@ -19,6 +19,7 @@
           width: formItemWidth(item),
           paddingLeft: gutter / 2 + 'px',
           paddingRight: gutter / 2 + 'px',
+          flex: item.flex
         }"
         :ref="`el-form-item-${item.prop}`"
         :key="index"
@@ -279,7 +280,7 @@
               </el-upload>
             </div>
             <!-- 按钮组 -->
-            <div v-else-if="isRender(item.editType, 'button-group')">
+            <div v-else-if="isRender(item.editType, 'button-group')" :style="{display: 'flex', alignItems: 'center',height: '100%', justifyContent: item.justifyContent}">
               <el-button
                 v-for="(opt, index) of item.options"
                 :key="index"
@@ -843,9 +844,9 @@ export default {
     customButtonEvents(item) {
       if(item.target === 'reset'){
         console.log("resetreset")
-        this.resetForm()
+        this.resetFields()
       }else{
-        this.$emit(item.emit, this.form)
+        this.$emit('change', {type: item.emit, form: this.form, dicts: this.dicts, mode: this.currentMode, panel: this.currentPanel})
       }
       
     },
