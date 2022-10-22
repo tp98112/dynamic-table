@@ -282,8 +282,12 @@
             <el-select-tree 
             v-else-if="isRender(item.editType, 'select-tree')"
             v-model="form[item.prop]"
+            v-bind="returnControlProperty(item)"
+            v-on:[controlEvent(item)]="controlMethod($event, item)"
+            v-on="getControlEvents(item)"
             :data="returnOptions(item)"
             :size="size"
+            style="width: 100%"
             />
             <!-- 按钮组 -->
             <div v-else-if="isRender(item.editType, 'button-group')" :style="{display: 'flex', alignItems: 'center', height: '100%', justifyContent: item.justifyContent}">
@@ -323,7 +327,6 @@ const renderColumn = {
     return this.renderContent(h, this.data);
   },
 };
-import ElSelectTree from "../el-select-tree";
 export default {
   /**
    * 动态表单
@@ -334,7 +337,6 @@ export default {
     renderColumn,
     TpUploadButton: () => import('../TpUpload/Button.vue'),
     TpUploadImages: () => import('../TpUpload/Image.vue'),
-    ElSelectTree
   },
   props: {
     column: {
@@ -386,6 +388,13 @@ export default {
         return {};
       },
     },
+    received_dicts: {
+      // 接收表格字典
+      type: Object,
+      default() {
+        return {};
+      },
+    },
     labelPosition: {
       // 表单标签对齐方式
       type: String,
@@ -423,7 +432,7 @@ export default {
       componentId: getId(true),
       form: {}, // 表单
       rules: {}, // 验证规则
-      dicts: {},
+      dicts: this.received_dicts, // 默认接收父组件传递的字典数据 避免重复请求
       formItemList: [], // 表单列表
       defaultFieldsValue: JSON.parse(JSON.stringify(this.initFields)), // 默认字段值
       timer: null, // 定时器

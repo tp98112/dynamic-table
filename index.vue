@@ -401,6 +401,7 @@ export default {
             return <el-dialog visible={this.formVisible} on={{['update:visible']: state => {this.formVisible = state}}} title={this.formTitle} width={this.formDialogWidth} append-to-body before-close={this.beforeClose} modal={this.formDialogModal} class="dynamicTable-dialog">
                 <DynamicForm
                     props={this.formConfig}
+                    received_dicts={this.dicts}
                     attrs={this.$attrs}
                     ref="dynamicForm"
                     on={{'created': () => {this.formReady = true}, change: this.emitDynamicFormEvents}}
@@ -695,6 +696,7 @@ export default {
                     };
                     // 字典数据
                     if(item.dict && !(item.dict in this.dicts)){
+                        this.dicts[item.dict] = null; // 首先初始化, 避免接口返回异常时表单子组件再次发起请求
                         // this.getDicts(item.dict).then(response => {
                         //     this.dicts[item.dict] = response.data;
                         //     // console.log('字典数据', this.dicts)
@@ -732,7 +734,7 @@ export default {
         // 更新数据索引
         setTheDataIndex(data, parent){
             loopThroughTheArray(data, (item, index, parent) => {
-                item.$rowKey = getId(true);
+                item.$rowKey = getId();
                 this.backupTableData[item.$rowKey] = deepClone(item);
             }, parent)
         },
@@ -916,7 +918,7 @@ export default {
         /**
          * 批量删除
          */
-        batchDelete(){
+        handleBatchDelete(){
             if(!this.selectionList.length){
                 this.$message.info("请先选中要删除的数据！");
                 return;
