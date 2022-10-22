@@ -401,6 +401,7 @@ export default {
             return <el-dialog  visible={this.formVisible} on={{['update:visible']: state => {this.formVisible = state}}} title={this.formTitle} width={this.formDialogWidth} append-to-body before-close={this.beforeClose} modal={this.formDialogModal} class="dynamicTable-dialog">
                 <DynamicForm
                     props={this.formConfig}
+                    received_dicts={this.dicts}
                     attrs={this.$attrs}
                     ref="dynamicForm"
                     on={{'created': () => {this.formReady = true}, change: this.emitDynamicFormEvents}}
@@ -695,10 +696,14 @@ export default {
                     };
                     // 字典数据
                     if(item.dict && !(item.dict in this.dicts)){
-                        // this.getDicts(item.dict).then(response => {
-                        //     this.dicts[item.dict] = response.data;
-                        //     // console.log('字典数据', this.dicts)
-                        // });
+                        this.dicts[item.dict] = null; // 首先初始化, 避免接口返回异常时表单子组件再次发起请求
+                        this.getDicts(item.dict).then(response => {
+                            let {code, context} = response;
+                            if(code === "K-000000" && context){
+                                this.dicts[item.dict] = context;
+                            }
+                            // console.log('字典数据', this.dicts)
+                        });
                     }
                 }
             })
@@ -732,7 +737,7 @@ export default {
         // 更新数据索引
         setTheDataIndex(data, parent){
             loopThroughTheArray(data, (item, index, parent) => {
-                item.$rowKey = getId(true);
+                item.$rowKey = getId();
                 this.backupTableData[item.$rowKey] = deepClone(item);
             }, parent)
         },
@@ -1489,7 +1494,11 @@ export default {
                 let arr = this.dicts[column.dict] || this.$attrs[column.optionsKey] || column.options || [];
                 let target = arr.find(item => item[column.optionControl?.value ? column.optionControl.value : this.optionControl.value] === value);
                 return target ? target[column.optionControl?.label ? column.optionControl.label : this.optionControl.label] : '无匹配数据'
-                
+            }else if(column.dict){
+                // 系统字典
+                let arr = this.dicts[column.dict] ? this.dicts[column.dict] : [];
+                let target = arr.find(item => item['dictValue'] === value);
+                return target ? target['dictLabel'] : '无匹配数据';
             }else{
                 return value;
             }

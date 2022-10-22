@@ -70,12 +70,8 @@
               style="width: 100%"
             >
               <el-option
-                v-for="opt in returnOptions(item)"
-                :key="
-                  item.optionControl
-                    ? opt[item.optionControl.value]
-                    : opt[optionControl.value]
-                "
+                v-for="(opt, optIndex) in returnOptions(item)"
+                :key="optIndex"
                 :label="
                   item.optionControl
                     ? opt[item.optionControl.label]
@@ -279,6 +275,16 @@
                 </el-badge>
               </el-upload>
             </div>
+            <el-select-tree 
+            v-else-if="isRender(item.editType, 'select-tree')"
+            v-model="form[item.prop]"
+            v-bind="returnControlProperty(item)"
+            v-on:[controlEvent(item)]="controlMethod($event, item)"
+            v-on="getControlEvents(item)"
+            :data="returnOptions(item)"
+            :size="size"
+            style="width: 100%"
+            />
             <!-- 按钮组 -->
             <div v-else-if="isRender(item.editType, 'button-group')" :style="{display: 'flex', alignItems: 'center',height: '100%', justifyContent: item.justifyContent}">
               <el-button
@@ -378,6 +384,13 @@ export default {
         return {};
       },
     },
+    received_dicts: {
+      // 接收表格字典
+      type: Object,
+      default() {
+        return {};
+      },
+    },
     labelPosition: {
       // 表单标签对齐方式
       type: String,
@@ -415,7 +428,7 @@ export default {
       componentId: getId(true),
       form: {}, // 表单
       rules: {}, // 验证规则
-      dicts: {},
+      dicts: this.received_dicts, //
       formItemList: [], // 表单列表
       defaultFieldsValue: JSON.parse(JSON.stringify(this.initFields)), // 默认字段值
       timer: null, // 定时器
@@ -438,6 +451,7 @@ export default {
         "upload-image": [], // 图片上传
         "upload-button": [], // 上传-按钮
         "upload-select": [], // 上传-下拉框
+        'select-tree': [], // 选择树
         "button-group": "",
         unknown: "", // 未知的
       }), // 受支持的预设控件
@@ -486,7 +500,8 @@ export default {
                 ? item.controlEvents[i]({
                     params,
                     form: this.form,
-                    item,
+                    dicts: this.dicts,
+                    trigger :item,
                     that: this,
                   })
                 : () => {
@@ -679,6 +694,9 @@ export default {
             "auto-upload": false,
             multiple: true,
           },
+          'select-tree': {
+
+          }
         };
       }
       return (item) => {
@@ -698,6 +716,7 @@ export default {
     },
   },
   created() {
+    console.log(this.dicts)
     if (this.currentPanel && this.dataIsolation) {
       // 存在面板设置与数据隔离时
       this.formItemList = this.column.filter((item) => {
@@ -730,7 +749,8 @@ export default {
         const prop = item.module ? `${item.module}-${item.prop}` : item.prop; // 分模块
         let defaultValue = this.initFields.hasOwnProperty(prop)
           ? this.initFields[prop]
-          : this.supportedComponents[item.editType]; // todo select
+          : this.supportedComponents[item.editType];
+        
         this.$set(this.form, prop, defaultValue); // 初始化表单字段数据
         this.defaultFieldsValue[prop] = JSON.parse(JSON.stringify(defaultValue)); // 初始化字段默认值
         // 检查最长标签长度

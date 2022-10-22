@@ -1,10 +1,9 @@
 <template>
     <div>
-        <DynamicTable @row-dblclick="rowDblclick" @cell-dblclick="cellDblclick"  ref="dynamicTable" v-bind="tableConfig"  @change="tableChange">
-            <span slot="header-sblx" slot-scope="{scope, $edit}">
-                <el-button @click="$edit" size="mini">{{scope.column.$edit ? '保存' : scope.column.label}}</el-button>
-            </span>
-            
+        <DynamicTable @selection-change="selectionChange" @row-dblclick="rowDblclick" @cell-dblclick="cellDblclick"  ref="dynamicTable" v-bind="tableConfig"  @change="tableChange">
+            <span slot="action-header">测试</span>
+           
+            <span slot="default-sblx">测试测试测试</span>
         </DynamicTable>
       <el-button @click="checkTableData">获取表格数据</el-button>
     </div>
@@ -27,20 +26,6 @@ export default {
                 },
                 actionButtonType: 'link',
                 needRefreshEvents: [],
-                newActionButton: [
-                    {
-                        label: '测试',
-                        type:'primary',
-                        plain: true,
-                        emit: '测试',
-                    },
-                    {
-                        label: '编辑',
-                        type:'primary',
-                        plain: true,
-                        emit: 'update2',
-                    }
-                ],
                 align: 'center',
                 // spanMethod({ row, column, rowIndex, columnIndex }){
                 //     if (columnIndex === 1) {
@@ -61,7 +46,7 @@ export default {
                 column: [
                     {
                         fixed: 'left',
-                        type: 'index',
+                        type: 'selection',
                         label: '序号',
                         
                     },
@@ -136,7 +121,8 @@ export default {
                     }
                 ],
                 data: [
-                    {id: 1,sblx: '1', xnzb: '', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 1,sblx: '1', xnzb: '', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限',
+                    children: [{id: '21'}]},
                     {id: 2,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
                     {id: 3,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
                     {id: 4,sblx: '2', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
@@ -154,6 +140,9 @@ export default {
        
     },
     methods: {
+        selectionChange(list){
+            console.log(list)
+        },
         mergeSameCells(){
             // 表格数据 this.tableConfig.data
             let flag = this.tableConfig.data[0].sblx;
