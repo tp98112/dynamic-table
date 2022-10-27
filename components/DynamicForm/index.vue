@@ -71,21 +71,9 @@
             >
               <el-option
                 v-for="opt in returnOptions(item)"
-                :key="
-                  item.optionControl
-                    ? opt[item.optionControl.value]
-                    : opt[optionControl.value]
-                "
-                :label="
-                  item.optionControl
-                    ? opt[item.optionControl.label]
-                    : opt[optionControl.label]
-                "
-                :value="
-                  item.optionControl
-                    ? opt[item.optionControl.value]
-                    : opt[optionControl.value]
-                "
+                :key="returnOptionsFields(item, opt, 'value')"
+                :label="returnOptionsFields(item, opt, 'label')"
+                :value="returnOptionsFields(item, opt, 'value')"
               >
               </el-option>
             </el-select>
@@ -112,17 +100,9 @@
               <el-radio
                 v-for="(opt, optIndex) of returnOptions(item)"
                 :key="optIndex"
-                :label="
-                  item.optionControl
-                    ? opt[item.optionControl.value]
-                    : opt[optionControl.value]
-                "
+                :label="returnOptionsFields(item, opt, 'value')"
               >
-                {{
-                  item.optionControl
-                    ? opt[item.optionControl.label]
-                    : opt[optionControl.label]
-                }}
+                {{returnOptionsFields(item, opt, 'label')}}
               </el-radio>
             </el-radio-group>
             <!-- switch开关 -->
@@ -171,17 +151,9 @@
                 <el-checkbox
                   v-for="(opt, optIndex) of returnOptions(item)"
                   :key="optIndex"
-                  :label="
-                    item.optionControl
-                      ? opt[item.optionControl.value]
-                      : opt[optionControl.value]
-                  "
+                  :label="returnOptionsFields(item, opt, 'value')"
                 >
-                  {{
-                    item.optionControl
-                      ? opt[item.optionControl.label]
-                      : opt[optionControl.label]
-                  }}
+                  {{ returnOptionsFields(item, opt, 'label') }}
                 </el-checkbox>
               </el-checkbox-group>
             </template>
@@ -426,6 +398,16 @@ export default {
         };
       },
     },
+    // 字典数据字段控制
+    dictControl: {
+        type: Object,
+        default() {
+            return {
+                label: 'dictLabel',
+                value: 'dictValue'
+            };
+        },
+    },
   },
   data() {
     return {
@@ -484,6 +466,16 @@ export default {
   },
   computed: {
     /**
+     * 返回选项列表字段值配置
+     */
+    returnOptionsFields(){
+      return (item, opt, field) => {
+        return item.optionControl
+              ? opt[item.optionControl[field]]
+              : (item.dict ? opt[this.dictControl[field]] : opt[this.optionControl[field]])
+      }        
+    },
+    /**
      * 获取prop
      */
     getProp(){
@@ -504,7 +496,8 @@ export default {
                 ? item.controlEvents[i]({
                     params,
                     form: this.form,
-                    item,
+                    dicts: this.dicts,
+                    trigger: item,
                     that: this,
                   })
                 : () => {
@@ -775,11 +768,6 @@ export default {
           //     }
           //   })
         }
-
-        // 加载时主动触发控件事件
-        // if (item.loadTrigger && item.eventName && item.controlMethod) {
-        //   this.controlMethod(this.form[item.prop], item);
-        // }
 
         // 校验
         let validator = item.formValidator || item.validator;

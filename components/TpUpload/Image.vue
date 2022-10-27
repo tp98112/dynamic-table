@@ -42,7 +42,7 @@ export default {
          */
         stack: {
             type: Boolean,
-            default: true
+            default: false
         },
         /**
          * 文件列表

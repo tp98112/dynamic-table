@@ -666,7 +666,7 @@ export default {
                 if(!this.formColumn){
                     let formColumn = [];
                     loopThroughTheArray(this.column, item => {
-                        if(['index', 'selection', 'expand'].indexOf(item.type) < 0 && item.formVisible !== false){
+                        if(item.formVisible !== false && !item.hasOwnProperty('children') && ['index', 'selection', 'expand'].indexOf(item.type) < 0 ){
                             formColumn.push(item)
                         }
                     })
@@ -696,7 +696,7 @@ export default {
                     };
                     // 字典数据
                     if(item.dict && !(item.dict in this.dicts)){
-                        this.dicts[item.dict] = null; // 首先初始化, 避免接口返回异常时表单子组件再次发起请求
+                        this.$set(this.dicts, item.dict, null); // 首先初始化, 避免接口返回异常时表单子组件再次发起请求
                         // this.getDicts(item.dict).then(response => {
                         //     this.dicts[item.dict] = response.data;
                         //     // console.log('字典数据', this.dicts)
@@ -1487,7 +1487,12 @@ export default {
          */
         getDefaultDisplayValue(column, value){
             if(column.editType === 'time-picker' && Array.isArray(value) && value.length){
-                return dateFormat(value[0], 'HH:MM:SS') + '~' + dateFormat(value[1], 'HH:MM:SS')
+                return dateFormat(value[0], 'HH:MM:SS') + '~' + dateFormat(value[1], 'HH:MM:SS');
+            }else if(column.dict){
+                // 系统字典
+                let arr = this.dicts[column.dict] ? this.dicts[column.dict] : [];
+                let target = arr.find(item => item['dictValue'] === value);
+                return target ? target['dictLabel'] : '无匹配数据'; // todo
             }else if(value && column.editType === 'select'){
                 let arr = this.dicts[column.dict] || this.$attrs[column.optionsKey] || column.options || [];
                 let target = arr.find(item => item[column.optionControl?.value ? column.optionControl.value : this.optionControl.value] === value);
