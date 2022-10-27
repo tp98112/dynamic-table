@@ -215,7 +215,7 @@ export default{
         // 内置的操作按钮 类型
         actionButtonType: {
             type: String,
-            default: 'button'
+            default: 'link'
         },
         // 操作栏按钮大小
         actionButtonSize: {

@@ -69,7 +69,7 @@ export default {
         this.initTableData();
         if(this.loadData){
             // 触发分页事件 获取数据
-            this.emitPageChange()
+            this.refreshTableData()
         }
     },
     render(h){
@@ -223,7 +223,7 @@ export default {
                     }else if(this.getColumnVisible(column)){
                         return h('el-table-column', {
                             props: {
-                                key: column.prop,
+                                key: column.nodeKey ? column.nodeKey : column.prop,
                                 label: column.label,
                                 prop: column.prop,
                                 width: column.width,
@@ -234,7 +234,7 @@ export default {
                                 align: column.align ? column.align : this.align,
                                 "min-width": this.getColumnMinWidth(column),
                                 fixed: column.fixed,
-                                'show-overflow-tooltip': false // todo
+                                'show-overflow-tooltip': true // todo
                             },
                             scopedSlots: {
                                 header: scope => {
@@ -398,7 +398,7 @@ export default {
          * 编辑弹窗
          */
         const renderEditDialog = () => {
-            return <el-dialog visible={this.formVisible} on={{['update:visible']: state => {this.formVisible = state}}} title={this.formTitle} width={this.formDialogWidth} append-to-body before-close={this.beforeClose} modal={this.formDialogModal} class="dynamicTable-dialog">
+            return <el-dialog  visible={this.formVisible} on={{['update:visible']: state => {this.formVisible = state}}} title={this.formTitle} width={this.formDialogWidth} append-to-body before-close={this.beforeClose} modal={this.formDialogModal} class="dynamicTable-dialog">
                 <DynamicForm
                     props={this.formConfig}
                     received_dicts={this.dicts}
@@ -694,7 +694,10 @@ export default {
                         required: typeof item.required  === 'boolean' ? item.required : false, // 默认字段非必传
                         validator: item.validator ? item.validator : false // 验证方法
                     };
-                    // 字典数据
+                    
+                }
+                if(item.prop){
+                  // 字典数据
                     if(item.dict && !(item.dict in this.dicts)){
                         this.$set(this.dicts, item.dict, null); // 首先初始化, 避免接口返回异常时表单子组件再次发起请求
                         // this.getDicts(item.dict).then(response => {
@@ -750,6 +753,9 @@ export default {
                 this.currentEditRow = scope && scope.row ? scope.row : null;
                 this.formConfig.disabledForm = false; 
                 this.formVisible = true;
+                this.$nextTick(() => {
+                    console.log(this.formConfig.currentMode, this.$refs.dynamicForm.currentMode)
+                })
             }else{
                 
                 // 行内编辑
@@ -785,7 +791,7 @@ export default {
                 };
                 this.backupTableData[newRow[this.uniqueKey]] = backupRow;
             }
-            this.$message.info("新增！")
+            // this.$message.info("新增！")
         },
         /**
          * 定位到指定位置的数据
@@ -1212,10 +1218,6 @@ export default {
         emitPageChange(){
             const success = info => {
                 this.setTableLoading(false);
-                this.executePromp({
-                    type: 'success',
-                    message: info ? info : '表格数据已更新！',
-                })
             };
             const fail = info => {
                 this.currentPage = this.lastPage; // 重置
@@ -1496,8 +1498,7 @@ export default {
             }else if(value && column.editType === 'select'){
                 let arr = this.dicts[column.dict] || this.$attrs[column.optionsKey] || column.options || [];
                 let target = arr.find(item => item[column.optionControl?.value ? column.optionControl.value : this.optionControl.value] === value);
-                return target ? target[column.optionControl?.label ? column.optionControl.label : this.optionControl.label] : '无匹配数据'
-                
+                return target ? target[column.optionControl?.label ? column.optionControl.label : this.optionControl.label] : '无匹配数据';
             }else{
                 return value;
             }

@@ -160,7 +160,7 @@ export default {
          * 文件移除时
          */
         handleUploadRemove(file, fileList){
-
+            console.log(this.fileList)
         },
     }
 }

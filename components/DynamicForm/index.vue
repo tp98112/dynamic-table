@@ -24,7 +24,7 @@
         :ref="`el-form-item-${item.prop}`"
         :key="index"
         :prop="getProp(item)"
-        :label="item.label ? item.label : ''"
+        :label="item.formLabel ? item.formLabel : item.label ? item.label : ''"
         v-if="getFormVisible(item)"
       >
         <slot :name="'form-' + item.prop" v-bind="{ form, mode: '' }">
@@ -201,9 +201,9 @@
             <!-- 照片墙图片上传 -->
             <tp-upload-images 
             v-else-if="item.editType === 'upload-image'"
-            @change="submitFormValidation(item, 'change')"
+            @change="setUploadImage($event, item)"
             :control="returnControlProperty(item)"
-            :fileList="form[item.prop]" 
+            :file="form[item.prop]" 
             ></tp-upload-images>
             <!-- 上传下拉选择器 -->
             <div
@@ -262,7 +262,7 @@
             style="width: 100%"
             />
             <!-- 按钮组 -->
-            <div v-else-if="isRender(item.editType, 'button-group')" :style="{display: 'flex', alignItems: 'center', height: '100%', justifyContent: item.justifyContent}">
+            <div v-else-if="isRender(item.editType, 'button-group')" :style="{display: 'flex', alignItems: 'center',height: '100%', justifyContent: item.justifyContent}">
               <el-button
                 v-for="(opt, index) of item.options"
                 :key="index"
@@ -282,9 +282,7 @@
           </template>
         </slot>
       </el-form-item>
-    </template></el-form
-  >
-</template>
+    </template>
   </el-form>
 </template>
 
@@ -408,6 +406,10 @@ export default {
             };
         },
     },
+    showValidationFailsMessage: {
+      type: Boolean,
+      default: true
+    }
   },
   data() {
     return {
@@ -761,12 +763,13 @@ export default {
 
         //// 获取字典
         if (item.dict && !(item.dict in this.dicts)) {
-          //   getCommonApi({ code: item.dict }).then(response => {
-          //     let { code, data } = response.data
-          //     if (code === 200 && data) {
-          //       this.$set(this.dicts, item.dict, data)
-          //     }
-          //   })
+          this.getDicts(item.dict).then(response => {
+              let {code, context} = response;
+              if(code === "K-000000" && context){
+                  this.$set(this.dicts, item.dict, context)
+              }
+              // console.log('字典数据', this.dicts)
+          });
         }
 
         // 校验
@@ -854,7 +857,7 @@ export default {
     customButtonEvents(item) {
       if(item.target === 'reset'){
         console.log("resetreset")
-        this.resetForm()
+        this.resetFields()
       }else{
         this.$emit('change', {type: item.emit, form: this.form, dicts: this.dicts, mode: this.currentMode, panel: this.currentPanel})
       }
@@ -865,14 +868,14 @@ export default {
       this.$refs["dynamic-form"].validate((valid) => {
         if (valid) {
           // console.log('');
-        } else {
+        } else if(this.showValidationFailsMessage){
           this.$message({
             type: "error",
             message: "表单验证失败, 请检查完善后再试!",
           });
         }
         if (typeof func === "function") {
-          func({valid, form: valid ? this.deepClone(this.form) : null, module: valid ? this.getFormModule() : null});
+          func({valid, form: valid ? this.deepClone(Object.assign(this.initFields, this.form)) : null, module: valid ? this.getFormModule() : null});
         }
       });
     },
@@ -921,7 +924,7 @@ export default {
      * 提交表单验证
      */
     submitFormValidation(item, trigger){
-        this.$refs[`el-form-item-${item.prop}`][0].$emit(`el.form.${trigger}`, this.form[item.prop])
+      this.$refs['dynamic-form'].validateField(item.prop);
     },
     /**
      * 更新表单数据
@@ -957,6 +960,13 @@ export default {
         this.otherData[item.prop + "-selected"].push(file.uid); // 设置选中
         this.form[item.prop].push(file);
       }
+    },
+    /**
+     * 更新上传图片
+     */
+    setUploadImage(fileList, item){
+      this.form[item.prop] = fileList;
+      this.submitFormValidation(item, 'change')
     },
     // 文件超出限制数量
     exceedQuantityLimit(file, fileList, item) {
@@ -1042,28 +1052,6 @@ export default {
         cursor: default;
       }
     }
-  }
-  .tp-picture-card{
-    ::v-deep.el-upload{
-        border: none;
-        line-height: normal;
-        height: 0px !important ;
-        .el-icon-plus{
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 148px;
-            height: 148px;
-            background-color: #fbfdff;
-            border: 1px dashed #c0ccda;
-            border-radius: 6px;
-            &:hover{
-                border-color:#409EFF
-            }
-            
-        }
-    }
-    
   }
 }
 .form-items-cover {
