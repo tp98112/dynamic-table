@@ -223,7 +223,7 @@ export default {
                     }else if(this.getColumnVisible(column)){
                         return h('el-table-column', {
                             props: {
-                                key: column.prop,
+                                key: column.nodeKey ? column.nodeKey : column.prop,
                                 label: column.label,
                                 prop: column.prop,
                                 width: column.width,
@@ -234,7 +234,7 @@ export default {
                                 align: column.align ? column.align : this.align,
                                 "min-width": this.getColumnMinWidth(column),
                                 fixed: column.fixed,
-                                'show-overflow-tooltip': false // todo
+                                'show-overflow-tooltip': true // todo
                             },
                             scopedSlots: {
                                 header: scope => {
@@ -694,13 +694,16 @@ export default {
                         required: typeof item.required  === 'boolean' ? item.required : false, // 默认字段非必传
                         validator: item.validator ? item.validator : false // 验证方法
                     };
-                    // 字典数据
+                    
+                }
+                if(item.prop){
+                  // 字典数据
                     if(item.dict && !(item.dict in this.dicts)){
-                        this.dicts[item.dict] = null; // 首先初始化, 避免接口返回异常时表单子组件再次发起请求
+                        this.$set(this.dicts, item.dict, null); // 首先初始化, 避免接口返回异常时表单子组件再次发起请求
                         this.getDicts(item.dict).then(response => {
                             let {code, context} = response;
                             if(code === "K-000000" && context){
-                                this.dicts[item.dict] = context;
+                              this.$set(this.dicts, item.dict, context)
                             }
                             // console.log('字典数据', this.dicts)
                         });
@@ -791,7 +794,7 @@ export default {
                 };
                 this.backupTableData[newRow[this.uniqueKey]] = backupRow;
             }
-            this.$message.info("新增！")
+            // this.$message.info("新增！")
         },
         /**
          * 定位到指定位置的数据
@@ -1489,16 +1492,16 @@ export default {
          */
         getDefaultDisplayValue(column, value){
             if(column.editType === 'time-picker' && Array.isArray(value) && value.length){
-                return dateFormat(value[0], 'HH:MM:SS') + '~' + dateFormat(value[1], 'HH:MM:SS')
-            }else if(value && column.editType === 'select'){
-                let arr = this.dicts[column.dict] || this.$attrs[column.optionsKey] || column.options || [];
-                let target = arr.find(item => item[column.optionControl?.value ? column.optionControl.value : this.optionControl.value] === value);
-                return target ? target[column.optionControl?.label ? column.optionControl.label : this.optionControl.label] : '无匹配数据'
+                return dateFormat(value[0], 'HH:MM:SS') + '~' + dateFormat(value[1], 'HH:MM:SS');
             }else if(column.dict){
                 // 系统字典
                 let arr = this.dicts[column.dict] ? this.dicts[column.dict] : [];
                 let target = arr.find(item => item['dictValue'] === value);
                 return target ? target['dictLabel'] : '无匹配数据';
+            }else if(value && column.editType === 'select'){
+                let arr = this.dicts[column.dict] || this.$attrs[column.optionsKey] || column.options || [];
+                let target = arr.find(item => item[column.optionControl?.value ? column.optionControl.value : this.optionControl.value] === value);
+                return target ? target[column.optionControl?.label ? column.optionControl.label : this.optionControl.label] : '无匹配数据';
             }else{
                 return value;
             }

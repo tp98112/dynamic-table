@@ -24,7 +24,7 @@
         :ref="`el-form-item-${item.prop}`"
         :key="index"
         :prop="getProp(item)"
-        :label="item.label ? item.label : ''"
+        :label="item.formLabel ? item.formLabel : item.label ? item.label : ''"
         v-if="getFormVisible(item)"
       >
         <slot :name="'form-' + item.prop" v-bind="{ form, mode: '' }">
@@ -72,16 +72,8 @@
               <el-option
                 v-for="(opt, optIndex) in returnOptions(item)"
                 :key="optIndex"
-                :label="
-                  item.optionControl
-                    ? opt[item.optionControl.label]
-                    : opt[optionControl.label]
-                "
-                :value="
-                  item.optionControl
-                    ? opt[item.optionControl.value]
-                    : opt[optionControl.value]
-                "
+                :label="returnOptionsFields(item, opt, 'label')"
+                :value="returnOptionsFields(item, opt, 'value')"
               >
               </el-option>
             </el-select>
@@ -108,17 +100,9 @@
               <el-radio
                 v-for="(opt, optIndex) of returnOptions(item)"
                 :key="optIndex"
-                :label="
-                  item.optionControl
-                    ? opt[item.optionControl.value]
-                    : opt[optionControl.value]
-                "
+                :label="returnOptionsFields(item, opt, 'value')"
               >
-                {{
-                  item.optionControl
-                    ? opt[item.optionControl.label]
-                    : opt[optionControl.label]
-                }}
+                {{ returnOptionsFields(item, opt, 'label') }}
               </el-radio>
             </el-radio-group>
             <!-- switch开关 -->
@@ -167,17 +151,9 @@
                 <el-checkbox
                   v-for="(opt, optIndex) of returnOptions(item)"
                   :key="optIndex"
-                  :label="
-                    item.optionControl
-                      ? opt[item.optionControl.value]
-                      : opt[optionControl.value]
-                  "
+                  :label="returnOptionsFields(item, opt, 'value')"
                 >
-                  {{
-                    item.optionControl
-                      ? opt[item.optionControl.label]
-                      : opt[optionControl.label]
-                  }}
+                  {{returnOptionsFields(item, opt, 'label')}}
                 </el-checkbox>
               </el-checkbox-group>
             </template>
@@ -225,9 +201,9 @@
             <!-- 照片墙图片上传 -->
             <tp-upload-images 
             v-else-if="item.editType === 'upload-image'"
-            @change="submitFormValidation(item, 'change')"
+            @change="setUploadImage($event, item)"
             :control="returnControlProperty(item)"
-            :fileList="form[item.prop]" 
+            :file="form[item.prop]" 
             ></tp-upload-images>
             <!-- 上传下拉选择器 -->
             <div
@@ -306,9 +282,7 @@
           </template>
         </slot>
       </el-form-item>
-    </template></el-form
-  >
-</template>
+    </template>
   </el-form>
 </template>
 
@@ -422,13 +396,27 @@ export default {
         };
       },
     },
+    // 字典数据字段控制
+    dictControl: {
+        type: Object,
+        default() {
+            return {
+                label: 'dictLabel',
+                value: 'dictValue'
+            };
+        },
+    },
+    showValidationFailsMessage: {
+      type: Boolean,
+      default: true
+    }
   },
   data() {
     return {
       componentId: getId(true),
       form: {}, // 表单
       rules: {}, // 验证规则
-      dicts: this.received_dicts, //
+      dicts: this.received_dicts, // 默认接收父组件传递的字典数据 避免重复请求
       formItemList: [], // 表单列表
       defaultFieldsValue: JSON.parse(JSON.stringify(this.initFields)), // 默认字段值
       timer: null, // 定时器
@@ -480,6 +468,16 @@ export default {
   },
   computed: {
     /**
+     * 返回选项列表字段值配置
+     */
+    returnOptionsFields(){
+      return (item, opt, field) => {
+        return item.optionControl
+              ? opt[item.optionControl[field]]
+              : (item.dict ? opt[this.dictControl[field]] : opt[this.optionControl[field]])
+      }        
+    },
+    /**
      * 获取prop
      */
     getProp(){
@@ -501,7 +499,7 @@ export default {
                     params,
                     form: this.form,
                     dicts: this.dicts,
-                    trigger :item,
+                    trigger: item,
                     that: this,
                   })
                 : () => {
@@ -716,7 +714,6 @@ export default {
     },
   },
   created() {
-    console.log(this.dicts)
     if (this.currentPanel && this.dataIsolation) {
       // 存在面板设置与数据隔离时
       this.formItemList = this.column.filter((item) => {
@@ -766,18 +763,14 @@ export default {
 
         //// 获取字典
         if (item.dict && !(item.dict in this.dicts)) {
-          //   getCommonApi({ code: item.dict }).then(response => {
-          //     let { code, data } = response.data
-          //     if (code === 200 && data) {
-          //       this.$set(this.dicts, item.dict, data)
-          //     }
-          //   })
+          this.getDicts(item.dict).then(response => {
+              let {code, context} = response;
+              if(code === "K-000000" && context){
+                  this.$set(this.dicts, item.dict, context)
+              }
+              // console.log('字典数据', this.dicts)
+          });
         }
-
-        // 加载时主动触发控件事件
-        // if (item.loadTrigger && item.eventName && item.controlMethod) {
-        //   this.controlMethod(this.form[item.prop], item);
-        // }
 
         // 校验
         let validator = item.formValidator || item.validator;
@@ -875,14 +868,14 @@ export default {
       this.$refs["dynamic-form"].validate((valid) => {
         if (valid) {
           // console.log('');
-        } else {
+        } else if(this.showValidationFailsMessage){
           this.$message({
             type: "error",
             message: "表单验证失败, 请检查完善后再试!",
           });
         }
         if (typeof func === "function") {
-          func({valid, form: valid ? this.deepClone(this.form) : null, module: valid ? this.getFormModule() : null});
+          func({valid, form: valid ? this.deepClone(Object.assign(this.initFields, this.form)) : null, module: valid ? this.getFormModule() : null});
         }
       });
     },
@@ -931,7 +924,7 @@ export default {
      * 提交表单验证
      */
     submitFormValidation(item, trigger){
-        this.$refs[`el-form-item-${item.prop}`][0].$emit(`el.form.${trigger}`, this.form[item.prop])
+      this.$refs['dynamic-form'].validateField(item.prop);
     },
     /**
      * 更新表单数据
@@ -967,6 +960,13 @@ export default {
         this.otherData[item.prop + "-selected"].push(file.uid); // 设置选中
         this.form[item.prop].push(file);
       }
+    },
+    /**
+     * 更新上传图片
+     */
+    setUploadImage(fileList, item){
+      this.form[item.prop] = fileList;
+      this.submitFormValidation(item, 'change')
     },
     // 文件超出限制数量
     exceedQuantityLimit(file, fileList, item) {
@@ -1052,28 +1052,6 @@ export default {
         cursor: default;
       }
     }
-  }
-  .tp-picture-card{
-    ::v-deep.el-upload{
-        border: none;
-        line-height: normal;
-        height: 0px !important ;
-        .el-icon-plus{
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 148px;
-            height: 148px;
-            background-color: #fbfdff;
-            border: 1px dashed #c0ccda;
-            border-radius: 6px;
-            &:hover{
-                border-color:#409EFF
-            }
-            
-        }
-    }
-    
   }
 }
 .form-items-cover {

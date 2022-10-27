@@ -33,7 +33,7 @@
 </template>
 
 <script>
-
+import {getId} from "../../tools.js";
 export default {
     name: 'TpUploadImages',
     props: {
@@ -42,13 +42,13 @@ export default {
          */
         stack: {
             type: Boolean,
-            default: true
+            default: false
         },
         /**
          * 文件列表
          */
-        fileList: {
-            type: Array,
+        file: {
+            type: [Array, String],
             required: true,
             default(){
                 return []
@@ -75,6 +75,9 @@ export default {
         },
     },
     watch: {
+        file(){
+            this.initFileList()
+        },
         fileList(val){
             if(this.stack){
                 this.setStackPicture(val.length > this.oldLength ? 'add' : 'remove')
@@ -86,25 +89,42 @@ export default {
     },
     data(){
         return {
+            fileList: [], // 文件列表
             wrapWidth: 0, // 容器宽度
             stacked: false, // 标记是否堆叠
-            oldLength: this.fileList.length,
+            oldLength: 0,
             imageWidth: 148, // 图片宽度
             imageSpacing: 8, // 图片间距
             activeImage: null, // 活跃图片
             timer: null,
-            bindValues: Object.assign(this.control, {
+            bindValues: Object.assign({
                 action: "",
-                // limit: 3,
                 'auto-upload': false,
                 multiple: true,
-            }),
+            },this.control),
         }
+    },
+    created(){
+        this.initFileList()
     },
     mounted(){
         this.wrapWidth = this.$el.parentNode.clientWidth;
     },
     methods: {
+        initFileList(){
+            if(Array.isArray(this.file)){
+                this.fileList = this.file.map(item => {
+                    return {
+                        uid: getId(true),
+                        url: item.url,
+                        status: 'success'
+                    }
+                });
+            }else if(typeof this.file === 'string' && this.file){
+                this.fileList = [{status: 'success', url: this.file, uid: getId(true)}]
+            };
+            this.oldLength = this.fileList.length;
+        },
         /**
          * 设置激活图片
          */
@@ -218,7 +238,7 @@ export default {
                     return true;
                 }
             })
-
+            this.$emit('change', this.fileList)
         },
         /**
          * 选择的文件超出数量限制
