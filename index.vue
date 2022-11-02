@@ -145,7 +145,7 @@ export default {
          * 预设内容
         */ 
         const setDefaultContent = ({column, scope}) => {
-            if(column.prop in this.toolsObject || `${column.prop}-${scope.row[this.uniqueKey]}` in this.toolsObject){
+            if(column.$edit || column.prop in this.toolsObject || `${column.prop}-${scope.row[this.uniqueKey]}` in this.toolsObject){
                 return this.$scopedSlots['edit-' + column.prop] ? this.$scopedSlots['edit-' + column.prop](scope) : setEditContent({column, scope})
             }else if(typeof column.render === 'function'){
                 // 自定义render渲染方法
@@ -215,6 +215,7 @@ export default {
                             fixed={column.fixed}
                             width={column.width}
                             index={this.getIndexMethod}
+                            selectable={column.selectable}
                             {
                                 ...this.getIndexSelectionExpandSlots(column.type)
                             }
@@ -1377,12 +1378,10 @@ export default {
          */
         beforeClose(done){
             if(this.currentEditRow){
-              
                 // 如果是编辑数据则在关闭时重置表单
                 this.$refs.dynamicForm.resetFields() // 重置表单
-                
             }
-            
+            this.$refs.dynamicForm.clearValidate(); // 清空校验信息
             done()
         },
         /**
@@ -1492,6 +1491,7 @@ export default {
          */
         getDefaultDisplayValue(column, value){
             if(column.editType === 'time-picker' && Array.isArray(value) && value.length){
+                // 时间选择器
                 return dateFormat(value[0], 'HH:MM:SS') + '~' + dateFormat(value[1], 'HH:MM:SS');
             }else if(column.dict){
                 // 系统字典
@@ -1500,8 +1500,13 @@ export default {
                 return target ? target['dictLabel'] : '无匹配数据';
             }else if(value && column.editType === 'select'){
                 let arr = this.dicts[column.dict] || this.$attrs[column.optionsKey] || column.options || [];
-                let target = arr.find(item => item[column.optionControl?.value ? column.optionControl.value : this.optionControl.value] === value);
-                return target ? target[column.optionControl?.label ? column.optionControl.label : this.optionControl.label] : '无匹配数据';
+                let values = Array.isArray(value) ? value : [value]; // 绑定值
+                let label = [];
+                values.forEach(val=> {
+                    let target = arr.find(item => item[column.optionControl?.value ? column.optionControl.value : this.optionControl.value] === val);
+                    label.push(target ? target[column.optionControl?.label ? column.optionControl.label : this.optionControl.label] : '无匹配数据')
+                })
+                return label.join(',');
             }else{
                 return value;
             }
@@ -1572,7 +1577,7 @@ export default {
          * 处理单元格双击事件
          */
         handleCellDblclick(row, column, cell, event){
-            console.log(row, column, cell, event, '处理单元格双击事件')
+            // console.log(row, column, cell, event, '处理单元格双击事件')
             if(this.$listeners['cell-dblclick']){
                 // 自定义单元格双击事件
                 this.$listeners['cell-dblclick'](row, column, cell, event)

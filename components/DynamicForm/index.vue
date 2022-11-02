@@ -25,6 +25,7 @@
         :key="index"
         :prop="getProp(item)"
         :label="item.formLabel ? item.formLabel : item.label ? item.label : ''"
+        :label-width="item.labelWidth"
         v-if="getFormVisible(item)"
       >
         <slot :name="'form-' + item.prop" v-bind="{ form, mode: '' }">
@@ -196,6 +197,7 @@
                 v-else-if="item.editType === 'upload-button'"
                 @change="submitFormValidation(item, 'change')"
                 :control="returnControlProperty(item)"
+                :size="item.size"
                 :fileList="form[item.prop]" >
             </tp-upload-button>
             <!-- 照片墙图片上传 -->
@@ -609,6 +611,19 @@ export default {
           : false;
       };
     },
+    /**
+     * 返回输入控件的验证触发方式
+     */
+    returnInputTrigger(){
+      return type => {
+        // let change = ['select', 'date-picker', 'radio-group', 'switch', 'time-picker', 'checkbox-group', 'cascader']
+        if(['input', 'input-number', 'autocomplete'].indexOf(type) > -1){
+          return 'blur';
+        }else{
+          return 'change'
+        }
+      }
+    },
     returnOptions() {
       return (item) => {
         return (
@@ -639,7 +654,7 @@ export default {
           },
           "date-picker": {
             type: "date",
-            format: "yyyy-MM-dd",
+            format: "yyyy-MM-dd", // 当是datetimerange报错 todo
             "value-format": "yyyy-MM-dd",
             editable: false,
             clearable: true,
@@ -780,7 +795,7 @@ export default {
         }
         let validate = {
           required: item.required === true ? true : false,
-          trigger: item.validateTrigger ? item.validateTrigger : "blur",
+          trigger: item.validateTrigger ? item.validateTrigger : this.returnInputTrigger(item.editType),
         }; // 验证
 
         if (validator) {
@@ -821,7 +836,7 @@ export default {
         } else {
           validate.message = item.validateTips
             ? item.validateTips
-            : `${item.label}不能为空`;
+            : `${item.formLabel || item.label}不能为空`;
         }
         this.rules[prop] = [validate];
       });
@@ -856,18 +871,19 @@ export default {
     // 表单 自定义按钮触发事件
     customButtonEvents(item) {
       if(item.target === 'reset'){
-        console.log("resetreset")
-        this.resetFields()
-      }else{
-        this.$emit('change', {type: item.emit, form: this.form, dicts: this.dicts, mode: this.currentMode, panel: this.currentPanel})
+        this.resetFields();
+      }
+      if(item.emit){
+          this.$emit('change', {type: item.emit, form: this.form, dicts: this.dicts, mode: this.currentMode, panel: this.currentPanel})
       }
       
     },
     // 校验并获取表单数据
     validate(func) {
+      let validResult = false;
       this.$refs["dynamic-form"].validate((valid) => {
         if (valid) {
-          // console.log('');
+          validResult = true;
         } else if(this.showValidationFailsMessage){
           this.$message({
             type: "error",
@@ -878,6 +894,7 @@ export default {
           func({valid, form: valid ? this.deepClone(Object.assign(this.initFields, this.form)) : null, module: valid ? this.getFormModule() : null});
         }
       });
+      return validResult;
     },
     /**
      * 获取模块划分后的表单
@@ -943,6 +960,10 @@ export default {
           this.form[i] = this.defaultFieldsValue[i];
         }
       }
+    },
+    // 清理校验信息
+    clearValidate(){
+      this.$refs["dynamic-form"].clearValidate();
     },
     fileSelectChange(arr, item) {
       // 设置待上传列表
