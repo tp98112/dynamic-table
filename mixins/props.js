@@ -378,7 +378,7 @@ export default{
                         target: '$cancel'
                     },
                     {
-                        icon: 'el-icon-check',
+                        icon: 'el-icon-circle-check',
                         label: '确 定',
                         type: 'primary',
                         target: '$update'

@@ -1,21 +1,24 @@
 <template>
-    <transition-group tag="ul" :class="{'tp-picture-card': true, 'tp-stacked-picture-card': stacked}">
-        <li v-for="(file, index) of fileList" @click="setActiveImage(file)" :key="index" class="file-list-wrap-li image-wrap" :tabindex="index">
-            <el-image
-            class="el-upload-list__item-thumbnail"
-            :id="'img_' + file.uid"
-            :src="file.url"
-            :preview-src-list="getPreviewSrcList(fileList)"
-            >
-            </el-image>
-            <div class="list__item-action">
-                <template v-if="activeImage === file.uid || !stacked">
-                    <span @click="handlePictureCardPreview(file)"><i class="el-icon-zoom-in"></i></span>
-                    <span @click="handleDownload(file)"><i class="el-icon-download"></i></span>
-                    <span><i @click="removeUploadImg(file)" class="el-icon-delete"></i></span>
-                </template>
-            </div>
-        </li>
+    <ul :class="{'tp-picture-card': true, 'tp-stacked-picture-card': stacked}">
+        <transition-group>
+            <li v-for="(file, index) of fileList" @click="setActiveImage(file)" :key="index" class="file-list-wrap-li image-wrap" :tabindex="index">
+                <el-image
+                class="el-upload-list__item-thumbnail"
+                :id="'img_' + file.uid"
+                :src="file.url"
+                :preview-src-list="getPreviewSrcList(fileList)"
+                >
+                </el-image>
+                <div class="list__item-action">
+                    <template v-if="activeImage === file.uid || !stacked">
+                        <span @click="handlePictureCardPreview(file)"><i class="el-icon-zoom-in"></i></span>
+                        <span @click="handleDownload(file)"><i class="el-icon-download"></i></span>
+                        <span><i @click="removeUploadImg(file)" class="el-icon-delete"></i></span>
+                    </template>
+                </div>
+            </li>
+        </transition-group>
+        
         <li v-show="bindValues.limit && bindValues.limit > fileList.length || !bindValues.limit" class="file-list-wrap-li upload-wrap" key="trigger" >
             <el-upload
                 v-bind="bindValues"
@@ -27,8 +30,9 @@
                 :on-change="(file, fileList) => { handleUploadChange(file, fileList) }">
                 <i class="el-icon-plus trigger" slot="trigger"></i>
             </el-upload>
+            <div slot="tip" class="el-upload__tip">只能上传jpg/png文件</div>
         </li>
-    </transition-group>
+    </ul>
     
 </template>
 
@@ -62,7 +66,11 @@ export default {
             default(){
                 return {}
             }
-        }
+        },
+        accept: {
+            type: String,
+            default: "image/png,image/jpeg"
+        },
     },
     computed: {
         /**
@@ -101,6 +109,7 @@ export default {
                 action: "",
                 'auto-upload': false,
                 multiple: true,
+                accept: "image/png,image/jpeg"
             },this.control),
         }
     },
@@ -219,13 +228,23 @@ export default {
         handleUploadChange(file, fileList){
             console.log(file)
             if(file.status === "ready"){
+                // 检查格式
+                if(this.bindValues.accept.indexOf(file.raw.type) < 0){
+                    this.$message.error('请上传jpeg或png格式的图片！');
+                    return;
+                };
+                if(this.bindValues?.size && file.size > 10){
+                    // 单位 kb
+                    this.$message.error(`上传图片大小不能超过${this.control.size}KB！`);
+                    return;
+                }
+                const isLt2M = file.size / 1024 / 1024 <= 1;
                 this.fileList.push(file);
                 // 上报change事件
                 clearTimeout(this.timer);
                 this.timer = setTimeout(() => {
                     this.$emit('change', this.fileList)
                 }, 100)
-                
             }
         },
         /**
@@ -294,6 +313,9 @@ export default {
     }
     .upload-wrap{
         margin-left: 8px;
+    }
+    ::v-deep .el-upload--picture-card{
+        border: none;
     }
 }
 // 堆叠
