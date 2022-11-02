@@ -1,9 +1,7 @@
 <template>
     <div>
         <DynamicTable @selection-change="selectionChange" @row-dblclick="rowDblclick" @cell-dblclick="cellDblclick"  ref="dynamicTable" v-bind="tableConfig"  @change="tableChange">
-            <span slot="action-header">测试</span>
-           
-            <span slot="default-sblx">测试测试测试</span>
+          
         </DynamicTable>
       <el-button @click="checkTableData">获取表格数据</el-button>
     </div>
@@ -18,35 +16,28 @@ export default {
     data() {
         return {
             tableConfig: {
-                height: 500,
-                // maxHeight: 200,
                 dynamic: true, 
-                accessControl: {
-                    cancel: false
-                },
-                actionButtonType: 'link',
+                editMode: 'inline',
+                actionButtonType: 'button',
+                newActionButton: [
+                    {
+                        label: '编辑',
+                        target: 'update',
+                        type: 'primary',
+                        plain: true
+                    },
+                    {
+                        label: '删除',
+                        target: 'delete',
+                        type: 'danger',
+                        plain: true
+                    }
+                ],
                 needRefreshEvents: [],
-                align: 'center',
-                // spanMethod({ row, column, rowIndex, columnIndex }){
-                //     if (columnIndex === 1) {
-                //         if (row.rowspan) {
-                            
-                //             return {
-                //                 rowspan: row.rowspan,
-                //                 colspan: 1
-                //             };
-                //         } else {
-                //             return {
-                //                 rowspan: 0,
-                //                 colspan: 0
-                //             };
-                //         }
-                //     }
-                // },
                 column: [
                     {
                         fixed: 'left',
-                        type: 'selection',
+                        type: 'index',
                         label: '序号',
                         
                     },
@@ -58,24 +49,30 @@ export default {
                             {
                                 fixed: 'left',
                                 label: "设备类型",
-                                width: 150,
+                                width: 149.5,
                                 verticalEdit: true, // 纵向编辑 开启后点击表头编辑当前列
                                 prop: 'sblx',
                                 editType: 'input',
                                 required: true,
-                                validateTips: '设备类型只能为1',
-                                validator({value}){
-                                    return value == 1
-                                }
+                                // validateTips: '设备类型只能为1',
+                                // validator({value}){
+                                //     return value == 1
+                                // }
                             },
                             {
                                 fixed: 'left',
-                                width: 150,
+                                width: 149.5,
                                 label: "性能指标",
                                 prop: 'xnzb',
                                 verticalEdit: true,
                                 editType: 'select',
-                                required: true
+                                required: true,
+                                options: [
+                                    {
+                                        label: '选项一',
+                                        value: 1
+                                    }
+                                ]
                             }
                         ]
                     
@@ -122,13 +119,43 @@ export default {
                 ],
                 data: [
                     {id: 1,sblx: '1', xnzb: '', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限',
-                    children: [{id: '21'}]},
+                   },
                     {id: 2,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
                     {id: 3,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 4,sblx: '2', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 5,sblx: '2', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 6,sblx: '3', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 7,sblx: '3', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'}
+                    {id: 4,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 5,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 6,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 7,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 8,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 9,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 10,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 11,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 12,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 13,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 14,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 15,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 16,sblx: '1', xnzb: '性能指标', rcz: '10', zcz:  '3', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 17,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 18,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 19,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 20,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 21,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 22,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 23,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 24,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 25,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 26,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 27,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 28,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 29,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 30,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 32,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 33,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 34,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 35,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 36,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 37,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
+                    {id: 38,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'}
                 ]
             },
         };
@@ -172,7 +199,7 @@ export default {
         },
         tableChange(event) {
             console.log("表格触发事件", event);
-            // event.success()
+            event.success()
             // event.close();
             // let executeFunc = {
             //   update() {

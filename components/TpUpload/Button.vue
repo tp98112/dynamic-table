@@ -63,13 +63,13 @@ export default {
             timer: null,
             bindValues: Object.assign(this.control, {
                 action: "",
-                limit: 3,
                 'auto-upload': false,
                 multiple: true,
             }),
             tableConfig: {
                 dynamic: true,
                 unifiedEdit: true,
+                actionButtonType: 'button',
                 newActionButton: [
                     {
                         // label: '移除',
