@@ -233,7 +233,7 @@ export default {
                     this.$message.error('请上传jpeg或png格式的图片！');
                     return;
                 };
-                if(this.bindValues?.size && file.size > 10){
+                if(this.bindValues?.size && file.size / 1024 > this.bindValues.size){
                     // 单位 kb
                     this.$message.error(`上传图片大小不能超过${this.control.size}KB！`);
                     return;

@@ -235,7 +235,7 @@ export default {
                                 align: column.align ? column.align : this.align,
                                 "min-width": this.getColumnMinWidth(column),
                                 fixed: column.fixed,
-                                'show-overflow-tooltip': true // todo
+                                'show-overflow-tooltip': column.showOverflowTooltip === false ? false : true // todo
                             },
                             scopedSlots: {
                                 header: scope => {
@@ -265,7 +265,7 @@ export default {
             if(this.getRenderConditions('root', scope)){
                 return this.actionButtonType === 'link' ? 
                 <el-link on-click={() => {this.handleNew(scope, button)}} icon="el-icon-plus" type="primary" size={this.actionButtonSize} key="link-root" title="新增"></el-link> : 
-                <el-button on-click={() => {this.handleNew(scope, button)}} icon="el-icon-plus"  size="mini" size={this.actionButtonSize} key="button-root" title="新增"></el-button>
+                <el-button on-click={() => {this.handleNew(scope, button)}} icon="el-icon-plus" size={this.actionButtonSize} key="button-root" title="新增"></el-button>
             }else{
                 return '操作'
             }
@@ -1604,7 +1604,18 @@ export default {
             if(this.$listeners['selection-change']){
                 this.$listeners['selection-change'](selection)
             }
-        }
+        },
+        /**
+         * 关闭表格编辑状态
+         */
+        closeTableEditStatusCell(){
+            this.data.forEach(item => {
+                if(item.$edit){
+                    item.$edit = false
+                }
+            });
+            this.toolsObject = {};
+        },
     },
 }
 </script>

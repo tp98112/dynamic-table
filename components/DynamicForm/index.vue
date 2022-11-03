@@ -373,9 +373,8 @@ export default {
       default: "center",
     },
     formLabelWidth: {
-      // 表单标签宽度
+      // 表单标签宽度 px
       type: [Number, String],
-      default: "80px",
     },
     formLabelFontSize: {
       // 表单标签字体大小 用以自动计算表单标签宽度,
@@ -540,11 +539,10 @@ export default {
       };
     },
     getFormLabelWidth() {
-      return (
-        this.formLabelLength * this.formLabelFontSize +
+      return this.formLabelWidth ? this.formLabelWidth :
+        (this.formLabelLength * this.formLabelFontSize +
         this.formLabelFillWidth +
-        "px"
-      );
+        "px");
     },
     getPreviewSrcList() {
       return (arr) => {
