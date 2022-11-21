@@ -48,6 +48,9 @@ export function deepClone(target, map = new Map()){
         // 文件类型直接返回
         return target;
     }
+    if(target === null){
+        return target;
+    }
     if(typeof target !== 'object'){
         return target;
     }

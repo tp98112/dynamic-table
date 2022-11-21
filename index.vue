@@ -44,7 +44,7 @@ export default {
                 gutter: this.formGutter, // 表单项间距
                 colsWidth: this.formColsWidth, // 表单项固定宽度
                 disabledForm: false,
-            }
+            },
         }
     },
     watch: {
@@ -71,6 +71,7 @@ export default {
             // 触发分页事件 获取数据
             this.refreshTableData()
         }
+       
     },
     render(h){
         const setEditContent = ({column, scope}) => {
@@ -121,6 +122,16 @@ export default {
                         </el-checkbox>
                     })}
                 </el-checkbox-group>
+            }else if(column.editType === 'input-number'){
+                // 计数器
+                return <el-input-number 
+                v-model={scope.row[scope.column.property]}
+                props={this.setControlProperty(column)}
+                on={this.getControlEvents(column, scope)}
+                disabled={this.setDisabledState(column, scope)}
+                style="width: 100%"
+                >
+                </el-input-number>
             }else if(column.editType === 'time-picker'){
                 // 时段选择器
                 return <el-time-picker
@@ -632,6 +643,9 @@ export default {
                         icon: "",
                         underline: true,
                     },
+                    'input-number': {
+                        size: "mini",
+                    }, // 计数器
                     'checkbox-group': {}, // 多选框组
                     'upload-button': {
                         action: "",
@@ -1441,15 +1455,25 @@ export default {
                     }
                 })
                 if(checkResult){
+                    // console.time("close");
                     this.$set(scope.column, '$edit', false)
                     this.$delete(this.toolsObject, column.prop)
+                   
+                    // this.$nextTick(() => {
+                    //     console.timeEnd("close")
+                    // })
                 }else{
                     this.$message.error("保存校验失败，请检查纠正后再试！")
                 }
                 
             }else{
+                console.time("edit");
                 this.$set(scope.column, '$edit', true)
                 this.$set(this.toolsObject, column.prop, true)
+                    this.$nextTick(() => {
+                        console.timeEnd("edit")
+                    })
+                
             }
         },
         /**
@@ -1557,7 +1581,8 @@ export default {
             })
             if(finalResult){
                 // checkTableData方法返回的数据默认经过深拷贝
-                let sendData = deepClone(this.data)
+                let sendData = deepClone(this.data);
+                console.log("sendData", sendData)
                 loopThroughTheArray(sendData, (item, index) => {
                     // 移除组件带来的私有变量
                     this.privateFields.forEach(field => {

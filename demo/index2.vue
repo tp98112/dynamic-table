@@ -1,9 +1,16 @@
 <template>
-    <div>
-        <DynamicTable @selection-change="selectionChange" @row-dblclick="rowDblclick" @cell-dblclick="cellDblclick"  ref="dynamicTable" v-bind="tableConfig"  @change="tableChange">
+    <div style="padding: 10px 20px">
+        <!-- <DynamicTable v-bind="test"></DynamicTable> -->
+        <DynamicTable ref="dynamicTable" v-bind="tableConfig"  @change="tableChange">
+          <!-- <el-button @click="checkTableData" slot="action-header" size="small">批量保存</el-button> -->
+
+            <template v-for="(name, index) of slots" v-slot:[slotName(name)]="scope">
+                <el-input-number v-model="scope.row[name]" :key="name" :disabled="scope.row.$saveLoading" size="mini" :min="1" :max="50" ></el-input-number>
+                <i v-if="!scope.row.$edit" @click="copy(scope.row[name])" :key="name+index" class="el-icon-document-copy" style="font-size: 14px"></i>
+            </template>
           
+
         </DynamicTable>
-      <el-button @click="checkTableData">获取表格数据</el-button>
     </div>
 </template>
 
@@ -13,12 +20,24 @@ import DynamicTable from "@/components/DynamicTable";
 export default {
     name: "demo",
     components: { DynamicTable},
+    computed: {
+        slotName(){
+            return name => {
+                return `edit-${name}`
+            }
+        }
+    },
     data() {
         return {
+            slots: ['rcz', ],
             tableConfig: {
                 dynamic: true, 
                 editMode: 'inline',
                 actionButtonType: 'button',
+                actionBarWidth: 140,
+                accessControl: {
+                    root: true
+                },
                 newActionButton: [
                     {
                         label: '编辑',
@@ -26,12 +45,6 @@ export default {
                         type: 'primary',
                         plain: true
                     },
-                    {
-                        label: '删除',
-                        target: 'delete',
-                        type: 'danger',
-                        plain: true
-                    }
                 ],
                 needRefreshEvents: [],
                 column: [
@@ -44,12 +57,12 @@ export default {
                     {
                         fixed: 'left',
                         label: "基本信息",
-                       width: 300,
+                        width: 301,
                         children: [
                             {
-                                fixed: 'left',
+                                // fixed: 'left',
                                 label: "设备类型",
-                                width: 149.5,
+                                width: 150,
                                 verticalEdit: true, // 纵向编辑 开启后点击表头编辑当前列
                                 prop: 'sblx',
                                 editType: 'input',
@@ -60,35 +73,30 @@ export default {
                                 // }
                             },
                             {
-                                fixed: 'left',
-                                width: 149.5,
+                                // fixed: 'left',
+                                width: 150,
                                 label: "性能指标",
                                 prop: 'xnzb',
                                 verticalEdit: true,
-                                editType: 'select',
-                                required: true,
-                                options: [
-                                    {
-                                        label: '选项一',
-                                        value: 1
-                                    }
-                                ]
+                                editType: 'input',
+                                
                             }
                         ]
                     
                     },
                     {
+                       
                         label: "系统遥测智",
+                        
                         children: [
                             {
-                                // width: 150,
+                               
                                 label: "日测值",
                                 prop: 'rcz',
                                 verticalEdit: true,
-                                editType: 'input'
                             },
                             {
-                                // width: 150,
+                               
                                 label: "周测值",
                                 prop: 'zcz',
                                 verticalEdit: true,
@@ -98,17 +106,19 @@ export default {
                     
                     },
                     {
+                       
                         label: "阈值告警",
                         children: [
                             {
-                                // width: 150,
+                               
+                               // width: 120,
                                 label: "注意上限",
                                 prop: 'zysx',
                                 headerIcon: 'el-icon-edit',
                                 editType: 'input'
                             },
                             {
-                                // width: 150,
+                               width: 120,
                                 label: "注意下限",
                                 prop: 'zyxx',
                                 editType: 'input'
@@ -117,96 +127,40 @@ export default {
                     
                     }
                 ],
-                data: [
-                    {id: 1,sblx: '1', xnzb: '', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限',
-                   },
-                    {id: 2,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 3,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 4,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 5,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 6,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 7,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 8,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 9,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 10,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 11,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 12,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 13,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 14,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 15,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 16,sblx: '1', xnzb: '性能指标', rcz: '10', zcz:  '3', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 17,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 18,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 19,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 20,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 21,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 22,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 23,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 24,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 25,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 26,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 27,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 28,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 29,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 30,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 32,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 33,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 34,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 35,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 36,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 37,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'},
-                    {id: 38,sblx: '1', xnzb: '性能指标', rcz: '10', zcz: '20', zysx: '注意上限', zyxx: '注意下限'}
-                ]
+                data: []
             },
         };
     },
     created(){
-        // this.mergeSameCells();
-    },
-    mounted(){
-       
+        this.init()
     },
     methods: {
-        selectionChange(list){
-            console.log(list)
+        init(){
+            for(let i=0; i< 10; i++){
+                this.tableConfig.data.push({id: 'new'+i,sblx: 1, rcz: 1})
+            }
         },
-        mergeSameCells(){
-            // 表格数据 this.tableConfig.data
-            let flag = this.tableConfig.data[0].sblx;
-            let rowspan = 0;
-            let startIndex = 0;
-            this.tableConfig.data.forEach((item, index) => {
-                if(flag === item.sblx){
-                    rowspan++;
-                }else{
-                    this.tableConfig.data[startIndex].rowspan = rowspan;
-                    flag = item.sblx;
-                    rowspan = 1;
-                    startIndex = index;
-                }
+        copy(val){
+            this.tableConfig.data.forEach(item => {
+                item.rcz = val;
             })
-            console.log(this.tableConfig.data)
-        },
-        cellDblclick(row, column, cell, event){
-            console.log(row, column, cell, event)
-        },
-        rowDblclick(data){
-            console.log(data)
         },
         checkTableData(){
-            console.log(this.$refs.dynamicTable.checkTableData() )
+            let data = this.$refs.dynamicTable.checkTableData();
+            console.log("表格数据", data)
+            if(data){
+                // 校验获取数据成功
+                this.$message.success("校验并获取数据成功, 打开控制台查看打印数据" )
+            }
            
         },
         tableChange(event) {
             console.log("表格触发事件", event);
             event.success()
-            // event.close();
-            // let executeFunc = {
-            //   update() {
-            //     console.log(event);
-            //   },
-            // };
-            // executeFunc[event.type]();
+            if(event.type === 'update'){
+                // 调用接口更新数据 返回成功后执行 成功回调
+                // event.success()
+            }
         },
     },
 };
