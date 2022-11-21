@@ -1,11 +1,12 @@
 <template>
     <ul :class="{'tp-picture-card': true, 'tp-stacked-picture-card': stacked}">
         <transition-group>
-            <li v-for="(file, index) of fileList" @click="setActiveImage(file)" :key="index" class="file-list-wrap-li image-wrap" :tabindex="index">
+            <li v-for="(file, index) of fileList" @click="setActiveImage(file)" :key="file.uid" class="file-list-wrap-li image-wrap" :tabindex="index">
                 <el-image
-                class="el-upload-list__item-thumbnail"
+                style="width: 148px; height: 148px"
                 :id="'img_' + file.uid"
                 :src="file.url"
+                :fit="control.fit ? control.fit : 'fill'"
                 :preview-src-list="getPreviewSrcList(fileList)"
                 >
                 </el-image>
@@ -195,7 +196,6 @@ export default {
                     this.stacked = false;
                 })
             }
-            
         },
         /**
          * 下载图片
@@ -226,16 +226,18 @@ export default {
          * 文件状态改变时
          */
         handleUploadChange(file, fileList){
-            console.log(file)
+            // console.log(file)
             if(file.status === "ready"){
                 // 检查格式
-                if(this.bindValues.accept.indexOf(file.raw.type) < 0){
+                if(!file.raw.type || this.bindValues.accept.indexOf(file.raw.type) < 0){
                     this.$message.error('请上传jpeg或png格式的图片！');
+                    this.$refs.upload.uploadFiles.splice(this.$refs.upload.uploadFiles.findIndex(item => {item.uid === file.uid}), 1)
                     return;
                 };
-                if(this.bindValues?.size && file.size > 10){
+                if(this.bindValues?.size && file.size / 1024 > this.bindValues.size){
                     // 单位 kb
                     this.$message.error(`上传图片大小不能超过${this.control.size}KB！`);
+                    this.$refs.upload.uploadFiles.splice(this.$refs.upload.uploadFiles.findIndex(item => {item.uid === file.uid}), 1)
                     return;
                 }
                 const isLt2M = file.size / 1024 / 1024 <= 1;
