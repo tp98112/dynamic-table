@@ -10,7 +10,6 @@
     :class="{
       'dynamic-form': true,
       'form-items-cover': formItemsCover,
-      'form-label-flex': labelPosition === 'center',
     }"
   >
     <template v-for="(item, index) in getFormItems">
@@ -25,7 +24,7 @@
         :key="index"
         :prop="getProp(item)"
         :label="item.formLabel ? item.formLabel : item.label ? item.label : ''"
-        :label-width="item.labelWidth"
+        :label-width="item.formLabelWidth"
         v-if="getFormVisible(item)"
       >
         <slot :name="'form-' + item.prop" v-bind="{ form, mode: '' }">
@@ -43,7 +42,8 @@
               v-on="getControlEvents(item)"
               :size="size"
               v-bind="returnControlProperty(item)"
-              :disabled="disabled(item.disabled)"
+              :disabled="setDisabled(item.disabled)"
+              :readonly="setReadonly(item.readonly)"
             >
               <div
                 v-on:[controlEvent(item)]="controlMethod($event, item)"
@@ -67,7 +67,8 @@
               v-on="getControlEvents(item)"
               :size="size"
               v-bind="returnControlProperty(item)"
-              :disabled="disabled(item.disabled)"
+              :disabled="setDisabled(item.disabled)"
+              :readonly="setReadonly(item.readonly)"
               style="width: 100%"
             >
               <el-option
@@ -86,7 +87,8 @@
               v-on="getControlEvents(item)"
               :size="size"
               v-bind="returnControlProperty(item)"
-              :disabled="disabled(item.disabled)"
+              :disabled="setDisabled(item.disabled)"
+              :readonly="setReadonly(item.readonly)"
               style="width: 100%"
             ></el-date-picker>
             <!-- 单选框组 -->
@@ -114,14 +116,16 @@
               v-on="getControlEvents(item)"
               :size="size"
               v-bind="returnControlProperty(item)"
-              :disabled="disabled(item.disabled)"
+              :disabled="setDisabled(item.disabled)"
+              :readonly="setReadonly(item.readonly)"
             ></el-switch>
             <!-- 链接 -->
             <el-link
               v-else-if="isRender(item.editType, 'link')"
               :size="size"
               v-bind="returnControlProperty(item)"
-              :disabled="disabled(item.disabled)"
+              :disabled="setDisabled(item.disabled)"
+              :readonly="setReadonly(item.readonly)"
               v-on:[controlEvent(item)]="controlMethod($event, item)"
               v-on="getControlEvents(item)"
               >{{ item.linkText ? item.linkText : "默认链接" }}
@@ -134,7 +138,8 @@
                 v-on="getControlEvents(item)"
                 :size="size"
                 v-bind="returnControlProperty(item)"
-                :disabled="disabled(item.disabled)"
+                :disabled="setDisabled(item.disabled)"
+                :readonly="setReadonly(item.readonly)"
                 style="width: 100%"
               >
               </el-time-picker>
@@ -147,7 +152,8 @@
                 v-on="getControlEvents(item)"
                 :size="size"
                 v-bind="returnControlProperty(item)"
-                :disabled="disabled(item.disabled)"
+                :disabled="setDisabled(item.disabled)"
+                :readonly="setReadonly(item.readonly)"
               >
                 <el-checkbox
                   v-for="(opt, optIndex) of returnOptions(item)"
@@ -166,7 +172,8 @@
               v-on="getControlEvents(item)"
               :size="size"
               v-bind="returnControlProperty(item)"
-              :disabled="disabled(item.disabled)"
+              :disabled="setDisabled(item.disabled)"
+              :readonly="setReadonly(item.readonly)"
             ></el-input-number>
             <!-- 级联选择器 -->
             <el-cascader
@@ -179,7 +186,8 @@
               v-on="getControlEvents(item)"
               :options="returnOptions(item)"
               style="width: 100%"
-              :disabled="disabled(item.disabled)"
+              :disabled="setDisabled(item.disabled)"
+              :readonly="setReadonly(item.readonly)"
             ></el-cascader>
             <!-- 远程搜索 -->
             <el-autocomplete
@@ -189,7 +197,8 @@
               v-bind="returnControlProperty(item)"
               v-on:[controlEvent(item)]="controlMethod($event, item)"
               v-on="getControlEvents(item)"
-              :disabled="disabled(item.disabled)"
+              :disabled="setDisabled(item.disabled)"
+              :readonly="setReadonly(item.readonly)"
               style="width: 100%"
             ></el-autocomplete>
             <!-- 上传按钮 -->
@@ -275,7 +284,7 @@
                 :plain="opt.plain"
                 :round="opt.round"
                 :circle="opt.circle"
-                :disabled="disabled(opt.disabled)"
+                :disabled="setDisabled(opt.disabled)"
                 :size="opt.size"
                 >{{ opt.label }}</el-button
               >
@@ -289,6 +298,7 @@
 </template>
 
 <script>
+import { typeOf } from 'mathjs';
 import { getId } from "../../tools.js";
 const renderColumn = {
   props: {
@@ -591,7 +601,7 @@ export default {
         return type in this.supportedComponents;
       };
     },
-    disabled() {
+    setDisabled() {
       // 禁用表单项
       return (disabled) => {
         if (this.disabledForm === true) {
@@ -608,6 +618,26 @@ export default {
             })
           : false;
       };
+    },
+    /**
+     * 设置只读
+     */
+    setReadonly(){
+      return readonly => {
+        if(this.readOnlyForm === true){
+          return true;
+        };
+        let type = typeof readonly;
+        if(type === "boolean"){
+          return readonly;
+        }else if(type === "function"){
+          return readonly({
+            form: this.form,
+            panel: this.currentPanel,
+            mode: this.currentMode,
+          })
+        }
+      }
     },
     /**
      * 返回输入控件的验证触发方式
@@ -780,6 +810,10 @@ export default {
               let {code, context} = response;
               if(code === "K-000000" && context){
                   this.$set(this.dicts, item.dict, context)
+                  if(typeof item.selectedIndex === 'number'){
+                    // 默认选中项
+                    this.form[prop] = context[item.selectedIndex][this.dictControl.value];
+                  }
               }
               // console.log('字典数据', this.dicts)
           });
@@ -802,7 +836,7 @@ export default {
           if (Object.prototype.toString.call(validator) === "[object RegExp]") {
             // 正则
             func = (rule, value, callback) => {
-              if (value) {
+              if (this.notEmpty(value)) {
                 if (validator.test(value)) {
                   callback();
                 } else {
@@ -948,16 +982,17 @@ export default {
       for (let i in target) {
         this.$set(this.form, i, target[i]);
       }
+      console.log(this.form, 'this.form')
     },
     // 重置表单数据
     resetFields(manualReset) {
-      this.$refs["dynamic-form"].resetFields();
       this.otherData = {}; // 重置其他备用数据
       if (manualReset) {
         for (let i in this.form) {
           this.form[i] = this.defaultFieldsValue[i];
         }
       }
+      this.$refs["dynamic-form"].resetFields();
     },
     // 清理校验信息
     clearValidate(){
@@ -1003,7 +1038,16 @@ export default {
       // 上传失败
       console.log(file, fileList, item);
     },
-
+    /**
+     * 获取字典数据
+     */
+    // getDictByProp(prop){
+    //     if(prop){
+    //       return this.dicts[prop];
+    //     }else{
+    //       this.$message.info("请传入使用字典数据对应列的prop")
+    //     }
+    // },
     /**
      * 深拷贝
      */
@@ -1014,6 +1058,9 @@ export default {
         }
         if(target instanceof File){
             // 文件类型直接返回
+            return target;
+        }
+        if(target === null){
             return target;
         }
         // 基本数据类型直接返回
@@ -1031,6 +1078,12 @@ export default {
             temp[key] = this.deepClone(target[key], map)
         }
         return temp;
+    },
+    /**
+     * 判断不为空
+     */
+    notEmpty(value){
+      return [null,undefined,''].indexOf(value) < 0
     }
   },
 };
@@ -1042,9 +1095,9 @@ export default {
   min-width: 370px;
   display: flex;
   flex-wrap: wrap;
-  ::v-deep.el-form-item {
-    margin-right: 0px;
+  ::v-deep .el-form-item {
     display: flex;
+    margin-right: 0px;
     box-sizing: border-box;
     .el-form-item__content {
       margin-left: 0px !important;
@@ -1078,11 +1131,21 @@ export default {
     flex: 1;
   }
 }
-.form-label-flex {
-  ::v-deep.el-form-item__label {
+
+// 标签 label-position: center
+.el-form--label-center {
+  ::v-deep .el-form-item__label {
     display: flex;
     justify-content: center;
     align-items: center;
   }
 }
+
+// 标签 label-position: top
+.el-form--label-top{
+  ::v-deep .el-form-item {
+    display: block;
+  }
+}
+
 </style>

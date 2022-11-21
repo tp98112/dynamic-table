@@ -1,5 +1,3 @@
-import { Button } from "element-ui"
-
 export default{
     props: {
         dynamic:{
@@ -61,6 +59,16 @@ export default{
                     value: 'value'
                 }
             }
+        },
+        // 字典数据字段控制
+        dictControl: {
+            type: Object,
+            default() {
+                return {
+                    label: 'dictLabel',
+                    value: 'dictValue'
+                };
+            },
         },
         loading: {
             // 表格数据loading
@@ -126,6 +134,11 @@ export default{
                 return {children: 'children', hasChildren: 'hasChildren'}
             }
         },
+        reserveSelection: {
+            // 仅对 type=selection 的列有效，类型为 Boolean，为 true 则会在数据更新之后保留之前选中的数据（需指定 row-key）
+            type: Boolean,
+            default: false
+        },
         height: {
             // 表格高度
             type: [Number,String],
@@ -173,7 +186,7 @@ export default{
             }
         },
         defaultPrompt: {
-            // 是否显示内置提示
+            // 是否显示默认的内置提示
             type: Boolean,
             default: true
         },
@@ -244,10 +257,20 @@ export default{
                 return [10, 50, 100, 150]
             }
         },
+        smallPagination: {
+            // 小型分页
+            type: Boolean,
+            default: false
+        },
         total: {
             // 分页总数
             type: Number,
             default: 0
+        },
+        pagerCount: {
+            // 最大页码按钮数 大于等于 5 且小于等于 21 的奇数
+            type: Number,
+            default: 7
         },
         // 表格底部 对齐方式
         footer_justify: {
@@ -322,6 +345,11 @@ export default{
             // 表单一行放置控件数量
             type: [Number, String],
             default: 2
+        },
+        closeOnClickModal: {
+            // 是否可以通过点击 modal 关闭 Dialog
+            type: Boolean,
+            default: false
         },
         formDialogButtonSize: {
             type: String,

@@ -1,12 +1,13 @@
 <script>
 import props from './mixins/props.js';
 import config from './mixins/config.js';
+import methods from './mixins/methods.js';
 import {loopThroughTheArray, loopThroughTheArrayBySome, dateFormat, getFieldType, deepClone, getId, isEmpty} from "./tools.js";
 
 export default {
     name: 'TpStupidTable',
     inheritAttrs: false,
-    mixins: [props, config],
+    mixins: [props, config, methods],
     components: {
         DynamicForm: () => import('./components/DynamicForm'), 
         TpUploadButton: () => import('./components/TpUpload/Button.vue')
@@ -98,8 +99,8 @@ export default {
                 return <el-select v-model={scope.row[scope.column.property]}  props={this.setControlProperty(column)} on={this.getControlEvents(column, scope)} disabled={this.setDisabledState(column, scope)} style="width: 100%">
                 {this.returnOptions(column).map(opt => {
                     return <el-option 
-                    label={column.optionControl?.label ? opt[column.optionControl.label] : opt[this.optionControl.label]}
-                    value={column.optionControl?.value ? opt[column.optionControl.value] : opt[this.optionControl.value]}>
+                    label={this.returnOptionsFields(column, opt, 'label')}
+                    value={this.returnOptionsFields(column, opt, 'value')}>
                     </el-option>
                 })}
                 </el-select>
@@ -216,6 +217,7 @@ export default {
                             width={column.width}
                             index={this.getIndexMethod}
                             selectable={column.selectable}
+                            reserve-selection={this.reserveSelection}
                             {
                                 ...this.getIndexSelectionExpandSlots(column.type)
                             }
@@ -358,8 +360,10 @@ export default {
                     current-page={this.currentPage}
                     page-sizes={this.pageSizes}
                     page-size={this.currentPageSize}
+                    pager-count={this.pagerCount}
                     layout={this.layout}
                     total={this.total}
+                    small={this.smallPagination}
                     background
                     on={{
                         'size-change': this.handleSizeChange, 
@@ -399,7 +403,15 @@ export default {
          * 编辑弹窗
          */
         const renderEditDialog = () => {
-            return <el-dialog  visible={this.formVisible} on={{['update:visible']: state => {this.formVisible = state}}} title={this.formTitle} width={this.formDialogWidth} append-to-body before-close={this.beforeClose} modal={this.formDialogModal} class="dynamicTable-dialog">
+            return <el-dialog  
+            visible={this.formVisible} 
+            on={{['update:visible']: state => {this.formVisible = state}}} 
+            title={this.formTitle} width={this.formDialogWidth} 
+            append-to-body 
+            before-close={this.beforeClose} 
+            modal={this.formDialogModal}
+            close-on-click-modal={this.closeOnClickModal} 
+            class="dynamicTable-dialog">
                 <DynamicForm
                     props={this.formConfig}
                     received_dicts={this.dicts}
@@ -415,7 +427,8 @@ export default {
             </el-dialog>
         }
         return (<div class="dynamic-table-wrap">
-            <el-table data={this.returnTableData} 
+            <el-table data={this.returnTableData}
+            ref="dynamicTable" 
             v-loading={this.dataLoading}
             element-loading-text="正在加载，请稍后..."
             element-loading-spinner="el-icon-loading"
@@ -584,6 +597,16 @@ export default {
                 return this.dicts[item.dict] || this.$attrs[item.optionsKey] || item.options || []
             }
         },
+        /**
+         * 返回选项列表字段值配置
+         */
+        returnOptionsFields(){
+            return (item, opt, field) => {
+                return item.optionControl
+                    ? opt[item.optionControl[field]]
+                    : (item.dict ? opt[this.dictControl[field]] : opt[this.optionControl[field]])
+            }        
+        },
         // 返回控件默认属性
         setControlProperty() {
             function config() {
@@ -751,14 +774,18 @@ export default {
                 return;
             };
             this.formConfig.currentMode = 'new'; // 标记当前操作模式
-            this.formTitle = button.actionName; // 标记操作名称
+            this.formTitle = button.actionName || '新增'; // 标记操作名称
             if(this.editMode === 'window' && !this.unifiedEdit){
                 // 弹窗编辑
                 this.currentEditRow = scope && scope.row ? scope.row : null;
                 this.formConfig.disabledForm = false; 
                 this.formVisible = true;
                 this.$nextTick(() => {
-                    console.log(this.formConfig.currentMode, this.$refs.dynamicForm.currentMode)
+                    if(typeof button.getFormData === 'function'){
+                        button.getFormData({row:  this.getEmitData(this.currentEditRow), callBack: data => {
+                            this.setDynamicForm(data);
+                        }} )
+                    }
                 })
             }else{
                 
@@ -824,7 +851,7 @@ export default {
                 this.$set(row, '$edit', true);
             }else{
                 // 弹窗表单编辑
-                this.formTitle = button.actionName; // 操作名称
+                this.formTitle = button.actionName || '编辑'; // 操作名称
                 this.formConfig.disabledForm = false; 
                 this.formConfig.currentPanel = button.panel; // 设置表单的当前面板
                 this.formVisible = true;
@@ -847,25 +874,8 @@ export default {
          * 更新动态表单字段值
          */
         setDynamicForm(row){
-            let form = this.$refs.dynamicForm.form;
-            for(let i in row){
-                if(this.initFieldsCollection[i]?.editType === 'time-picker'){
-                    // time-picker 控件的值必须为数组
-                    if(Array.isArray(row[i]) && row[i].length === 2){
-                        form[i] = row[i];
-                    }else{
-                        // 控件绑定值不符合规范 重置为默认值
-                        form[i] = this.$refs.dynamicForm.defaultFieldsValue[i];
-                    }
-                    
-                }else if(this.initFieldsCollection[i]?.editType === 'checkbox-group'){
-                    if(!Array.isArray(row[i])){
-                        form[i] = [];
-                    }
-                }else{
-                    form[i] = row[i];
-                }
-            }
+            // let form = this.$refs.dynamicForm.form;
+            this.$refs.dynamicForm.updateFields(row)
         },
         /**
          * 删除数据
@@ -902,13 +912,13 @@ export default {
                                 };
                                 instance.confirmButtonLoading = false;
                                 done();
-                                this.executePromp({type:'success', message: info ? info : '删除成功！'})
+                                this.executePromp(info, {type:'success', message: info ? info : '删除成功！'})
                             };
                             const fail = info => {
                                 row.$deleteLoading = false;
                                 instance.confirmButtonLoading = false;
                                 done();
-                                this.executePromp({type:'error', message: info ? info : '删除失败！'})
+                                this.executePromp(info, {type:'error', message: info ? info : '删除失败！'})
                             };
                             this.$emit('change', {type: 'delete', row: this.getEmitData(scope.row), success, fail })
                         }else{
@@ -944,7 +954,7 @@ export default {
                         instance.confirmButtonText = '执行中...';
                         const success = info => {
                             if(this.needRefreshEvents.indexOf('delete') > -1){
-                                if(this.data.length === 1 && this.currentPage > 1){
+                                if(this.data.length === this.selectionList.length && this.currentPage > 1){
                                     this.pageTurning(this.currentPage - 1)
                                 }else{
                                     this.emitPageChange(); // 刷新
@@ -956,13 +966,13 @@ export default {
                             this.setTableLoading(false);
                             instance.confirmButtonLoading = false;
                             done();
-                            this.executePromp({type:'success', message: info ? info : '删除成功！'})
+                            this.executePromp(info, {type:'success', message: info ? info : '删除成功！'})
                         };
                         const fail = info => {
                             this.setTableLoading(false);
                             instance.confirmButtonLoading = false;
                             done();
-                            this.executePromp({type:'error', message: info ? info : '删除失败！'})
+                            this.executePromp(info, {type:'error', message: info ? info : '删除失败！'})
                         };
                         this.$emit('change', {type: 'delete', selection: this.selectionList, success, fail })
                     }else{
@@ -1006,7 +1016,7 @@ export default {
             };
             let row = scope.row;
             this.formConfig.currentMode = 'view'; // 标记操作模式
-            this.formTitle = button.actionName;
+            this.formTitle = button.actionName || '查看';
             this.formConfig.disabledForm = true;
             this.formConfig.currentPanel = button.panel; // 设置表单的当前面板
             this.formVisible = true;
@@ -1030,11 +1040,11 @@ export default {
                     row.$new = false;
                     row.$edit = false;
                 }
-                this.executePromp({type:'success', message: info ? info : '数据已更新！'})
+                this.executePromp(info, {type:'success', message: info ? info : '数据已更新！'})
             };
             const fail = (info) => {
                 row.$saveLoading = false;
-                this.executePromp({type:'error', message: info ? info : '更新失败！'})
+                this.executePromp(info, {type:'error', message: info ? info : '更新失败！'})
             };
             this.$set(row, '$saveLoading', true); // 开启loading
             // 校验
@@ -1226,7 +1236,7 @@ export default {
             const fail = info => {
                 this.currentPage = this.lastPage; // 重置
                 this.setTableLoading(false);
-                this.executePromp({
+                this.executePromp(info,{
                     type: 'error',
                     message: info ? info : '刷新表格数据失败！',
                 })
@@ -1361,16 +1371,18 @@ export default {
          * 刷新当前页
          */
         refreshTableData(){
-            this.lastPage = this.currentPage;
             this.setTableLoading(true);
             this.emitPageChange();
         },
         /**
          * 内置信息提示
          */
-        executePromp(info){
-            if(this.defaultPrompt){
-                this.$message(info);
+        executePromp(info, msg){
+            if(info === null){
+                return;
+            }
+            if(info !== undefined || this.defaultPrompt){
+                this.$message(msg);
             }
         },
         /**
@@ -1379,9 +1391,12 @@ export default {
         beforeClose(done){
             if(this.currentEditRow){
                 // 如果是编辑数据则在关闭时重置表单
-                this.$refs.dynamicForm.resetFields() // 重置表单
+                setTimeout(() => {
+                    this.$refs.dynamicForm.resetFields(true) // 重置表单
+                },200)
+            }else{
+                this.$refs.dynamicForm.clearValidate(); // 清空校验信息
             }
-            this.$refs.dynamicForm.clearValidate(); // 清空校验信息
             done()
         },
         /**
@@ -1396,13 +1411,15 @@ export default {
                         }else{
                             this.saveFormDataToTable(form)
                         };
-                        this.$refs.dynamicForm.resetFields() // 重置表单
                         this.dialogConfirmLoading = false; // 关闭loading
                         this.formVisible = false; // 关闭弹窗
-                        this.executePromp({type: 'success', message: info ? info : `${this.formConfig.currentMode === 'new' ? '新增': '更新'}数据成功！`})
+                        setTimeout(() => {
+                            this.$refs.dynamicForm.resetFields(true) // 重置表单
+                        },200)
+                        this.executePromp(info, {type: 'success', message: info ? info : `${this.formConfig.currentMode === 'new' ? '新增': '更新'}数据成功！`})
                     };
                     const fail = info => {
-                        this.executePromp({type: 'error', message: info ? info : `${this.formConfig.currentMode === 'new' ? '新增': '更新'}数据失败！`})
+                        this.executePromp(info, {type: 'error', message: info ? info : `${this.formConfig.currentMode === 'new' ? '新增': '更新'}数据失败！`})
                         this.dialogConfirmLoading = false;
                     }
                     this.dialogConfirmLoading = true;
@@ -1421,8 +1438,10 @@ export default {
          * 编辑弹窗取消
          */
         closeDialog(){
-            this.$refs.dynamicForm.resetFields();
             this.formVisible = false;
+            setTimeout(() => {
+                this.$refs.dynamicForm.resetFields(true);
+            }, 200)
         },
         /**
          * 表头双击事件
@@ -1496,15 +1515,21 @@ export default {
             }else if(column.dict){
                 // 系统字典
                 let arr = this.dicts[column.dict] ? this.dicts[column.dict] : [];
-                let target = arr.find(item => item['dictValue'] === value);
-                return target ? target['dictLabel'] : '无匹配数据';
+                let values = Array.isArray(value) ? value : [value]; // 绑定值
+                let label = [];
+                values.forEach(val=> {
+                    let target = arr.find(item => item['dictValue'] == val);
+                    label.push(target ? target['dictLabel'] : '/')
+                })
+                let target = arr.find(item => item['dictValue'] == value);
+                return label.join(',');
             }else if(value && column.editType === 'select'){
                 let arr = this.dicts[column.dict] || this.$attrs[column.optionsKey] || column.options || [];
                 let values = Array.isArray(value) ? value : [value]; // 绑定值
                 let label = [];
                 values.forEach(val=> {
-                    let target = arr.find(item => item[column.optionControl?.value ? column.optionControl.value : this.optionControl.value] === val);
-                    label.push(target ? target[column.optionControl?.label ? column.optionControl.label : this.optionControl.label] : '无匹配数据')
+                    let target = arr.find(item => item[column.optionControl?.value ? column.optionControl.value : this.optionControl.value] == val);
+                    label.push(target ? target[column.optionControl?.label ? column.optionControl.label : this.optionControl.label] : '/')
                 })
                 return label.join(',');
             }else{
@@ -1616,6 +1641,12 @@ export default {
             });
             this.toolsObject = {};
         },
+        /**
+         * 获取字典数据
+         */
+        getDict(prop){
+            return this.dicts[prop];
+        }
     },
 }
 </script>
