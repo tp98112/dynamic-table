@@ -738,10 +738,13 @@ export default {
                   // 字典数据
                     if(item.dict && !(item.dict in this.dicts)){
                         this.$set(this.dicts, item.dict, null); // 首先初始化, 避免接口返回异常时表单子组件再次发起请求
-                        // this.getDicts(item.dict).then(response => {
-                        //     this.dicts[item.dict] = response.data;
-                        //     // console.log('字典数据', this.dicts)
-                        // });
+                        this.getDicts(item.dict).then(response => {
+                            let {code, context} = response;
+                            if(code === "K-000000" && context){
+                                this.$set(this.dicts, item.dict, context)
+                            }
+                            // console.log('字典数据', this.dicts)
+                        });
                     }
                 }
             })
