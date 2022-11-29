@@ -779,14 +779,18 @@ export default {
                 // 弹窗编辑
                 this.currentEditRow = scope && scope.row ? scope.row : null;
                 this.formConfig.disabledForm = false; 
-                this.formVisible = true;
-                this.$nextTick(() => {
-                    if(typeof button.getFormData === 'function'){
-                        button.getFormData({row:  this.getEmitData(this.currentEditRow), callBack: data => {
+                
+                if(typeof button.getFormData === 'function'){
+                    button.getFormData({row:  this.getEmitData(this.currentEditRow), callBack: data => {
+                        this.formVisible = true;
+                        this.$nextTick(() => {
                             this.setDynamicForm(data);
-                        }} )
-                    }
-                })
+                        })
+                        
+                    }} )
+                }else{
+                    this.formVisible = true;
+                }
             }else{
                 
                 // 行内编辑
@@ -854,16 +858,19 @@ export default {
                 this.formTitle = button.actionName || '编辑'; // 操作名称
                 this.formConfig.disabledForm = false; 
                 this.formConfig.currentPanel = button.panel; // 设置表单的当前面板
-                this.formVisible = true;
-                this.$nextTick(() => {
-                    if(typeof button.getFormData === 'function'){
-                        button.getFormData({row:  this.getEmitData(row), callBack: data => {
+                if(typeof button.getFormData === 'function'){
+                    button.getFormData({row:  this.getEmitData(row), callBack: data => {
+                        this.formVisible = true;
+                        this.$nextTick(() => {
                             this.setDynamicForm(data);
-                        }} )
-                    }else{
+                        })
+                    }})
+                }else{
+                    this.formVisible = true;
+                    this.$nextTick(() => {
                         this.setDynamicForm(deepClone(row));
-                    }
-                })
+                    })
+                }
             };
             // 内置事件存在emit时, 一同触发
             if(button.emit){
@@ -1134,7 +1141,7 @@ export default {
             // key: 当前列的prop值 | row: 当前行数据
             let value = row[key];
             let field = this.initFieldsCollection[key];
-            if(field.required && value === ""){
+            if(field.required && (value === "" || value === null || value === undefined)){
                 // 必传字段不能为空
                 return {
                     result: false,
@@ -1522,8 +1529,8 @@ export default {
                     label.push(target ? target['dictLabel'] : '/')
                 })
                 let target = arr.find(item => item['dictValue'] == value);
-                return label.join(',');
-            }else if(value && column.editType === 'select'){
+                return label.length ? label.join(',') : '/';
+            }else if(column.editType === 'select'){
                 let arr = this.dicts[column.dict] || this.$attrs[column.optionsKey] || column.options || [];
                 let values = Array.isArray(value) ? value : [value]; // 绑定值
                 let label = [];
@@ -1531,7 +1538,7 @@ export default {
                     let target = arr.find(item => item[column.optionControl?.value ? column.optionControl.value : this.optionControl.value] == val);
                     label.push(target ? target[column.optionControl?.label ? column.optionControl.label : this.optionControl.label] : '/')
                 })
-                return label.join(',');
+                return label.length ? label.join(',') : '/';
             }else{
                 return value;
             }

@@ -4,6 +4,7 @@
     :rules="rules"
     :disabled="disabledForm"
     ref="dynamic-form"
+    @submit.native.prevent
     :label-width="getFormLabelWidth"
     :label-position="labelPosition"
     :style="{ marginLeft: -gutter / 2 + 'px' }"
@@ -450,7 +451,7 @@ export default {
         "upload-image": [], // 图片上传
         "upload-button": [], // 上传-按钮
         "upload-select": [], // 上传-下拉框
-        'select-tree': [], // 选择树
+        'select-tree': '', // 选择树
         "button-group": "",
         unknown: "", // 未知的
       }), // 受支持的预设控件
@@ -736,7 +737,7 @@ export default {
             multiple: true,
           },
           'select-tree': {
-
+            clearable: true,
           }
         };
       }
