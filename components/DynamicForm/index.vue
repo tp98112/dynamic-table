@@ -73,8 +73,8 @@
               style="width: 100%"
             >
               <el-option
-                v-for="(opt, optIndex) in returnOptions(item)"
-                :key="optIndex"
+                v-for="opt in returnOptions(item)"
+                :key="returnOptionsFields(item, opt, 'value')"
                 :label="returnOptionsFields(item, opt, 'label')"
                 :value="returnOptionsFields(item, opt, 'value')"
               >
@@ -106,7 +106,7 @@
                 :key="optIndex"
                 :label="returnOptionsFields(item, opt, 'value')"
               >
-                {{ returnOptionsFields(item, opt, 'label') }}
+                {{returnOptionsFields(item, opt, 'label')}}
               </el-radio>
             </el-radio-group>
             <!-- switch开关 -->
@@ -161,7 +161,7 @@
                   :key="optIndex"
                   :label="returnOptionsFields(item, opt, 'value')"
                 >
-                  {{returnOptionsFields(item, opt, 'label')}}
+                  {{ returnOptionsFields(item, opt, 'label') }}
                 </el-checkbox>
               </el-checkbox-group>
             </template>
@@ -299,7 +299,6 @@
 </template>
 
 <script>
-import { typeOf } from 'mathjs';
 import { getId } from "../../tools.js";
 const renderColumn = {
   props: {
