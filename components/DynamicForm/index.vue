@@ -13,20 +13,18 @@
       'form-items-cover': formItemsCover,
     }"
   >
-    <template v-for="(item, index) in getFormItems">
       <el-form-item
+        v-for="(item) in getFormItems" :key="item.$key"
+        :ref="`el-form-item-${item.prop}`"
+        :prop="getProp(item)"
+        :label="item.formLabel ? item.formLabel : item.label ? item.label : ''"
+        :label-width="item.formLabelWidth"
         :style="{
           width: formItemWidth(item),
           paddingLeft: gutter / 2 + 'px',
           paddingRight: gutter / 2 + 'px',
           flex: item.flex
         }"
-        :ref="`el-form-item-${item.prop}`"
-        :key="index"
-        :prop="getProp(item)"
-        :label="item.formLabel ? item.formLabel : item.label ? item.label : ''"
-        :label-width="item.formLabelWidth"
-        v-if="getFormVisible(item)"
       >
         <slot :name="'form-' + item.prop" v-bind="{ form, mode: '' }">
           <renderColumn
@@ -267,6 +265,8 @@
             v-else-if="isRender(item.editType, 'select-tree')"
             v-model="form[item.prop]"
             v-bind="returnControlProperty(item)"
+            :disabled="setDisabled(item.disabled)"
+            :readonly="setReadonly(item.readonly)"
             v-on:[controlEvent(item)]="controlMethod($event, item)"
             v-on="getControlEvents(item)"
             :data="returnOptions(item)"
@@ -294,7 +294,7 @@
           </template>
         </slot>
       </el-form-item>
-    </template>
+    
   </el-form>
 </template>
 
@@ -528,10 +528,12 @@ export default {
       if (this.currentPanel && !this.dataIsolation) {
         // 存在面板设置但是没有数据隔离时
         return this.formItemList.filter((item) => {
-          return item.panel === this.currentPanel;
+          return item.panel === this.currentPanel && this.getFormVisible(item);
         });
       } else {
-        return this.formItemList;
+        return this.formItemList.filter(item => {
+          return this.getFormVisible(item);
+        });
       }
     },
     getFormVisible() {
@@ -784,6 +786,7 @@ export default {
     collatingDataStructures() {
       let hasRequired = false;
       this.formItemList.forEach((item) => {
+        item.$key = getId(true);
         item.editType =
           item.editType in this.supportedComponents ? item.editType : "unknown";
         const prop = item.module ? `${item.module}-${item.prop}` : item.prop; // 分模块
@@ -982,7 +985,6 @@ export default {
       for (let i in target) {
         this.$set(this.form, i, target[i]);
       }
-      console.log(this.form, 'this.form')
     },
     // 重置表单数据
     resetFields(manualReset) {
@@ -990,9 +992,14 @@ export default {
       if (manualReset) {
         for (let i in this.form) {
           this.form[i] = this.defaultFieldsValue[i];
-        }
+        };
+        this.$nextTick(() => {
+          this.clearValidate();
+        })
+      }else{
+        // 当表单中中塞入非初始化的数据时,resetFields会造成数据异常
+        this.$refs["dynamic-form"].resetFields();
       }
-      this.$refs["dynamic-form"].resetFields();
     },
     // 清理校验信息
     clearValidate(){

@@ -62,5 +62,17 @@
         top: 50%;
         left:50%;
         transform: translate(-50% , -50%);
+        .el-dialog__body{
+            max-height: calc(100vh - 130px);
+            overflow: auto;
+            &::-webkit-scrollbar {
+                width: 6px;
+            }
+        
+            &::-webkit-scrollbar-thumb {
+                background: #E4E7ED;
+                border-radius: 20px;
+            }
+        }
     }
 }

@@ -54,6 +54,7 @@ export default {
         },
         "data.length": {
             handler(){
+                // console.log("哈哈哈哈")
                 this.initTableData();
             }
         },
@@ -491,6 +492,7 @@ export default {
         },
         returnValidateTips(){
             return (column, row) => {
+                console.log(column, row, 'returnValidateTips')
                 if(column.required && isEmpty(row[column.prop])){
                     return <span><i class="el-icon-warning-outline" style="margin-right: 4px"></i>{`${column.label}不能为空`}</span>
                 }else if(column.validator && !isEmpty(row[column.prop]) ){
@@ -500,7 +502,8 @@ export default {
                     }else{
                         return <span><i class="el-icon-circle-close" style="margin-right: 4px"></i>{column.validateTips ? column.validateTips : '校验失败!'}</span> 
                     }
-                    
+                }else{
+                    this.$delete(this.validateObject, `${column.prop}-${row[this.uniqueKey]}`);
                 }
             }
         },
@@ -814,7 +817,8 @@ export default {
                 };
                 // 当使用自定义模板 创建了非 一对一 管理的表格时 可以传入initFields 指定初始化数据 否则将造成新增错误!
                 // 合并初始化数据字段
-                newRow = Object.assign(newRow, this.initFields)
+                let hasCustomData = Object.prototype.toString.call(scope) === '[object Object]';
+                newRow = Object.assign(newRow, deepClone(hasCustomData ? scope : this.initFields))
                 newRow[this.uniqueKey] = getId()
                 let backupRow = deepClone(newRow) // 备份新增数据行
                 newRow.$new = true; // 标记为新增数据
@@ -882,6 +886,7 @@ export default {
                 }else{
                     this.formVisible = true;
                     this.$nextTick(() => {
+                        console.log("编辑回显", row)
                         this.setDynamicForm(deepClone(row));
                     })
                 }
@@ -1445,7 +1450,7 @@ export default {
                     }
                     this.dialogConfirmLoading = true;
                     let row = this.getEmitData(form);
-                    if(this.formConfig.currentMode === 'new'){
+                    if(this.formConfig.currentMode === 'new' && this.currentEditRow){
                         row.parent = this.getEmitData(this.currentEditRow);
                     }
                     this.$emit('change', {type: this.formConfig.currentMode === 'new' ? 'new' : 'update', row, success, fail})
