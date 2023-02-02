@@ -148,7 +148,6 @@ export default {
                         eventName: 'change',
                         controlMethod({params, form}){
                           form.text = params.join('-');
-                          console.log(form)
                         },
                         control: {
                             placeholder: '演示事件: 选择后同时设置文本框',
@@ -333,7 +332,6 @@ export default {
         },
         getFormData(){
            this.$refs.form.validate((valid, form) => {
-                console.log(valid, form)
             });
         },
         resetForm(){

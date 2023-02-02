@@ -164,7 +164,6 @@ export default {
          */
         setStackPicture(type){
             let desiredWidth = this.fileList.length * (this.imageWidth + this.imageSpacing) + this.imageWidth;
-            console.log('需要宽度', desiredWidth, '容器宽度', this.wrapWidth)
             if(desiredWidth > this.wrapWidth){
                 this.stacked = true; // 标记已进入堆叠状态
                 this.$nextTick(() => {
@@ -226,7 +225,6 @@ export default {
          * 文件状态改变时
          */
         handleUploadChange(file, fileList){
-            // console.log(file)
             if(file.status === "ready"){
                 // 检查格式
                 if(!file.raw.type || this.bindValues.accept.indexOf(file.raw.type) < 0){

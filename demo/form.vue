@@ -27,7 +27,6 @@ export default {
     methods: {
         getForm(){
             this.$refs.form.validate(({valid, form, module}) => {
-                console.log('表单数据', form, module)
             })
         }
     }

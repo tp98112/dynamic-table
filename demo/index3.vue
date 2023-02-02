@@ -112,11 +112,9 @@ export default {
                     panel: 1, // 面板
                     eventName: 'blur',
                     controlMethod(params){
-                        console.log('blur', params)
                     },
                     //  controlEvents: {
                     //         change(params){
-                    //             console.log(params)
                     //             params.scope.row.select = 2;
                     //         },
                     //     }
@@ -257,16 +255,13 @@ export default {
     },
     methods: {
         checkTableData(){
-            console.log(this.tableConfig.data )
            
         },
         tableChange(event) {
-            console.log("表格触发事件", event);
             event.success()
             // event.close();
             // let executeFunc = {
             //   update() {
-            //     console.log(event);
             //   },
             // };
             // executeFunc[event.type]();

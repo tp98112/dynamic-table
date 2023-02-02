@@ -147,7 +147,6 @@ export default {
         },
         checkTableData(){
             let data = this.$refs.dynamicTable.checkTableData();
-            console.log("表格数据", data)
             if(data){
                 // 校验获取数据成功
                 this.$message.success("校验并获取数据成功, 打开控制台查看打印数据" )
@@ -155,7 +154,6 @@ export default {
            
         },
         tableChange(event) {
-            console.log("表格触发事件", event);
             event.success()
             if(event.type === 'update'){
                 // 调用接口更新数据 返回成功后执行 成功回调

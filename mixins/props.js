@@ -257,6 +257,11 @@ export default{
                 return [10, 50, 100, 150]
             }
         },
+        pageSizeIndex: {
+            // 当前分页大小 根据下标从pageSizes中取
+            type: Number,
+            default: 0
+        },
         smallPagination: {
             // 小型分页
             type: Boolean,
