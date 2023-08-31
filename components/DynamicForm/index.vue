@@ -433,7 +433,7 @@ export default {
       timer: null, // 定时器
       otherData: {}, // 文件上传-下拉选择器数据
       formLabelLength: 2, // 表单项标签文本长度
-      formLabelFillWidth: 12, // 表单项标签补充宽度
+      formLabelFillWidth: 13, // 表单项标签补充宽度
       supportedComponents: Object.freeze({
         "date-picker": "", // 时间选择器
         input: "", // 文本输入框
@@ -809,17 +809,17 @@ export default {
 
         //// 获取字典
         if (item.dict && !(item.dict in this.dicts)) {
-          this.getDicts(item.dict).then(response => {
-              let {code, context} = response;
-              if(code === "K-000000" && context){
-                  this.$set(this.dicts, item.dict, context)
-                  if(typeof item.selectedIndex === 'number'){
-                    // 默认选中项
-                    this.form[prop] = context[item.selectedIndex][this.dictControl.value];
-                  }
-              }
-              // console.log('字典数据', this.dicts)
-          });
+        //   this.getDicts(item.dict).then(response => {
+        //       let {code, context} = response;
+        //       if(code === "K-000000" && context){
+        //           this.$set(this.dicts, item.dict, context)
+        //           if(typeof item.selectedIndex === 'number'){
+        //             // 默认选中项
+        //             this.form[prop] = context[item.selectedIndex][this.dictControl.value];
+        //           }
+        //       }
+        //       // console.log('字典数据', this.dicts)
+        //   });
         }
 
         // 校验

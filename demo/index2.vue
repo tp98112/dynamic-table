@@ -32,7 +32,7 @@ export default {
             slots: ['rcz', ],
             tableConfig: {
                 dynamic: true, 
-                editMode: 'inline',
+                editMode: 'window',
                 actionButtonType: 'button',
                 actionBarWidth: 140,
                 accessControl: {

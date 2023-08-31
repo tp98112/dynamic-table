@@ -6,6 +6,7 @@
             <el-button @click="event"></el-button>
         </template> -->
        <!-- <div slot="form-input" slot-scope="{form}">{{form.input}}</div> -->
+      
        
         </DynamicTable>
       <el-button @click="checkTableData">获取表格数据</el-button>
@@ -97,6 +98,7 @@ export default {
                         type: 'index',
                         label: '序号'
                     },
+                   
                     
                 {
                     label: "输入框",
