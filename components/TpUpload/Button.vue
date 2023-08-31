@@ -146,7 +146,6 @@ export default {
          * 文件状态改变时
          */
         handleUploadChange(file, fileList){
-            console.log(file)
             if(file.status === "ready"){
                 this.fileList.unshift(file);
                 // 上报change事件
@@ -160,7 +159,6 @@ export default {
          * 文件移除时
          */
         handleUploadRemove(file, fileList){
-            console.log(this.fileList)
         },
     }
 }

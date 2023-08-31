@@ -514,7 +514,6 @@ export default {
                     that: this,
                   })
                 : () => {
-                    console.log(params);
                   };
             };
           }
@@ -717,7 +716,6 @@ export default {
             clearable: true,
             "value-key": "dictValue",
             "fetch-suggestions": (queryString, cb) => {
-              console.log("fetch-suggestions", queryString);
               cb([]);
             },
           },
@@ -889,7 +887,6 @@ export default {
     //   let reads = new FileReader()
     //   reads.readAsDataURL(file)
     //   reads.onload = function (e) {
-    //     console.log(e)
     //     that.form[prop] = this.result
     //   }
     //   return false
@@ -1043,7 +1040,6 @@ export default {
     },
     handleUploadError(err, file, fileList, item) {
       // 上传失败
-      console.log(file, fileList, item);
     },
     /**
      * 获取字典数据

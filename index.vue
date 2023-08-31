@@ -21,7 +21,7 @@ export default {
             currentEditRow: null, // 当前编辑数据行
             dataLoading: this.loading === true ? true : false, // 表格数据loading
             currentPage: 1, // 当前页码
-            currentPageSize: this.pageSizes[0], // 当前页大小
+            currentPageSize: this.pageSizes[this.pageSizeIndex], // 当前页大小
             lastPage: null, // 上一次选中的分页
             lastPageSize: null, // 上一次选中的当前页大小
             toolsObject: {},
@@ -491,7 +491,6 @@ export default {
         },
         returnValidateTips(){
             return (column, row) => {
-                console.log(column, row, 'returnValidateTips')
                 if(column.required && isEmpty(row[column.prop])){
                     return <span><i class="el-icon-warning-outline" style="margin-right: 4px"></i>{`${column.label}不能为空`}</span>
                 }else if(column.validator && !isEmpty(row[column.prop]) ){
@@ -543,7 +542,6 @@ export default {
             return item => {
                 let {minWidth, label: {length}, editType} = item;
                 let clacWidth = minWidth ? minWidth : 20 + length * 13 + (item.sortable ? 24 : 0) + (item.filters ? 12 : 0);
-                // console.log(item.label, clacWidth)
                 return clacWidth;
             }
         },
@@ -582,7 +580,7 @@ export default {
                 if(typeof column.controlEvents === 'object'){
                     for(let i in column.controlEvents){
                         controlEvents[i] = params => {
-                            typeof column.controlEvents[i] === 'function' ? column.controlEvents[i]({ params, scope, column, that: this }) : () => {console.log(params)}
+                            typeof column.controlEvents[i] === 'function' ? column.controlEvents[i]({ params, scope, column, that: this }) : () => {}
                         }
                     };
                     return controlEvents;
@@ -859,7 +857,6 @@ export default {
         //     return targetData;
         // },
         handleEdit(scope, button){
-            // console.log('当前编辑行', row)
             if(typeof button.premise === 'function' && !(button.premise(scope))){
                 // 未通过前置条件
                 return;
@@ -885,7 +882,6 @@ export default {
                 }else{
                     this.formVisible = true;
                     this.$nextTick(() => {
-                        console.log("编辑回显", row)
                         this.setDynamicForm(deepClone(row));
                     })
                 }
@@ -1107,7 +1103,6 @@ export default {
          * 取消编辑 重置控件值
          */
         handleCancel({row}){
-            console.log('取消', row)
             for(let i in row){
                 if(this.privateFields.indexOf(i) < 0){
                     row[i] = deepClone(this.backupTableData[row[this.uniqueKey]][i])
@@ -1178,7 +1173,6 @@ export default {
                                 info: result ? '验证通过' : `${field.label}验证不通过！`
                             }
                         }catch(error){
-                            console.log(error)
                             return {
                                 result: false,
                                 info: '未知的验证错误，请检查验证方法或正则是否有误！'
@@ -1381,7 +1375,6 @@ export default {
                         try{
                             return target(scope);
                         }catch(error){
-                            console.log('自定义验证函数错误！', error);
                             return false;
                         }
                     }
@@ -1621,7 +1614,6 @@ export default {
             if(finalResult){
                 // checkTableData方法返回的数据默认经过深拷贝
                 let sendData = deepClone(this.data);
-                console.log("sendData", sendData)
                 loopThroughTheArray(sendData, (item, index) => {
                     // 移除组件带来的私有变量
                     this.privateFields.forEach(field => {
@@ -1638,7 +1630,6 @@ export default {
          * 处理单元格双击事件
          */
         handleCellDblclick(row, column, cell, event){
-            // console.log(row, column, cell, event, '处理单元格双击事件')
             if(this.$listeners['cell-dblclick']){
                 // 自定义单元格双击事件
                 this.$listeners['cell-dblclick'](row, column, cell, event)
