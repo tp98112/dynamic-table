@@ -318,7 +318,7 @@ export default {
   components: {
     renderColumn,
     TpUploadButton: () => import('../TpUpload/Button.vue'),
-    TpUploadImages: () => import('../TpUpload/Image.vue'),
+    TpUploadImages: () => import('../TpUpload/new.vue'),
   },
   props: {
     column: {
