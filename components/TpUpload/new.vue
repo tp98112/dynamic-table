@@ -67,7 +67,7 @@ export default {
     },
     accept: {
         type: String,
-        default: "image/png,image/jpeg"
+        default: "image/png,image/jpeg,image/gif"
     },
   },
   data() {
@@ -79,7 +79,7 @@ export default {
           action: "",
           'auto-upload': false,
           multiple: true,
-          accept: "image/png,image/jpeg"
+          accept: "image/png,image/jpeg,image/gif"
       },this.control),
     };
   },
@@ -118,7 +118,7 @@ export default {
       if(file.status === "ready"){
         // 检查格式
         if(!file.raw.type || this.bindValues.accept.indexOf(file.raw.type) < 0){
-          this.$message.error('请上传jpeg或png格式的图片！');
+          this.$message.error(`请上传 ${this.getAcceptFileType()} 格式的图片！`);
           this.$refs.upload.uploadFiles.splice(this.$refs.upload.uploadFiles.findIndex(item => {item.uid === file.uid}), 1)
           return;
         };
@@ -136,7 +136,16 @@ export default {
         }, 100)
       }
     },
-    
+    getAcceptFileType(){
+      const regex = /image\/(\w+)/g;  // 匹配 image/ 后面的字符串
+      let matches = [];
+      let match;
+      while ((match = regex.exec(this.bindValues.accept)) !== null) {
+        matches.push(match[1]);  // 提取捕获组中的内容
+      }
+      const formats = matches.join(", ");
+      return formats;
+    },
     /**
      * 大图预览
     */
