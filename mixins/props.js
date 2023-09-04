@@ -240,7 +240,7 @@ export default{
             type: Boolean,
             default: false
         },
-        falsePaging: {
+        virtualPage: {
             // 假分页
             type: Boolean,
             default: false

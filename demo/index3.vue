@@ -6,7 +6,6 @@
             <el-button @click="event"></el-button>
         </template> -->
        <!-- <div slot="form-input" slot-scope="{form}">{{form.input}}</div> -->
-      
        
         </DynamicTable>
       <el-button @click="checkTableData">获取表格数据</el-button>
@@ -51,7 +50,7 @@ export default {
                 rowKey: 'id',
                 pagination: true,
                 total: 100002,
-                falsePaging: true,
+                virtualPage: true,
                 needRefreshEvents: [],
                 initFields: {
                     input: '输入框',
@@ -198,14 +197,6 @@ export default {
                     ]
                 },
                 {
-                    label: '选择文件1',
-                    prop: 'selectFile',
-                    cols: 2,
-                    minWidth: 200,
-                    editType: 'upload-button',
-                    // formVisible: false,
-                },
-                {
                     label: '选择文件2',
                     prop: 'uploadImage',
                     cols:2,
@@ -214,19 +205,28 @@ export default {
                         // limit: 5,
                         'show-file-list': true
                     },
-                    columnVisible: false,
+                    // columnVisible: false,
                     
                 },
+                {
+                    label: '选择文件1',
+                    prop: 'uploadFile',
+                    cols: 2,
+                    minWidth: 200,
+                    editType: 'upload-button',
+                    // formVisible: false,
+                }
                 ],
                 data: [
                     {
                         id: '2121',
-                        input: "1",
+                        input: "12",
                         select: "1",
                         'checkbox-group': [],
                         'time-picker': '',
+                        uploadFile: [],
                        uploadImage: [
-                        {url: 'http://mms2.baidu.com/it/u=4016242268,4022037871&fm=253&app=120&f=JPEG&fmt=auto&q=75?w=501&h=500'}
+                        {name: '图片', url: 'http://mms2.baidu.com/it/u=4016242268,4022037871&fm=253&app=120&f=JPEG&fmt=auto&q=75?w=501&h=500'}
                        ],
                     },
                     {

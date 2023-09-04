@@ -5,6 +5,7 @@
     :show-file-list="true"
     :file-list="fileList"
     list-type="picture-card"
+    class="el-upload-list--picture-wrap"
     :on-exceed="(file, fileList) => { exceedQuantityLimit(file, fileList) }"
     :on-change="(file, fileList) => { handleUploadChange(file, fileList) }"
   >
@@ -12,7 +13,6 @@
     <div slot="file" slot-scope="{ file }">
       <el-image
         style="width: 148px; height: 148px"
-        :id="'img_' + file.uid"
         :src="file.url"
         :fit="control.fit ? control.fit : 'fill'"
         :preview-src-list="getPreviewSrcList(fileList)"
@@ -21,7 +21,7 @@
       <span class="el-upload-list__item-actions">
         <span
           class="el-upload-list__item-preview"
-          @click="handlePictureCardPreview(file)"
+          @click="handlePictureCardPreview"
         >
           <i class="el-icon-zoom-in"></i>
         </span>
@@ -43,14 +43,13 @@
 </template>
 
 <script>
-import {getId} from "../../tools.js";
 export default {
   props: {
     /**
      * 文件列表
      */
-    file: {
-        type: [Array, String],
+    fileList: {
+        type: Array,
         required: true,
         default(){
             return []
@@ -72,11 +71,10 @@ export default {
   },
   data() {
     return {
-      fileList: [], // 文件列表
-      activeImage: null, // 活跃图片
       timer: null,
       bindValues: Object.assign({
           action: "",
+          limit: 4,
           'auto-upload': false,
           multiple: true,
           accept: "image/png,image/jpeg,image/gif"
@@ -93,28 +91,14 @@ export default {
       };
     },
   },
-  created(){
-    this.initFileList()
+  mounted(){
+    this.setUploadElementDisplay();
   },
   methods: {
-    initFileList(){
-      if(Array.isArray(this.file)){
-        this.fileList = this.file.map(item => {
-          return {
-            uid: getId(true),
-            url: item.url,
-            status: 'success'
-          }
-        });
-      }else if(typeof this.file === 'string' && this.file){
-        this.fileList = [{status: 'success', url: this.file, uid: getId(true)}]
-      };
-    },
     /**
      * 文件状态改变时
      */
     handleUploadChange(file, fileList){
-      console.log('文件状态改变时', file)
       if(file.status === "ready"){
         // 检查格式
         if(!file.raw.type || this.bindValues.accept.indexOf(file.raw.type) < 0){
@@ -129,11 +113,28 @@ export default {
           return;
         }
         this.fileList.push(file);
+        this.setUploadElementDisplay();
         // 上报change事件
         clearTimeout(this.timer);
         this.timer = setTimeout(() => {
           this.$emit('change', this.fileList)
         }, 100)
+      }
+    },
+    setUploadElementDisplay(){
+      if(this.bindValues.limit){
+        let element = document.getElementsByClassName('el-upload--picture-card');
+        if(this.fileList.length === this.bindValues.limit){
+          if(element && element[0]){
+            element[0].style.display = 'none';
+          }
+        }else{
+          if(element && element[0]){
+            setTimeout(() => {
+              element[0].style.removeProperty('display');
+            }, 1200)
+          }
+        }
       }
     },
     getAcceptFileType(){
@@ -149,8 +150,9 @@ export default {
     /**
      * 大图预览
     */
-    handlePictureCardPreview(file) {
-      document.getElementById("img_" + file.uid).click();
+    handlePictureCardPreview(e) {
+      let target = e.target?.parentElement?.parentElement?.previousSibling?.children[0];
+      target && target.click();
     },
     /**
      * 下载图片
@@ -181,14 +183,30 @@ export default {
             return true;
         }
       })
+      this.setUploadElementDisplay();
       this.$emit('change', this.fileList)
     },
     /**
      * 选择的文件超出数量限制
      */
     exceedQuantityLimit(){
-      this.$message.error(`选择图片数量超出上限，当前最多还能再选${this.bindValues.limit - this.fileList.length}张！`)
+      let num = this.bindValues.limit - this.fileList.length;
+      if(num){
+        this.$message.info(`选择图片数量超出上限，当前最多还能再选${num}张！`)
+      }else{
+        this.$message.info(`最多选择${this.bindValues.limit}张图片！`)
+      }
+      
     },
   },
 };
 </script>
+
+<style lang="scss" scoped>
+.el-upload-list--picture-wrap{
+  .el-upload-list__item{
+    transition: none !important;
+  }
+}
+
+</style>

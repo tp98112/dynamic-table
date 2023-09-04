@@ -161,7 +161,7 @@ export default {
                 return this.$scopedSlots['edit-' + column.prop] ? this.$scopedSlots['edit-' + column.prop](scope) : setEditContent({column, scope})
             }else if(typeof column.render === 'function'){
                 // 自定义render渲染方法
-                return column.render(h,scope, this.$parent)
+                return column.render(h, scope)
             }else if(typeof column.template === 'function'){
                 // 自定义模板渲染方法
                 let type = typeof column.template(scope);
@@ -181,7 +181,7 @@ export default {
                 }
             }else{
                 // 默认内容
-                return <span class="cell-text">{this.getDefaultDisplayValue(column, scope.row[scope.column.property])}</span>
+                return <span class="cell-text">{this.getDefaultCellValue(column, scope.row[scope.column.property])}</span>
             }
         }
         /**
@@ -248,7 +248,7 @@ export default {
                                 align: column.align ? column.align : this.align,
                                 "min-width": this.getColumnMinWidth(column),
                                 fixed: column.fixed,
-                                'show-overflow-tooltip': column.showOverflowTooltip === false ? false : true // todo
+                                'show-overflow-tooltip': column.showOverflowTooltip === false ? false : true
                             },
                             scopedSlots: {
                                 header: scope => {
@@ -478,7 +478,7 @@ export default {
          * 返回表格数据
          */
         returnTableData(){
-            return this.falsePaging ? this.data.slice((this.currentPage - 1) * this.currentPageSize, this.currentPage * this.currentPageSize) : this.data
+            return this.virtualPage ? this.data.slice((this.currentPage - 1) * this.currentPageSize, this.currentPage * this.currentPageSize) : this.data
         },
         /**
          * 返回单元格样式
@@ -763,24 +763,22 @@ export default {
                     })
                 }else{
                     // 单行编辑
-                    if(!this.rowKey){
-                        // 没有传递rowKey时自动生成
-                        this.setTheDataIndex(this.data) // 初始化data内字段数据
-                    } 
+                    if(this.rowKey){
+                        loopThroughTheArray(this.data, (item, index, parent) => {
+                            this.backupTableData[item[this.uniqueKey]] = deepClone(item);
+                        })
+                    }else{
+                        loopThroughTheArray(this.data, (item, index, parent) => {
+                            item.$rowKey = getId();
+                            this.backupTableData[item.$rowKey] = deepClone(item);
+                        })
+                    }
                 }
                  
             }else{
                 // 仅作展示表格
                 // TODO
             }
-        },
-        
-        // 更新数据索引
-        setTheDataIndex(data, parent){
-            loopThroughTheArray(data, (item, index, parent) => {
-                item.$rowKey = getId();
-                this.backupTableData[item.$rowKey] = deepClone(item);
-            }, parent)
         },
         handleNew(scope, button){
             if(typeof button.premise === 'function' && !(button.premise(scope))){
@@ -1120,7 +1118,7 @@ export default {
             this.lastPageSize = this.currentPageSize; // 记录分页大小
             this.currentPageSize = val;
             this.currentPage = 1; // 重新选择分页大小时重置当前页码到1
-            if(!this.falsePaging){
+            if(!this.virtualPage){
                 this.setTableLoading(true);
                 this.emitPageChange();
             } 
@@ -1132,7 +1130,7 @@ export default {
         pageTurning(val){
             this.lastPage = this.currentPage; // 记录页码
             this.currentPage = val;
-            if(!this.falsePaging){
+            if(!this.virtualPage){
                 this.setTableLoading(true);
                 this.emitPageChange();
             } 
@@ -1524,7 +1522,7 @@ export default {
                 this.backupTableData[copyForm[this.uniqueKey]] = deepClone(form);
             }else{
                 // 更新当前行数据
-                let data = deepClone(form)
+                let data = deepClone(form);
                 for(let i in data){
                     this.currentEditRow[i] = deepClone(data[i]);
                     this.backupTableData[this.currentEditRow[this.uniqueKey]][i] = deepClone(data[i]); // 更新备份数据
@@ -1536,7 +1534,7 @@ export default {
         /**
          * 获取表格默认展示值
          */
-        getDefaultDisplayValue(column, value){
+        getDefaultCellValue(column, value){
             if(column.editType === 'time-picker' && Array.isArray(value) && value.length){
                 // 时间选择器
                 return dateFormat(value[0], 'HH:MM:SS') + '~' + dateFormat(value[1], 'HH:MM:SS');
@@ -1554,12 +1552,17 @@ export default {
             }else if(column.editType === 'select'){
                 let arr = this.dicts[column.dict] || this.$attrs[column.optionsKey] || column.options || [];
                 let values = Array.isArray(value) ? value : [value]; // 绑定值
-                let label = [];
-                values.forEach(val=> {
-                    let target = arr.find(item => item[column.optionControl?.value ? column.optionControl.value : this.optionControl.value] == val);
-                    label.push(target ? target[column.optionControl?.label ? column.optionControl.label : this.optionControl.label] : '/')
-                })
+                const label = values.map(val => {
+                    const target = arr.find(item => item[column.optionControl?.value ? column.optionControl.value : this.optionControl.value] === val);
+                    return target ? target[column.optionControl?.label ? column.optionControl.label : this.optionControl.label] : '/';
+                });
                 return label.length ? label.join(',') : '/';
+            }else if(['upload-button', 'upload-image'].indexOf(column.editType) > -1 && Array.isArray(value)){
+                const label = value.map(item => item.name || item.raw?.name);
+                return label.length ? label.join(',') : '/';
+            }else if(Array.isArray(value)){
+                // 当值为对象数组时,elTable对数据进行了未知的特殊处理导致了其他bug,此处直接返回字符串
+                return '[object Array]';
             }else{
                 return value;
             }

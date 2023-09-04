@@ -213,7 +213,7 @@
             v-else-if="item.editType === 'upload-image'"
             @change="setUploadImage($event, item)"
             :control="returnControlProperty(item)"
-            :file="form[item.prop]" 
+            :fileList="form[item.prop]" 
             ></tp-upload-images>
             <!-- 上传下拉选择器 -->
             <div
