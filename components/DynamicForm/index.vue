@@ -212,6 +212,7 @@
             <tp-upload-images 
             v-else-if="item.editType === 'upload-image'"
             @change="setUploadImage($event, item)"
+            :mode="currentMode"
             :control="returnControlProperty(item)"
             :fileList="form[item.prop]" 
             ></tp-upload-images>
@@ -625,9 +626,6 @@ export default {
      */
     setReadonly(){
       return readonly => {
-        if(this.readOnlyForm === true){
-          return true;
-        };
         let type = typeof readonly;
         if(type === "boolean"){
           return readonly;
@@ -1105,17 +1103,19 @@ export default {
     .el-form-item__content {
       margin-left: 0px !important;
     }
+    .el-range-editor.is-disabled{
+      background-color: transparent;
+    }
     .is-disabled {
-      background-color: #fff;
       cursor: default;
       .el-input__inner,
       input {
         cursor: default;
-        background-color: #fff;
+        background-color: transparent;
       }
       .el-textarea__inner {
         cursor: default;
-        background-color: #fff;
+        background-color: transparent;
       }
       .el-switch__core {
         cursor: default;

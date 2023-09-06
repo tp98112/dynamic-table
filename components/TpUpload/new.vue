@@ -68,6 +68,10 @@ export default {
         type: String,
         default: "image/png,image/jpeg,image/gif"
     },
+    mode: {
+      type: String,
+      default: 'new'
+    }
   },
   data() {
     return {
@@ -91,6 +95,11 @@ export default {
       };
     },
   },
+  watch: {
+    mode(){
+      this.setUploadElementDisplay();
+    }
+  },
   mounted(){
     this.setUploadElementDisplay();
   },
@@ -113,7 +122,7 @@ export default {
           return;
         }
         this.fileList.push(file);
-        this.setUploadElementDisplay();
+        this.setUploadElementDisplay(true);
         // 上报change事件
         clearTimeout(this.timer);
         this.timer = setTimeout(() => {
@@ -121,18 +130,18 @@ export default {
         }, 100)
       }
     },
-    setUploadElementDisplay(){
-      if(this.bindValues.limit){
-        let element = document.getElementsByClassName('el-upload--picture-card');
-        if(this.fileList.length === this.bindValues.limit){
-          if(element && element[0]){
-            element[0].style.display = 'none';
-          }
-        }else{
-          if(element && element[0]){
+    setUploadElementDisplay(hasDelay){
+      let element = document.getElementsByClassName('el-upload--picture-card');
+      if(this.mode === 'view' || this.fileList.length === this.bindValues.limit){
+        element && element[0] && (element[0].style.display = 'none');
+      }else{
+        if(element && element[0]){
+          if(hasDelay){
             setTimeout(() => {
               element[0].style.removeProperty('display');
             }, 1200)
+          }else{
+            element[0].style.removeProperty('display');
           }
         }
       }
@@ -183,7 +192,7 @@ export default {
             return true;
         }
       })
-      this.setUploadElementDisplay();
+      this.setUploadElementDisplay(true);
       this.$emit('change', this.fileList)
     },
     /**
