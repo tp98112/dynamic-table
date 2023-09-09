@@ -113,13 +113,13 @@ export default {
                     // columnVisible: false
                     panel: 1, // 面板
                     eventName: 'blur',
-                    controlMethod(params){
-                    },
-                    //  controlEvents: {
-                    //         change(params){
-                    //             params.scope.row.select = 2;
-                    //         },
-                    //     }
+                    // controlMethod(params){
+                    // },
+                     controlEvents: {
+                            change(params){
+                                params.scope.row.select = 2;
+                            },
+                        }
                 },
                 {
                     panel: 1, // 面板
