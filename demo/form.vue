@@ -27,6 +27,7 @@ export default {
     methods: {
         getForm(){
             this.$refs.form.validate(({valid, form, module}) => {
+                console.log("====", form, module)
             })
         }
     }

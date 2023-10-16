@@ -1,14 +1,7 @@
 <template>
     <div>
-        <DynamicTable ref="dynamicTable" v-bind="tableConfig"  :selectOptions="selectOptions" @change="tableChange">
-        <!-- <el-button slot="new-button" size="small" slot-scope="{event, scope}" @click="event">{{scope.row.input}}</el-button> -->
-        <!-- <template v-slot:new-button="{event}">
-            <el-button @click="event"></el-button>
-        </template> -->
-       <!-- <div slot="form-input" slot-scope="{form}">{{form.input}}</div> -->
-       
-        </DynamicTable>
-      <el-button @click="checkTableData">获取表格数据</el-button>
+        <DynamicTable ref="dynamicTable" v-bind="tableConfig"  :selectOptions="selectOptions" @change="tableChange"></DynamicTable>
+      <el-button @click="test">ceshi</el-button>
     </div>
 </template>
 
@@ -45,11 +38,11 @@ export default {
                 height: 500,
                 // maxHeight: 200,
                 dynamic: true, 
-                // unifiedEdit: false,
+                // unifiedEdit: true,
                 editMode: 'window',
                 rowKey: 'id',
                 pagination: true,
-                total: 1,
+                total: 20,
                 virtualPage: true,
                 needRefreshEvents: [],
                 initFields: {
@@ -59,39 +52,9 @@ export default {
                 },
                 accessControl: {
                     update: true,
-
+                    root: true
                     
                 },
-                // formDialogButton: [
-                //     {
-                //         icon: 'el-icon-check',
-                //         label: '确 定1',
-                //         type: 'primary',
-                //         emit: '$save'
-                //     },
-                //     {
-                //         icon: 'el-icon-check',
-                //         label: 'hahah',
-                //         type: 'primary',
-                //         emit: '$save2'
-                //     },
-                // ],
-                // newActionButton: [
-                //     {
-                //         label: '面板一',
-                //         target: 'update',
-                //         panel: 1,
-                //     },
-                //     {
-                //         label: '面板二',
-                //         target: 'update',
-                //         panel: 2,
-                //     },
-                //     {
-                //         label: '测试',
-                //         emit: 'haha'
-                //     }
-                // ],
                 column: [
                     {
                         type: 'index',
@@ -111,9 +74,6 @@ export default {
                     // },
                     // columnVisible: false
                     panel: 1, // 面板
-                    eventName: 'blur',
-                    controlMethod(params){
-                    },
                     //  controlEvents: {
                     //         change(params){
                     //             params.scope.row.select = 2;
@@ -179,43 +139,7 @@ export default {
                     editType: 'time-picker',
                     width: 200,
                 },
-                {
-                    panel: 2, // 面板
-                    label: '下拉树',
-                    prop: 'select-tree',
-                    editType: 'select-tree',
-                    options: [
-                        {
-                            label: '乌鲁木齐市',
-                            value: '2',
-                            children: [
-                            { label: '达坂城区', value: '7' },
-                            { label: '头屯河区', value: '8' },
-                            { label: '乌鲁木齐县', value: '9' }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    label: '选择文件2',
-                    prop: 'uploadImage',
-                    cols:2,
-                    editType: 'upload-image',
-                    control: {
-                        // limit: 5,
-                        'show-file-list': true
-                    },
-                    // columnVisible: false,
-                    
-                },
-                {
-                    label: '选择文件1',
-                    prop: 'uploadFile',
-                    cols: 2,
-                    minWidth: 200,
-                    editType: 'upload-button',
-                    // formVisible: false,
-                }
+                
                 ],
                 data: [
                     {
@@ -242,22 +166,40 @@ export default {
     },
     
     mounted(){
-        let num = 30;
-        let arr = [];
-       while(num){
-        arr.push({
-            input: num,
-            switch: 1
-        })
-        num--
-       }
-       this.$refs.dynamicTable.checkExpectFieldsType(arr)
-    //    this.tableConfig.data = arr;
-       
+      let arr = [];
+        for(let i = 0; i < 20; i ++ ){
+          arr.push({
+            id: i + '',
+            input: i,
+            select: "1",
+            'checkbox-group': [],
+            'time-picker': '',
+            uploadFile: [],
+            switch: false,
+            uploadImage: [
+              {name: '图片', url: 'http://mms2.baidu.com/it/u=4016242268,4022037871&fm=253&app=120&f=JPEG&fmt=auto&q=75?w=501&h=500'}
+            ],
+          })
+        }
+       // this.tableConfig.data = arr;
     },
     methods: {
-        checkTableData(){
-           
+        test(){
+          let arr = [];
+          for(let i = 0; i < 20; i ++ ){
+            arr.push({
+              id: i,
+              input: i + 'haha',
+              select: "1",
+              'checkbox-group': [],
+              'time-picker': '',
+              uploadFile: [],
+              uploadImage: [
+                {name: '图片', url: 'http://mms2.baidu.com/it/u=4016242268,4022037871&fm=253&app=120&f=JPEG&fmt=auto&q=75?w=501&h=500'}
+              ],
+            })
+          }
+          this.tableConfig.data = arr;
         },
         tableChange(event) {
             event.success()

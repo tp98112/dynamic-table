@@ -1,3 +1,11 @@
+/**
+ * 指定次数迭代
+ */
+export function iterateNTimes(n, callback) {
+    for (let i = 0; i < n; i++) {
+        callback(i);
+    }
+}
 export function isEmpty(value){
     return value === '' || value === null ||  value === undefined || value.length === 0;
 }

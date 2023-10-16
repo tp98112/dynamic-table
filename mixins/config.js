@@ -62,11 +62,6 @@ export default {
                     icon: 'el-icon-refresh-right',
                     title: '取消',
                     target: 'cancel'
-                },
-                {
-                    icon: 'el-icon-delete-solid',
-                    title: '移除',
-                    target: 'remove'
                 }
             ]),
             
