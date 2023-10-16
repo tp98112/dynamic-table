@@ -52,10 +52,10 @@ export default {
         column(){
             this.initTableColumn();
         },
-        "data.length": {
+        'data.length': {
             handler(){
                 this.initTableData();
-            }
+            },
         },
         loading(state){
             this.dataLoading = state;
@@ -478,7 +478,7 @@ export default {
          * 返回表格数据
          */
         returnTableData(){
-            return this.virtualPage ? this.data.slice((this.currentPage - 1) * this.currentPageSize, this.currentPage * this.currentPageSize) : this.data
+            return this.virtualPage ? this.data.slice((this.currentPage - 1) * this.currentPageSize, this.currentPage * this.currentPageSize) : this.data;
         },
         /**
          * 返回单元格样式
@@ -754,6 +754,7 @@ export default {
          */
         initTableData(){
             if(this.dynamic){
+                console.log("表格数据初始化")
                 // dynamic 未true时开启可编辑表格
                 if(this.unifiedEdit){
                     // 统一编辑
@@ -804,7 +805,6 @@ export default {
                     this.formVisible = true;
                 }
             }else{
-                
                 // 行内编辑
                 let newRow = {};
                 for(let i in this.initFieldsCollection){
@@ -812,9 +812,9 @@ export default {
                 };
                 // 当使用自定义模板 创建了非 一对一 管理的表格时 可以传入initFields 指定初始化数据 否则将造成新增错误!
                 // 合并初始化数据字段
-                let hasCustomData = Object.prototype.toString.call(scope) === '[object Object]';
-                newRow = Object.assign(newRow, deepClone(hasCustomData ? scope : this.initFields))
-                newRow[this.uniqueKey] = getId()
+                let isInternalEvent = scope.column && scope.store && scope._self && scope.hasOwnProperty('$index');
+                newRow = Object.assign(newRow, deepClone(isInternalEvent ? this.initFields : scope))
+                newRow[this.uniqueKey] = getId();
                 let backupRow = deepClone(newRow) // 备份新增数据行
                 newRow.$new = true; // 标记为新增数据
                 newRow.$edit = true; // 默认开启编辑
@@ -832,7 +832,10 @@ export default {
                         scope.row.children[this.insertDataMethod](newRow);
                     }else{
                         this.$set(scope.row, 'children',  [newRow]);
-                    }
+                    };
+                    this.$nextTick(() => {
+                        this.$refs.dynamicTable.toggleRowExpansion(scope.row, true)
+                    })
                 }else{
                     // 根节点新增
                     this.data[this.insertDataMethod](newRow);
@@ -1093,21 +1096,20 @@ export default {
                 this.$message.error('校验失败的字段已被标记！请检查后再试')
             }
         },
-        handleRemove(scope){
-            this.executeDelete(scope);
-            this.$message.info("移除！")
-        },
         /**
          * 取消编辑 重置控件值
          */
-        handleCancel({row}){
+        handleCancel(scope){
+            let row = scope.row;
             for(let i in row){
                 if(this.privateFields.indexOf(i) < 0){
                     row[i] = deepClone(this.backupTableData[row[this.uniqueKey]][i])
                 }
             }
-            if(!row.$new){
-               this.$set(row, '$edit', false);
+            if(row.$new){
+                this.executeDelete(scope);
+            }else{
+                this.$set(row, '$edit', false);
             }
         },
         /**
@@ -1296,7 +1298,6 @@ export default {
                 delete: 'handleDelete',
                 view: 'handleView',
                 save: 'handleSave',
-                remove: 'handleRemove',
                 cancel: 'handleCancel',
                 // 表单弹窗事件
                 $update: 'dialogConfirm',
@@ -1548,9 +1549,8 @@ export default {
                     let target = arr.find(item => item['dictValue'] == val);
                     label.push(target ? target['dictLabel'] : '/')
                 })
-                let target = arr.find(item => item['dictValue'] == value);
                 return label.length ? label.join(',') : '/';
-            }else if(column.editType === 'select'){
+            }else if(['select', 'checkbox-group'].indexOf(column.editType) > -1){
                 let arr = this.dicts[column.dict] || this.$attrs[column.optionsKey] || column.options || [];
                 let values = Array.isArray(value) ? value : [value]; // 绑定值
                 const label = values.map(val => {

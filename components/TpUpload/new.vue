@@ -5,14 +5,14 @@
     :show-file-list="true"
     :file-list="fileList"
     list-type="picture-card"
-    class="el-upload-list--picture-wrap"
+    :class="{'el-upload-list--picture-wrap': true, 'disabled-animation': !fileList.length}"
     :on-exceed="(file, fileList) => { exceedQuantityLimit(file, fileList) }"
     :on-change="(file, fileList) => { handleUploadChange(file, fileList) }"
   >
     <i slot="default" class="el-icon-plus"></i>
     <div slot="file" slot-scope="{ file }">
       <el-image
-        style="width: 148px; height: 148px"
+        style="width: 148px; height: 148px;"
         :src="file.url"
         :fit="control.fit ? control.fit : 'fill'"
         :preview-src-list="getPreviewSrcList(fileList)"
@@ -32,6 +32,7 @@
           <i class="el-icon-download"></i>
         </span>
         <span
+          v-if="mode !== 'view'"
           class="el-upload-list__item-delete"
           @click="removeUploadImg(file)"
         >
@@ -78,7 +79,7 @@ export default {
       timer: null,
       bindValues: Object.assign({
           action: "",
-          limit: 4,
+          // limit: 4,
           'auto-upload': false,
           multiple: true,
           accept: "image/png,image/jpeg,image/gif"
@@ -213,9 +214,17 @@ export default {
 
 <style lang="scss" scoped>
 .el-upload-list--picture-wrap{
-  .el-upload-list__item{
-    transition: none !important;
+  ::v-deep.el-upload--picture-card{
+    margin-bottom: 14.4px;
+  }
+  ::v-deep.el-upload-list__item{
+    margin: 0 8px 0px 0;
   }
 }
 
+.disabled-animation{
+  ::v-deep.el-upload-list__item{
+    transition: none !important;
+  }
+}
 </style>

@@ -19,12 +19,7 @@
         :prop="getProp(item)"
         :label="item.formLabel ? item.formLabel : item.label ? item.label : ''"
         :label-width="item.formLabelWidth"
-        :style="{
-          width: formItemWidth(item),
-          paddingLeft: gutter / 2 + 'px',
-          paddingRight: gutter / 2 + 'px',
-          flex: item.flex
-        }"
+        :style="setFormItemStyle(item)"
       >
         <slot :name="'form-' + item.prop" v-bind="{ form, mode: '' }">
           <renderColumn
@@ -315,7 +310,7 @@ export default {
    * 动态表单
    */
   name: "TpDynamicForm",
-  inheritAttrs: false, // 未声明接收的prop不显示在dom上
+  inheritAttrs: false,
   components: {
     renderColumn,
     TpUploadButton: () => import('../TpUpload/Button.vue'),
@@ -767,6 +762,16 @@ export default {
     this.$emit("created", { form: this.form });
   },
   methods: {
+    setFormItemStyle(item){
+      let style = {
+        width: this.formItemWidth(item),
+        paddingLeft: this.gutter / 2 + 'px',
+        paddingRight: this.gutter / 2 + 'px',
+        flex: item.flex
+      };
+      item.editType === 'upload-image' && (style.marginBottom = '7.6px');
+      return style;
+    },
     // 返回时间范围选择器初始值
     getPickerInitTime() {
       let arr = [new Date(), new Date()];
