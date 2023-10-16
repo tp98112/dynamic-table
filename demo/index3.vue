@@ -116,7 +116,7 @@ export default {
                     // },
                      controlEvents: {
                             change(params){
-                                params.scope.row.select = 2;
+                              console.log(params)
                             },
                         }
                 },

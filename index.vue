@@ -1455,6 +1455,7 @@ export default {
          */
         closeDialog(){
             this.formVisible = false;
+            this.$refs.dynamicForm.resetFields(true);
             setTimeout(() => {
                 this.$refs.dynamicForm.resetFields(true);
             }, 200)
