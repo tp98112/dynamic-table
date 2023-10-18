@@ -863,6 +863,7 @@ export default {
                 return;
             };
             let row = scope.row;
+            let $row = this.getMappingData(row); // 获取映射对象
             this.currentEditRow = row; // 标记当前编辑行
             this.formConfig.currentMode = 'update'; // 标记当前操作模式
             if(this.editMode === 'inline'){
@@ -1676,7 +1677,11 @@ export default {
          */
         getDict(prop){
             return this.dicts[prop];
-        }
+        },
+        // 获取映射数据
+        getMappingData(row) {
+            return this.backupTableData[row[this.uniqueKey]];
+        },
     },
 }
 </script>
