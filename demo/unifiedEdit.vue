@@ -39,7 +39,7 @@ export default {
                 // maxHeight: 200,
                 dynamic: true, 
                 // unifiedEdit: true,
-                editMode: 'window',
+                editMode: 'inline',
                 rowKey: 'id',
                 pagination: true,
                 total: 20,
@@ -188,7 +188,7 @@ export default {
           let arr = [];
           for(let i = 0; i < 20; i ++ ){
             arr.push({
-              id: i,
+              id: i + 1,
               input: i + 'haha',
               select: "1",
               'checkbox-group': [],

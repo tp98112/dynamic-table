@@ -52,11 +52,6 @@ export default {
         column(){
             this.initTableColumn();
         },
-        'data.length': {
-            handler(){
-                this.initTableData();
-            },
-        },
         loading(state){
             this.dataLoading = state;
         },
@@ -67,7 +62,6 @@ export default {
          * 初始化
          */
         this.initTableColumn();
-        this.initTableData();
         if(this.loadData){
             // 触发分页事件 获取数据
             this.refreshTableData()
@@ -256,7 +250,7 @@ export default {
                                     return this.$scopedSlots[propName] ? this.$scopedSlots[propName]({scope, $edit: () => {this.headerClick(column, scope)}}) : setDefaultHeader(column,scope)
                                 },
                                 default: scope => {
-                                    if(scope.row.$edit){
+                                    if(scope.row.$edit || this.unifiedEdit){
                                         let propName = 'edit-' + column.prop;
                                         return this.$scopedSlots[propName] ? this.$scopedSlots[propName](scope) : setEditContent({column, scope})
                                     }else{
@@ -749,38 +743,6 @@ export default {
                 }
             })
         },
-        /**
-         * 表格数据初始化
-         */
-        initTableData(){
-            if(this.dynamic){
-                console.log("表格数据初始化")
-                // dynamic 未true时开启可编辑表格
-                if(this.unifiedEdit){
-                    // 统一编辑
-                    loopThroughTheArray(this.data, item => {
-                        item.$edit = true; // 编辑状态
-                        item.$rowKey = getId()
-                    })
-                }else{
-                    // 单行编辑
-                    if(this.rowKey){
-                        loopThroughTheArray(this.data, (item, index, parent) => {
-                            this.backupTableData[item[this.uniqueKey]] = deepClone(item);
-                        })
-                    }else{
-                        loopThroughTheArray(this.data, (item, index, parent) => {
-                            item.$rowKey = getId();
-                            this.backupTableData[item.$rowKey] = deepClone(item);
-                        })
-                    }
-                }
-                 
-            }else{
-                // 仅作展示表格
-                // TODO
-            }
-        },
         handleNew(scope, button){
             if(typeof button.premise === 'function' && !(button.premise(scope))){
                 // 未通过前置条件
@@ -815,7 +777,6 @@ export default {
                 let isInternalEvent = scope.column && scope.store && scope._self && scope.hasOwnProperty('$index');
                 newRow = Object.assign(newRow, deepClone(isInternalEvent ? this.initFields : scope))
                 newRow[this.uniqueKey] = getId();
-                let backupRow = deepClone(newRow) // 备份新增数据行
                 newRow.$new = true; // 标记为新增数据
                 newRow.$edit = true; // 默认开启编辑
                 newRow.$saveLoading = false; // 保存按钮loading
@@ -840,7 +801,6 @@ export default {
                     // 根节点新增
                     this.data[this.insertDataMethod](newRow);
                 };
-                this.backupTableData[newRow[this.uniqueKey]] = backupRow;
             }
             // this.$message.info("新增！")
         },
@@ -868,6 +828,8 @@ export default {
             this.formConfig.currentMode = 'update'; // 标记当前操作模式
             if(this.editMode === 'inline'){
                 // 行内编辑
+                !this.rowKey && (row[this.uniqueKey] = getId()); 
+                this.backupTableData[row[this.uniqueKey]] = deepClone(row);
                 this.$set(row, '$edit', true);
             }else{
                 // 弹窗表单编辑
@@ -1057,8 +1019,6 @@ export default {
                 if(this.needRefreshEvents.indexOf(mode) > -1){
                     this.emitPageChange(); // 刷新当前页
                 }else{
-                    // 不刷新 更新本地备份数据
-                    this.backupTableData[row[this.uniqueKey]] = deepClone(row)
                     row.$saveLoading = false;
                     row.$new = false;
                     row.$edit = false;
@@ -1102,15 +1062,15 @@ export default {
          */
         handleCancel(scope){
             let row = scope.row;
-            for(let i in row){
-                if(this.privateFields.indexOf(i) < 0){
-                    row[i] = deepClone(this.backupTableData[row[this.uniqueKey]][i])
-                }
-            }
             if(row.$new){
                 this.executeDelete(scope);
             }else{
-                this.$set(row, '$edit', false);
+              for(let i in row){
+                if(this.privateFields.indexOf(i) < 0){
+                    row[i] = deepClone(this.backupTableData[row[this.uniqueKey]][i])
+                }
+              }
+              this.$set(row, '$edit', false);
             }
         },
         /**
@@ -1457,6 +1417,7 @@ export default {
          */
         closeDialog(){
             this.formVisible = false;
+            this.$refs.dynamicForm.resetFields(true);
             setTimeout(() => {
                 this.$refs.dynamicForm.resetFields(true);
             }, 200)
@@ -1521,13 +1482,11 @@ export default {
                 }else{
                     this.data[this.insertDataMethod](copyForm)
                 }
-                this.backupTableData[copyForm[this.uniqueKey]] = deepClone(form);
             }else{
                 // 更新当前行数据
                 let data = deepClone(form);
                 for(let i in data){
                     this.currentEditRow[i] = deepClone(data[i]);
-                    this.backupTableData[this.currentEditRow[this.uniqueKey]][i] = deepClone(data[i]); // 更新备份数据
                 };
             }
             this.formVisible = false;
