@@ -19,6 +19,11 @@ export default{
                 return []
             }
         },
+        integrateAllEventsIntoTheEmitNamedChange: {
+            // 将所有事件集成到名为change的自定义触发事件中
+            type: Boolean,
+            default: true
+        },
         loadData: {
             // 为true时将触发一次分页事件
             type: Boolean,
@@ -228,7 +233,7 @@ export default{
         // 内置的操作按钮 类型
         actionButtonType: {
             type: String,
-            default: 'link'
+            default: 'button'
         },
         // 操作栏按钮大小
         actionButtonSize: {

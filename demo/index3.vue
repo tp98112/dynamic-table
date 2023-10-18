@@ -51,7 +51,7 @@ export default {
                 pagination: true,
                 total: 1,
                 virtualPage: true,
-                needRefreshEvents: [],
+                // needRefreshEvents: [],
                 initFields: {
                     input: '输入框',
                     select: 24,
@@ -260,6 +260,7 @@ export default {
            
         },
         tableChange(event) {
+            console.log("tableChange", event)
             event.success()
             // event.close();
             // let executeFunc = {

@@ -22,8 +22,6 @@ export default {
             dataLoading: this.loading === true ? true : false, // 表格数据loading
             currentPage: 1, // 当前页码
             currentPageSize: this.pageSizes[this.pageSizeIndex], // 当前页大小
-            lastPage: null, // 上一次选中的分页
-            lastPageSize: null, // 上一次选中的当前页大小
             toolsObject: {},
             validateObject: {}, // 验证对象
             selectionList: [], // 多选列表
@@ -250,7 +248,7 @@ export default {
                                     return this.$scopedSlots[propName] ? this.$scopedSlots[propName]({scope, $edit: () => {this.headerClick(column, scope)}}) : setDefaultHeader(column,scope)
                                 },
                                 default: scope => {
-                                    if(scope.row.$edit || this.unifiedEdit){
+                                    if(this.getRowEditStatus(scope.row) || this.unifiedEdit){
                                         let propName = 'edit-' + column.prop;
                                         return this.$scopedSlots[propName] ? this.$scopedSlots[propName](scope) : setEditContent({column, scope})
                                     }else{
@@ -301,7 +299,7 @@ export default {
                 circle={item.circle}
                 key={this.getButtonKey(item, index)}
                 disabled={this.setDisabledState(item, scope)} 
-                loading={item.target === 'save' ? scope.row.$saveLoading : item.target === 'delete' ? scope.row.$deleteLoading : false}
+                loading={item.target === 'save' ? this.getRowSaveLoading(scope.row) : item.target === 'delete' ? this.getRowDeleteLoading(scope.row) : false}
                 size={this.actionButtonSize}>{this.setButtonText(item, scope)}</el-button>
         }
         /**
@@ -362,6 +360,7 @@ export default {
             return <div class="pagination-wrap" style={{justifyContent: this.footer_justify}}>
                 {this.$scopedSlots['pagination-left'] ? this.$scopedSlots['pagination-left']({currentPage: this.currentPage,total: this.total,currentPageSize: this.currentPageSize}) : this.$slots['pagination-left']}
                 <el-pagination
+                    ref="el-pagination"
                     current-page={this.currentPage}
                     page-sizes={this.pageSizes}
                     page-size={this.currentPageSize}
@@ -823,14 +822,12 @@ export default {
                 return;
             };
             let row = scope.row;
-            let $row = this.getMappingData(row); // 获取映射对象
+            
             this.currentEditRow = row; // 标记当前编辑行
             this.formConfig.currentMode = 'update'; // 标记当前操作模式
             if(this.editMode === 'inline'){
                 // 行内编辑
-                !this.rowKey && (row[this.uniqueKey] = getId()); 
-                this.backupTableData[row[this.uniqueKey]] = deepClone(row);
-                this.$set(row, '$edit', true);
+                this.setMappingData(row, '$edit', true);
             }else{
                 // 弹窗表单编辑
                 this.formTitle = button.actionName || '编辑'; // 操作名称
@@ -870,12 +867,11 @@ export default {
                 // 未通过前置条件
                 return;
             };
-            let row = scope.row;
             if(this.unifiedEdit && !this.deleteReport){
                 // 统一编辑
                 this.executeDelete(scope);
             }else{
-                this.$set(row, '$deleteLoading', true);
+                this.setMappingData(scope.row, '$deleteLoading', true);
                 this.$confirm(`确认要删除此条数据吗?`, '确认删除', {
                     confirmButtonText: '确定',
                     cancelButtonText: '取消',
@@ -900,18 +896,18 @@ export default {
                                 this.executePromp(info, {type:'success', message: info ? info : '删除成功！'})
                             };
                             const fail = info => {
-                                row.$deleteLoading = false;
+                                this.setMappingData(scope.row, '$deleteLoading', false)
                                 instance.confirmButtonLoading = false;
                                 done();
                                 this.executePromp(info, {type:'error', message: info ? info : '删除失败！'})
                             };
-                            this.$emit('change', {type: 'delete', row: this.getEmitData(scope.row), success, fail })
+                            this.handleEmit({type: 'delete', row: scope.row, $row: this.getMappingData(scope.row), success, fail })
                         }else{
                             done()
                         }
                     }
                 }).catch(() => {
-                    row.$deleteLoading = false;
+                    this.setMappingData(scope.row, '$deleteLoading', false)
                     this.$message({
                         type: 'info',
                         message : '已取消！'
@@ -1061,16 +1057,14 @@ export default {
          * 取消编辑 重置控件值
          */
         handleCancel(scope){
-            let row = scope.row;
-            if(row.$new){
+            let $row = this.getMappingData(scope.row);
+            if($row.$new){
                 this.executeDelete(scope);
             }else{
-              for(let i in row){
-                if(this.privateFields.indexOf(i) < 0){
-                    row[i] = deepClone(this.backupTableData[row[this.uniqueKey]][i])
-                }
+              for(let i in scope.row){
+                scope.row[i] = deepClone($row[i])
               }
-              this.$set(row, '$edit', false);
+              $row.$edit = false;
             }
         },
         /**
@@ -1078,25 +1072,25 @@ export default {
          * @val 当前分页大小
          */
         handleSizeChange(val){
-            this.lastPageSize = this.currentPageSize; // 记录分页大小
-            this.currentPageSize = val;
-            this.currentPage = 1; // 重新选择分页大小时重置当前页码到1
-            if(!this.virtualPage){
+            if(this.virtualPage){
+                this.currentPageSize = val;
+            }else{
                 this.setTableLoading(true);
-                this.emitPageChange();
-            } 
+                // 重新选择分页大小时重置当前页码到1
+                this.emitPageChange({page: 1, pageSize: val});
+            }
         },
         /**
          * 分页器当前页码改变事件
          * @val 当前页码
          */
         pageTurning(val){
-            this.lastPage = this.currentPage; // 记录页码
-            this.currentPage = val;
-            if(!this.virtualPage){
+            if(this.virtualPage){
+                this.currentPage = val;
+            }else{
                 this.setTableLoading(true);
-                this.emitPageChange();
-            } 
+                this.emitPageChange({page: val});
+            }
         },
         /**
          * 设置表格数据加载loading
@@ -1209,22 +1203,24 @@ export default {
         /**
          * 上报分页器事件
          */
-        emitPageChange(){
+        emitPageChange({page, pageSize}){
             const success = info => {
+                page && (this.currentPage = page);
+                pageSize && (this.currentPageSize = pageSize);
                 this.setTableLoading(false);
             };
             const fail = info => {
-                this.currentPage = this.lastPage; // 重置
+                this.$refs['el-pagination'].internalCurrentPage = this.currentPage;
                 this.setTableLoading(false);
                 this.executePromp(info,{
                     type: 'error',
                     message: info ? info : '刷新表格数据失败！',
                 })
             };
-            this.$emit('change', {
+            this.handleEmit({
                 type: 'pageChange',
-                currentPage: this.currentPage,
-                currentPageSize: this.currentPageSize,
+                currentPage: page || this.currentPage,
+                currentPageSize: pageSize || this.currentPageSize,
                 success,
                 fail
             })
@@ -1291,18 +1287,19 @@ export default {
         /**
          * 内置功能按钮基本渲染条件
          */
-        builtInButtonConditions(item, params){
+        builtInButtonConditions(item, scope){
             let execute = null;
-            if(params){
+            if(scope){
                 // 行内编辑
+                let target = this.getMappingData(scope.row); // 映射目标数据
                 execute = {
-                    new: (!this.unifiedEdit && !params.row.$new && !params.row.$edit) || this.unifiedEdit,
-                    update: !params.row.$edit && !this.unifiedEdit,
-                    delete: (!params.row.$new && !params.row.$edit) || this.unifiedEdit,
-                    view: this.editMode === 'window' && !this.unifiedEdit && !params.row.$new && !params.row.$edit,
-                    save: params.row.$edit && !this.unifiedEdit,
-                    remove: params.row.$new && !this.unifiedEdit,
-                    cancel: params.row.$edit && !this.unifiedEdit,
+                    new: (!this.unifiedEdit && !target.$new && !target.$edit) || this.unifiedEdit,
+                    update: !target.$edit && !this.unifiedEdit,
+                    delete: (!target.$new && !target.$edit) || this.unifiedEdit,
+                    view: this.editMode === 'window' && !this.unifiedEdit && !target.$new && !target.$edit,
+                    save: target.$edit && !this.unifiedEdit,
+                    remove: target.$new && !this.unifiedEdit,
+                    cancel: target.$edit && !this.unifiedEdit,
                 };
             }else{
                 // 表单弹窗 this.$refs.dynamicForm?.form
@@ -1378,7 +1375,7 @@ export default {
             done()
         },
         /**
-         * 编辑弹窗确认dialogConfir
+         * 编辑弹窗确认dialogConfirm
          */
         dialogConfirm(){
             this.$refs.dynamicForm.validate(({valid, form}) => {
@@ -1637,10 +1634,52 @@ export default {
         getDict(prop){
             return this.dicts[prop];
         },
+        /**
+         * 处理触发事件
+         */
+        handleEmit(params){
+            if(this.integrateAllEventsIntoTheEmitNamedChange){
+                this.$emit('change', params);
+            }else{
+                this.$emit(params.type, params);
+            }
+        },
+        /**
+         * 获取数据行的编辑状态
+         */
+        getRowEditStatus(row) {
+            return this.backupTableData[row[this.uniqueKey]] && this.backupTableData[row[this.uniqueKey]].$edit;
+        },
+        /**
+         * 获取数据行的保存loading
+         */
+        getRowSaveLoading(row) {
+            return this.backupTableData[row[this.uniqueKey]] && this.backupTableData[row[this.uniqueKey]].$saveLoading;
+        },
+        /**
+         * 获取数据行的删除loading
+         */
+        getRowDeleteLoading(row) {
+            return this.backupTableData[row[this.uniqueKey]] && this.backupTableData[row[this.uniqueKey]].$deleteLoading;
+        },
         // 获取映射数据
         getMappingData(row) {
+            !row[this.uniqueKey] && (row[this.uniqueKey] = getId()); 
+            !this.backupTableData[row[this.uniqueKey]] && (this.$set(this.backupTableData, row[this.uniqueKey], deepClone(row))  )
+            
             return this.backupTableData[row[this.uniqueKey]];
         },
+        /**
+         * 更新映射数据
+         */
+        setMappingData(row, key, val){
+            let target = this.getMappingData(row);
+            if(key in row){
+                target[key] = val;
+            }else{
+                this.$set(target, key, val);
+            }
+        }
     },
 }
 </script>
