@@ -160,7 +160,7 @@ export default{
             // 校验失败的标记样式 在el-table__cell上
             type: Object,
             default(){
-                return {background: '#EBEEF5'}
+                return {animation: 'flicker .2s linear 10', backgroundSize: '20px 20px', backgroundColor: '#F56C6C',backgroundImage: 'linear-gradient(-45deg, rgba(255, 255, 255, .2) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, .2) 50%, rgba(255, 255, 255, .2) 75%, transparent 75%, transparent)'}
             }
         },
         dblClickToEditCell: {
@@ -289,6 +289,10 @@ export default{
         },
         rowClassName: {
             // 行的 className 的回调方法，也可以使用字符串为所有行设置一个固定的 className
+            type: Function
+        },
+        cellClassName: {
+            // 单元格 className 的回调方法，也可以使用字符串为所有单元格设置一个固定的 className
             type: Function
         },
         defaultSort: {

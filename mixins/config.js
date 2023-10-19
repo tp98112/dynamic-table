@@ -35,7 +35,7 @@ export default {
                 'input-number': 0, // 计数器
                 cascader: [], // 级联选择器
                 autocomplete: '', // 远程搜索
-                'time-picker': [],
+                'time-picker': this.getPickerInitTime(),
                 unknown: '' // 未知的
             }), // 受支持的预设控件
             presetControlsEvents: Object.freeze({
@@ -66,5 +66,20 @@ export default {
             ]),
             
         } 
+    },
+    methods: {
+        /**
+         * 设置时间选择器初始值
+         */
+        getPickerInitTime() {
+            let arr = [new Date(), new Date()];
+            arr.forEach((item, index) => {
+                item.setHours(index ? 23 : 0);
+                item.setMinutes(0);
+                item.setSeconds(0);
+                item.setMilliseconds(0);
+            });
+            return arr;
+        },
     }
 }

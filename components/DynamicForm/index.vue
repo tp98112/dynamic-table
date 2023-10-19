@@ -32,7 +32,7 @@
             <el-input
               v-if="isRender(item.editType, 'input')"
               v-model="form[getProp(item)]"
-              v-on:[controlEvent(item)]="controlMethod($event, item)"
+              
               v-on="getControlEvents(item)"
               :size="size"
               v-bind="returnControlProperty(item)"
@@ -40,7 +40,6 @@
               :readonly="setReadonly(item.readonly)"
             >
               <div
-                v-on:[controlEvent(item)]="controlMethod($event, item)"
                 v-on="getControlEvents(item)"
                 v-if="item.appendText || item.appendIcon"
                 slot="append"
@@ -57,7 +56,6 @@
             <el-select
               v-else-if="isRender(item.editType, 'select')"
               v-model="form[item.prop]"
-              v-on:[controlEvent(item)]="controlMethod($event, item)"
               v-on="getControlEvents(item)"
               :size="size"
               v-bind="returnControlProperty(item)"
@@ -77,7 +75,6 @@
             <el-date-picker
               v-else-if="isRender(item.editType, 'date-picker')"
               v-model="form[item.prop]"
-              v-on:[controlEvent(item)]="controlMethod($event, item)"
               v-on="getControlEvents(item)"
               :size="size"
               v-bind="returnControlProperty(item)"
@@ -89,7 +86,6 @@
             <el-radio-group
               v-else-if="isRender(item.editType, 'radio-group')"
               v-model="form[item.prop]"
-              v-on:[controlEvent(item)]="controlMethod($event, item)"
               v-on="getControlEvents(item)"
               :size="size"
               v-bind="returnControlProperty(item)"
@@ -106,7 +102,6 @@
             <el-switch
               v-else-if="isRender(item.editType, 'switch')"
               v-model="form[item.prop]"
-              v-on:[controlEvent(item)]="controlMethod($event, item)"
               v-on="getControlEvents(item)"
               :size="size"
               v-bind="returnControlProperty(item)"
@@ -120,7 +115,6 @@
               v-bind="returnControlProperty(item)"
               :disabled="setDisabled(item.disabled)"
               :readonly="setReadonly(item.readonly)"
-              v-on:[controlEvent(item)]="controlMethod($event, item)"
               v-on="getControlEvents(item)"
               >{{ item.linkText ? item.linkText : "默认链接" }}
             </el-link>
@@ -128,7 +122,6 @@
             <template v-else-if="isRender(item.editType, 'time-picker')">
               <el-time-picker
                 v-model="form[item.prop]"
-                v-on:[controlEvent(item)]="controlMethod($event, item)"
                 v-on="getControlEvents(item)"
                 :size="size"
                 v-bind="returnControlProperty(item)"
@@ -142,7 +135,6 @@
             <template v-else-if="isRender(item.editType, 'checkbox-group')">
               <el-checkbox-group
                 v-model="form[item.prop]"
-                v-on:[controlEvent(item)]="controlMethod($event, item)"
                 v-on="getControlEvents(item)"
                 :size="size"
                 v-bind="returnControlProperty(item)"
@@ -162,7 +154,6 @@
             <el-input-number
               v-else-if="isRender(item.editType, 'input-number')"
               v-model="form[item.prop]"
-              v-on:[controlEvent(item)]="controlMethod($event, item)"
               v-on="getControlEvents(item)"
               :size="size"
               v-bind="returnControlProperty(item)"
@@ -176,7 +167,6 @@
               :size="size"
               v-bind="returnControlProperty(item)"
               v-model="form[item.prop]"
-              v-on:[controlEvent(item)]="controlMethod($event, item)"
               v-on="getControlEvents(item)"
               :options="returnOptions(item)"
               style="width: 100%"
@@ -189,7 +179,6 @@
               v-model="form[item.prop]"
               :size="size"
               v-bind="returnControlProperty(item)"
-              v-on:[controlEvent(item)]="controlMethod($event, item)"
               v-on="getControlEvents(item)"
               :disabled="setDisabled(item.disabled)"
               :readonly="setReadonly(item.readonly)"
@@ -263,7 +252,6 @@
             v-bind="returnControlProperty(item)"
             :disabled="setDisabled(item.disabled)"
             :readonly="setReadonly(item.readonly)"
-            v-on:[controlEvent(item)]="controlMethod($event, item)"
             v-on="getControlEvents(item)"
             :data="returnOptions(item)"
             :size="size"
@@ -554,11 +542,6 @@ export default {
     getPreviewSrcList() {
       return (arr) => {
         return arr.map((item) => item.url);
-      };
-    },
-    controlEvent() {
-      return (item) => {
-        return item.eventName ? item.eventName : "click";
       };
     },
     formItemWidth() {

@@ -102,8 +102,17 @@ export default {
                     prop: "switch",
                     align: 'center',
                     editType: "switch",
+                    validator(params){
+                    
+                       return params.value;
+                        
+                    },
+                    
                     template(scope){
-                        return scope.row.switch ? '开启' : '关闭'
+                        return {
+                            content: scope.row.switch ? '开启' : '关闭',
+                            emit: 'haha'
+                        }
                     },
                    
                 },
@@ -113,7 +122,6 @@ export default {
                     prop: "link",
                     align: 'center',
                     editType: "link",
-                    emit: 'link'
                 },
                 {
                     panel: 2, // 面板
@@ -144,8 +152,9 @@ export default {
                 data: [
                     {
                         id: '2121',
-                        input: "12",
+                        input: "",
                         select: "1",
+                        switch: false,
                         'checkbox-group': [],
                         'time-picker': '',
                         uploadFile: [],
@@ -156,6 +165,7 @@ export default {
                     {
                         id: '12',
                         input: "1",
+                        switch: false,
                         select: "2",
                         'checkbox-group': [],
                         'time-picker': [new Date(2016, 9, 10, 8, 40), new Date(2016, 9, 10, 9, 40)],

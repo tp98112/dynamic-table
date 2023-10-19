@@ -105,7 +105,7 @@ export default {
                 return <el-switch v-model={scope.row[scope.column.property]} props={this.setControlProperty(column)} on={this.getControlEvents(column, scope)} disabled={this.setDisabledState(column, scope)}></el-switch>
             }else if(column.editType === 'link'){
                 // 链接
-                return <el-link on-click={() => {this.reportEvent(column, scope)}} props={this.setControlProperty(column)} on={this.getControlEvents(column, scope)} disabled={this.setDisabledState(column, scope)}>{column.linkText ? column.linkText : "链接"}</el-link>
+                return <el-link  props={this.setControlProperty(column)} on={this.getControlEvents(column, scope)} disabled={this.setDisabledState(column, scope)}>{column.linkText ? column.linkText : "链接"}</el-link>
             }else if(column.editType === 'checkbox-group'){
                 // 多选框组
                 return <el-checkbox-group v-model={scope.row[scope.column.property]} props={this.setControlProperty(column)} on={this.getControlEvents(column, scope)} disabled={this.setDisabledState(column, scope)}>
@@ -156,15 +156,16 @@ export default {
                 return column.render(h, scope)
             }else if(typeof column.template === 'function'){
                 // 自定义模板渲染方法
-                let type = typeof column.template(scope);
-                if(type === 'string' || (type === 'object' && typeof column.template(scope).content) === 'string'){
+                let template = column.template(scope);
+                let type = getFieldType(column.template(scope));
+                if(type === 'String' || (type === 'Object' && getFieldType(template.content) === 'String')){
                     return h('span', {
-                        class: 'cell-text',
+                        class: `cell-text ${typeof template.emit === 'string' && 'cursor-pointer'}`,
                         on: {
-                            click: () => {column.template(scope).emit ? this.$emit('change', {type: column.template(scope).emit, scope}) : ''}
+                            click: () => {template.emit ? this.handleEmit({type: template.emit, scope}) : ''}
                         },
                         domProps: {
-                            innerHTML: column.template(scope) ? (column.template(scope).content ? column.template(scope).content : column.template(scope)) : 'null'
+                            innerHTML: template.content ? template.content : column.template(scope)
                         }
                     })
                 }else{
@@ -180,7 +181,7 @@ export default {
          * 渲染默认表头
          */
         const setDefaultHeader = (column, scope) => {
-            if(column.verticalEdit){
+            if(column.editColumn){
                 return <el-link
                 onclick={() => {this.headerClick(column, scope)}} 
                 icon={scope.column.$edit ? 
@@ -421,7 +422,7 @@ export default {
                     received_dicts={this.dicts}
                     attrs={this.$attrs}
                     ref="dynamicForm"
-                    on={{'created': () => {this.formReady = true}, change: this.emitDynamicFormEvents}}
+                    on={{created: () => {this.formReady = true}, change: this.emitDynamicFormEvents}}
                     {...{
                         scopedSlots: this.getFormSlots
                     }}
@@ -450,6 +451,7 @@ export default {
             default-expand-all={this.defaultExpandAll}
             highlight-current-row={this.highlightCurrentRow}
             default-sort={this.defaultSort}
+            cell-class-name={this.cellClassName}
             row-class-name={this.rowClassName}
             cell-style={this.returnCellStyle}
             on={{
@@ -489,12 +491,12 @@ export default {
                 }else if(column.validator && !isEmpty(row[column.prop]) ){
                     let result = this.checkRequireFields({key: column.prop, row});
                     if(result.result){
-                        return <el-link onclick={() => {this.$delete(this.validateObject, `${column.prop}-${row[this.uniqueKey]}`)}} style="font-size: 12px" icon="el-icon-circle-check">校验通过</el-link>;
+                        return <span><i class="el-icon-circle-check" style="margin-right: 4px"></i>校验通过</span>;
                     }else{
                         return <span><i class="el-icon-circle-close" style="margin-right: 4px"></i>{column.validateTips ? column.validateTips : '校验失败!'}</span> 
                     }
                 }else{
-                    this.$delete(this.validateObject, `${column.prop}-${row[this.uniqueKey]}`);
+                    return <span><i class="el-icon-circle-check" style="margin-right: 4px"></i>校验通过</span> 
                 }
             }
         },
@@ -753,14 +755,12 @@ export default {
                 // 弹窗编辑
                 this.currentEditRow = scope && scope.row ? scope.row : null;
                 this.formConfig.disabledForm = false; 
-                
                 if(typeof button.getFormData === 'function'){
-                    button.getFormData({row:  this.getEmitData(this.currentEditRow), callBack: data => {
+                    button.getFormData({row: this.currentEditRow, $row: this.currentEditRow ? this.getMappingData(this.currentEditRow) : null, callBack: data => {
                         this.formVisible = true;
                         this.$nextTick(() => {
                             this.setDynamicForm(data);
                         })
-                        
                     }} )
                 }else{
                     this.formVisible = true;
@@ -776,17 +776,19 @@ export default {
                 let isInternalEvent = scope.column && scope.store && scope._self && scope.hasOwnProperty('$index');
                 newRow = Object.assign(newRow, deepClone(isInternalEvent ? this.initFields : scope))
                 newRow[this.uniqueKey] = getId();
-                newRow.$new = true; // 标记为新增数据
-                newRow.$edit = true; // 默认开启编辑
-                newRow.$saveLoading = false; // 保存按钮loading
                 if(scope && scope.row){
                     // children子集新增
                     newRow.parent = {};
                     for(let i in scope.row){
-                        if(i !== 'children' && this.privateFields.indexOf(i) < 0){
-                            newRow.parent[i] = deepClone(scope.row[i])
+                        if(i !== 'children'){
+                            newRow.parent[i] = deepClone(scope.row[i]);
                         }
                     };
+                    let backupRow = deepClone(newRow);
+                    backupRow.$new = true; // 标记为新增数据
+                    backupRow.$edit = true; // 默认开启编辑
+                    backupRow.$saveLoading = false; // 保存按钮loading
+                    this.$set(this.backupTableData, newRow[this.uniqueKey], backupRow);
                     if(scope.row.children){
                         // 新增数据行
                         scope.row.children[this.insertDataMethod](newRow);
@@ -798,6 +800,11 @@ export default {
                     })
                 }else{
                     // 根节点新增
+                    let backupRow = deepClone(newRow);
+                    backupRow.$new = true; // 标记为新增数据
+                    backupRow.$edit = true; // 默认开启编辑
+                    backupRow.$saveLoading = false; // 保存按钮loading
+                    this.$set(this.backupTableData, newRow[this.uniqueKey], backupRow);
                     this.data[this.insertDataMethod](newRow);
                 };
             }
@@ -827,7 +834,7 @@ export default {
             this.formConfig.currentMode = 'update'; // 标记当前操作模式
             if(this.editMode === 'inline'){
                 // 行内编辑
-                this.setMappingData(row, '$edit', true);
+                this.setMappingData(row, {'$edit': true}, true); // 第三个参数为true, 编辑时需更新备份数据
             }else{
                 // 弹窗表单编辑
                 this.formTitle = button.actionName || '编辑'; // 操作名称
@@ -871,7 +878,7 @@ export default {
                 // 统一编辑
                 this.executeDelete(scope);
             }else{
-                this.setMappingData(scope.row, '$deleteLoading', true);
+                this.setMappingData(scope.row, {'$deleteLoading': true});
                 this.$confirm(`确认要删除此条数据吗?`, '确认删除', {
                     confirmButtonText: '确定',
                     cancelButtonText: '取消',
@@ -896,7 +903,7 @@ export default {
                                 this.executePromp(info, {type:'success', message: info ? info : '删除成功！'})
                             };
                             const fail = info => {
-                                this.setMappingData(scope.row, '$deleteLoading', false)
+                                this.setMappingData(scope.row, {'$deleteLoading': false})
                                 instance.confirmButtonLoading = false;
                                 done();
                                 this.executePromp(info, {type:'error', message: info ? info : '删除失败！'})
@@ -907,7 +914,7 @@ export default {
                         }
                     }
                 }).catch(() => {
-                    this.setMappingData(scope.row, '$deleteLoading', false)
+                    this.setMappingData(scope.row, {'$deleteLoading': false})
                     this.$message({
                         type: 'info',
                         message : '已取消！'
@@ -1009,47 +1016,47 @@ export default {
          * 保存
          */
         handleSave(scope){
-            let row = scope.row;
-            let mode = row.$new ? 'new' : 'update';
+            let $row = this.getMappingData(scope.row);
+            let mode = $row.$new ? 'new' : 'update';
             const success = (info) => {
                 if(this.needRefreshEvents.indexOf(mode) > -1){
                     this.emitPageChange(); // 刷新当前页
                 }else{
-                    row.$saveLoading = false;
-                    row.$new = false;
-                    row.$edit = false;
+                    $row.$saveLoading = false;
+                    $row.$new = false;
+                    $row.$edit = false;
                 }
                 this.executePromp(info, {type:'success', message: info ? info : '数据已更新！'})
             };
             const fail = (info) => {
-                row.$saveLoading = false;
+                $row.$saveLoading = false;
                 this.executePromp(info, {type:'error', message: info ? info : '更新失败！'})
             };
-            this.$set(row, '$saveLoading', true); // 开启loading
+            $row.$saveLoading = true;
             // 校验
             let checkRow = true;
            
             for(let i in this.initFieldsCollection){
-                let checkResult = this.checkRequireFields({key: i, row}); // 验证结果
+                let checkResult = this.checkRequireFields({key: i, row: scope.row}); // 验证结果
                 if(checkResult.result){
                     // 通过
-                    if(this.validateObject[`${i}-${row[this.uniqueKey]}`] === false){
-                        this.$delete(this.validateObject, `${i}-${row[this.uniqueKey]}`); // 移除验证标记
+                    if(this.validateObject[`${i}-${scope.row[this.uniqueKey]}`] === false){
+                        this.$delete(this.validateObject, `${i}-${scope.row[this.uniqueKey]}`); // 移除验证标记
                     }
                 }else{
                     // 未通过
                     checkRow = false;
                     this.$nextTick(() => {
-                        this.$set(this.validateObject, `${i}-${row[this.uniqueKey]}`, false); // 标记验证失败
+                        this.$set(this.validateObject, `${i}-${scope.row[this.uniqueKey]}`, false); // 标记验证失败
                     })
                     
                 }
             };
             if(checkRow){
-                this.$emit('change', {type: row.$new ? 'new' : 'update', row: this.getEmitData(row), success, fail })
+                this.handleEmit({type: $row.$new ? 'new' : 'update', row: scope.row, $row, success, fail })
             }else{
                 // 验证失败 恢复当前行状态
-                row.$saveLoading = false;
+                $row.$saveLoading = false;
                 this.$message.error('校验失败的字段已被标记！请检查后再试')
             }
         },
@@ -1063,7 +1070,7 @@ export default {
             }else{
               for(let i in scope.row){
                 scope.row[i] = deepClone($row[i])
-              }
+              };
               $row.$edit = false;
             }
         },
@@ -1179,7 +1186,6 @@ export default {
                     return true;
                 }
             })
-            row.$deleteLoading = false;
         },
         /**
          * 批量删除本地数据 并更新备份
@@ -1190,10 +1196,12 @@ export default {
                 delete this.backupTableData[key]; // 删除备份数据
                 loopThroughTheArrayBySome(this.data, (item, index, parent) => {
                     if(parent && item[this.uniqueKey] === key){
-                        parent.children.splice(index, 1)
+                        parent.children.splice(index, 1);
+                        delete this.backupTableData[item[this.uniqueKey]];
                         return true;
                     }else if(item[this.uniqueKey] === key){
-                        this.data.splice(index, 1)
+                        this.data.splice(index, 1);
+                        delete this.backupTableData[item[this.uniqueKey]];
                         return true;
                     }
                 })
@@ -1203,7 +1211,7 @@ export default {
         /**
          * 上报分页器事件
          */
-        emitPageChange({page, pageSize}){
+        emitPageChange({page, pageSize} = {}){
             const success = info => {
                 page && (this.currentPage = page);
                 pageSize && (this.currentPageSize = pageSize);
@@ -1211,6 +1219,7 @@ export default {
             };
             const fail = info => {
                 this.$refs['el-pagination'].internalCurrentPage = this.currentPage;
+                this.$refs['el-pagination'].internalPageSize = this.currentPageSize;
                 this.setTableLoading(false);
                 this.executePromp(info,{
                     type: 'error',
@@ -1277,9 +1286,9 @@ export default {
             }else if(trigger.emit){
                 // 表单触发
                 if(scope.form){
-                    this.$emit('change', {type: trigger.emit, trigger, scope, cancel: this.closeDialog, save: this.dialogConfirm})
+                    this.handleEmit({type: trigger.emit, trigger, scope, cancel: this.closeDialog, save: this.dialogConfirm})
                 }else{
-                    this.$emit('change', {type: trigger.emit, trigger, scope, row: this.getEmitData(scope.row)})
+                    this.handleEmit({type: trigger.emit, trigger, scope, row: scope.row, $row: this.getMappingData(scope.row)})
                 }
                 
             }  
@@ -1398,12 +1407,12 @@ export default {
                         this.dialogConfirmLoading = false;
                     }
                     this.dialogConfirmLoading = true;
-                    let row = this.getEmitData(form);
+                    let row = deepClone(form);
                     if(this.formConfig.currentMode === 'new' && this.currentEditRow){
-                        row.parent = this.getEmitData(this.currentEditRow);
+                        row.parent = deepClone(this.currentEditRow);
                     }
-                    this.$emit('change', {type: this.formConfig.currentMode === 'new' ? 'new' : 'update', row, success, fail})
-                    
+                    let type = this.formConfig.currentMode === 'new' ? 'new' : 'update';
+                    this.handleEmit({type, row, form, success, fail})
                 }else{
 
                 }
@@ -1475,7 +1484,10 @@ export default {
                     }else{
                         // 无children
                         this.$set(this.currentEditRow, 'children', [copyForm])
-                    }
+                    };
+                    this.$nextTick(() => {
+                        this.$refs.dynamicTable.toggleRowExpansion(this.currentEditRow, true)
+                    })
                 }else{
                     this.data[this.insertDataMethod](copyForm)
                 }
@@ -1665,25 +1677,53 @@ export default {
         // 获取映射数据
         getMappingData(row) {
             !row[this.uniqueKey] && (row[this.uniqueKey] = getId()); 
-            !this.backupTableData[row[this.uniqueKey]] && (this.$set(this.backupTableData, row[this.uniqueKey], deepClone(row))  )
-            
+            if(!this.backupTableData[row[this.uniqueKey]]){
+                let backupRow = deepClone(row);
+                backupRow.$edit = false;
+                backupRow.$new = false;
+                backupRow.$saveLoading = false;
+                backupRow.$deleteLoading = false;
+                this.$set(this.backupTableData, row[this.uniqueKey], backupRow)
+            }
             return this.backupTableData[row[this.uniqueKey]];
         },
         /**
          * 更新映射数据
          */
-        setMappingData(row, key, val){
+        setMappingData(row, setting, updateRow){
             let target = this.getMappingData(row);
-            if(key in row){
-                target[key] = val;
-            }else{
-                this.$set(target, key, val);
+            for(let i in setting){
+                if(i in target){
+                    target[i] = setting[i];
+                }else{
+                    this.$set(target, i, setting[i]);
+                }
+            };
+            if(updateRow){
+                for(let i in row){
+                    target[i] = row[i];
+                }
             }
-        }
+            
+        },
     },
 }
 </script>
 
-<style lang="scss" scoped>
-@import './style' 
+<style lang="scss" >
+@import './style'; 
+</style>
+
+<style>
+@keyframes flicker {
+    0% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
+}
 </style>
