@@ -38,20 +38,6 @@ export default {
                 'time-picker': this.getPickerInitTime(),
                 unknown: '' // 未知的
             }), // 受支持的预设控件
-            presetControlsEvents: Object.freeze({
-                input: ['blur', 'click', 'focus', 'change', 'input', 'clear'],
-                'input-number': ['change', 'blur', 'focus'],
-                select: ['change', 'visible-change', 'remove-tag', 'clear', 'blur', 'focus'],
-                'date-picker': ['change', 'blur', 'focus'],
-                switch: ['change'],
-                radio: ['change'],
-                'radio-group': ['change'],
-                checkbox: ['change'],
-                'checkbox-group': ['change'], // 多选框组
-                cascader: ['change', 'expand-change', 'blur', 'focus', 'visible-change', 'remove-tag'],
-                link: ['click'],
-                autocomplete: ['select', 'change']
-            }),
             builtInButton: Object.freeze([
                 {
                     icon: 'el-icon-check',
@@ -64,6 +50,62 @@ export default {
                     target: 'cancel'
                 }
             ]),
+            controlProperty: Object.freeze({
+                select: {
+                    size: "mini",
+                    filterable: true,
+                    placeholder: "请选择",
+                    
+                },
+                input: {
+                    type: "input",
+                    size: "mini",
+                    clearable: true,
+                    "show-password": false,
+                    "show-word-limit": false,
+                    maxlength: "",
+                    "suffix-icon": "", // 后缀icon
+                    "prefix-icon": "", // 前缀icon
+                    placeholder: "请输入内容",
+                },
+                "date-picker": {
+                    type: "date",
+                    format: "yyyy-MM-dd",
+                    "value-format": "yyyy-MM-dd",
+                    size: "mini",
+                    editable: false,
+                    clearable: false,
+                    readonly: false,
+                    placeholder: "请选择",
+                },
+                'time-picker': {
+                    size: 'mini',
+                    'is-range': true,
+                    'range-separator': '至',
+                    'start-placeholder': '开始时间',
+                    'end-placeholder': "结束时间",
+                    placeholder:"选择时间范围"
+                },
+                switch: {
+                    "active-text": "",
+                    "inactive-text": "",
+                },
+                link: {
+                    type: "primary",
+                    icon: "",
+                    underline: true,
+                },
+                'input-number': {
+                    size: "mini",
+                }, // 计数器
+                'checkbox-group': {}, // 多选框组
+                'upload-button': {
+                    action: "",
+                    'auto-upload': false,
+                    multiple: true,
+                    'show-file-list': false, // 不展示上传列表
+                }
+            })
             
         } 
     },

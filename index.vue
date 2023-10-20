@@ -70,7 +70,7 @@ export default {
         const setEditContent = ({column, scope}) => {
             if(this.validateObject[`${column.prop}-${scope.row[this.uniqueKey]}`] === false){
                 return <el-tooltip  placement="bottom" effect="light">
-                       <span slot="content">{this.returnValidateTips(column, scope.row)}</span>
+                       <span slot="content">{this.getValidateTips(column, scope.row)}</span>
                        {setEditControl({column, scope})}
                 </el-tooltip>
             }
@@ -90,10 +90,10 @@ export default {
             }else if(column.editType === 'select'){
                 // 下拉框
                 return <el-select v-model={scope.row[scope.column.property]}  props={this.setControlProperty(column)} on={this.getControlEvents(column, scope)} disabled={this.setDisabledState(column, scope)} style="width: 100%">
-                {this.returnOptions(column).map(opt => {
+                {this.getOptions(column).map(opt => {
                     return <el-option 
-                    label={this.returnOptionsFields(column, opt, 'label')}
-                    value={this.returnOptionsFields(column, opt, 'value')}>
+                    label={this.getOptionsFields(column, opt, 'label')}
+                    value={this.getOptionsFields(column, opt, 'value')}>
                     </el-option>
                 })}
                 </el-select>
@@ -109,7 +109,7 @@ export default {
             }else if(column.editType === 'checkbox-group'){
                 // 多选框组
                 return <el-checkbox-group v-model={scope.row[scope.column.property]} props={this.setControlProperty(column)} on={this.getControlEvents(column, scope)} disabled={this.setDisabledState(column, scope)}>
-                    {this.returnOptions(column).map(opt => {
+                    {this.getOptions(column).map(opt => {
                         return <el-checkbox label={column.optionControl?.value ? opt[column.optionControl.value] : opt[this.optionControl.value]}>
                             {column.optionControl?.label ? opt[column.optionControl.label] : opt[this.optionControl.label]}
                         </el-checkbox>
@@ -318,7 +318,7 @@ export default {
                     })
                 }
                 {
-                    this.newActionButton.map((item, index) => {
+                    this.actionButtons.map((item, index) => {
                         if(this.getRenderConditions(item.target || item.emit, scope) && (item.target ? this.builtInButtonConditions(item, scope) : true)){
                             let slotName = (item.target || item.emit) + '-button';
                             return this.$scopedSlots[slotName] ? this.$scopedSlots[slotName](item.target ? 
@@ -340,7 +340,7 @@ export default {
                 // 完全自定义操作栏插槽
                 return this.$scopedSlots.action(this.data);
             }else if(this.dynamic && this.showAction){
-                return <el-table-column align={this.align} fixed="right" width={this.getActionBarWidth} min-width={this.getActionBarWidth}
+                return <el-table-column align={this.actionAlign} fixed="right" width={this.getActionBarWidth} min-width={this.getActionBarWidth}
                     {...{
                         scopedSlots: {
                             header: scope => {
@@ -451,9 +451,9 @@ export default {
             default-expand-all={this.defaultExpandAll}
             highlight-current-row={this.highlightCurrentRow}
             default-sort={this.defaultSort}
-            cell-class-name={this.cellClassName}
+            cell-class-name={this.getCellClassName}
             row-class-name={this.rowClassName}
-            cell-style={this.returnCellStyle}
+            cell-style={this.getCellStyle}
             on={{
                 ...this.$listeners,
                 'cell-dblclick': this.handleCellDblclick,
@@ -476,29 +476,10 @@ export default {
             return this.virtualPage ? this.data.slice((this.currentPage - 1) * this.currentPageSize, this.currentPage * this.currentPageSize) : this.data;
         },
         /**
-         * 返回单元格样式
+         * 返回校验错误的单元格样式
          */
-        returnCellStyle(){
-            return ({row,column, rowIndex, columnIndex}) => {
-                // {row, column, rowIndex, columnIndex}
-                return this.validateObject[`${column.property}-${row[this.uniqueKey]}`] === false ? this.boxSelectStyle : {};
-            }
-        },
-        returnValidateTips(){
-            return (column, row) => {
-                if(column.required && isEmpty(row[column.prop])){
-                    return <span><i class="el-icon-warning-outline" style="margin-right: 4px"></i>{`${column.label}不能为空`}</span>
-                }else if(column.validator && !isEmpty(row[column.prop]) ){
-                    let result = this.checkRequireFields({key: column.prop, row});
-                    if(result.result){
-                        return <span><i class="el-icon-circle-check" style="margin-right: 4px"></i>校验通过</span>;
-                    }else{
-                        return <span><i class="el-icon-circle-close" style="margin-right: 4px"></i>{column.validateTips ? column.validateTips : '校验失败!'}</span> 
-                    }
-                }else{
-                    return <span><i class="el-icon-circle-check" style="margin-right: 4px"></i>校验通过</span> 
-                }
-            }
+        returnCellErrorStyle(){
+            return this.errorCellBlink ? {animation: 'flicker .2s linear 5', ...this.cellErrorStyle} : this.cellErrorStyle;
         },
         /**
          * 获取表单插槽
@@ -515,81 +496,14 @@ export default {
             return scopedSlots;
         },
         /**
-         * 获取expand, index, selection插槽
+         * 获取操作栏宽度
          */
-        getIndexSelectionExpandSlots(){
-            return type => {
-                let scopedSlots = {};
-                if(this.$scopedSlots[type] || this.$slots[type]){
-                    scopedSlots =  {
-                        scopedSlots: {
-                            default: scope => {
-                                return this.$scopedSlots[type](scope) || this.$slots[type]
-                            }
-                        }
-                    }
-                };
-                return scopedSlots;
-            }
-            
-        },
-        getColumnMinWidth(){
-            return item => {
-                let {minWidth, label: {length}, editType} = item;
-                let clacWidth = minWidth ? minWidth : 20 + length * 13 + (item.sortable ? 24 : 0) + (item.filters ? 12 : 0);
-                return clacWidth;
-            }
-        },
-        /**
-         * 获取按钮key值
-         */
-        getButtonKey(){
-            return (item, index) => {
-                return (item.target || item.emit) + index
-            }
-        },
-        /**
-         * 获取表格数据项渲染条件
-         */
-        getColumnVisible(){
-            return item => {
-                let type = typeof item.columnVisible;
-                return type === 'boolean' ? item.columnVisible : (type === 'function' ? item.columnVisible() : true);
-            }
-        },
-        /**
-         * 获取表格下标
-         */
-        getIndexMethod(){
-            return index => {
-                index++;
-                return this.indexSortBy === 'absolute' ? (this.currentPage - 1) * this.currentPageSize + index : index;
-            }
-        },
-        /**
-         * 统一绑定控件事件
-         */
-        getControlEvents(){
-            return (column, scope) => {
-                let controlEvents = {};
-                if(typeof column.controlEvents === 'object'){
-                    for(let i in column.controlEvents){
-                        controlEvents[i] = params => {
-                            typeof column.controlEvents[i] === 'function' ? column.controlEvents[i]({ params, scope, column, that: this }) : () => {}
-                        }
-                    };
-                    return controlEvents;
-                }else{
-                    return controlEvents;
-                }
-            }
-        },
         getActionBarWidth(){
             if(this.actionBarWidth){
                 return this.actionBarWidth
             }else{
                 let wrapWidth = 20;
-                this.newActionButton.forEach((item, index) => {
+                this.actionButtons.forEach((item, index) => {
                     let textLength = (item.label && item.label.length ? item.label.length : 0) + (item.icon ? 1 : 0);
                     let buttonWidth = item.width ? item.width : (32 + textLength * this.actionButtonFontSize[this.actionButtonType] + (item.label && item.icon ? 5 : 0) + (index ? 10 : 0)); // 图标与文字有5px的margin 除最后一个按钮, 都有5px的margin-left
                     wrapWidth += buttonWidth;
@@ -598,92 +512,9 @@ export default {
                 return wrapWidth
             }
         },
-        returnOptions(){
-            return item => {
-                return this.dicts[item.dict] || this.$attrs[item.optionsKey] || item.options || []
-            }
-        },
-        /**
-         * 返回选项列表字段值配置
-         */
-        returnOptionsFields(){
-            return (item, opt, field) => {
-                return item.optionControl
-                    ? opt[item.optionControl[field]]
-                    : (item.dict ? opt[this.dictControl[field]] : opt[this.optionControl[field]])
-            }        
-        },
-        // 返回控件默认属性
-        setControlProperty() {
-            function config() {
-                return {
-                    select: {
-                        size: "mini",
-                        filterable: true,
-                        placeholder: "请选择",
-                        
-                    },
-                    input: {
-                        type: "input",
-                        size: "mini",
-                        clearable: true,
-                        "show-password": false,
-                        "show-word-limit": false,
-                        maxlength: "",
-                        "suffix-icon": "", // 后缀icon
-                        "prefix-icon": "", // 前缀icon
-                        placeholder: "请输入内容",
-                    },
-                    "date-picker": {
-                        type: "date",
-                        format: "yyyy-MM-dd",
-                        "value-format": "yyyy-MM-dd",
-                        size: "mini",
-                        editable: false,
-                        clearable: false,
-                        readonly: false,
-                        placeholder: "请选择",
-                    },
-                    'time-picker': {
-                        size: 'mini',
-                        'is-range': true,
-                        'range-separator': '至',
-                        'start-placeholder': '开始时间',
-                        'end-placeholder': "结束时间",
-                        placeholder:"选择时间范围"
-                    },
-                    switch: {
-                        "active-text": "",
-                        "inactive-text": "",
-                    },
-                    link: {
-                        type: "primary",
-                        icon: "",
-                        underline: true,
-                    },
-                    'input-number': {
-                        size: "mini",
-                    }, // 计数器
-                    'checkbox-group': {}, // 多选框组
-                    'upload-button': {
-                        action: "",
-                        'auto-upload': false,
-                        multiple: true,
-                        'show-file-list': false, // 不展示上传列表
-                    }
-                };
-            }
-            return item => {
-                let {editType, control} = item;
-                let _config = config()[editType];
-                if (control) {
-                    for (let i in control) {
-                        _config[i] = control[i];
-                    }
-                }
-                return _config;
-            };
-        },
+        
+        
+        
   },
   mounted(){
    
@@ -874,10 +705,7 @@ export default {
                 // 未通过前置条件
                 return;
             };
-            if(this.unifiedEdit && !this.deleteReport){
-                // 统一编辑
-                this.executeDelete(scope);
-            }else{
+            if(this.confirmBeforeDelete){
                 this.setMappingData(scope.row, {'$deleteLoading': true});
                 this.$confirm(`确认要删除此条数据吗?`, '确认删除', {
                     confirmButtonText: '确定',
@@ -888,6 +716,7 @@ export default {
                             instance.confirmButtonLoading = true;
                             instance.confirmButtonText = '执行中...';
                             const success = info => {
+                                // todo
                                 if(this.needRefreshEvents.indexOf('delete') > -1){
                                     if(this.data.length === 1 && this.currentPage > 1){
                                         this.pageTurning(this.currentPage - 1)
@@ -920,6 +749,9 @@ export default {
                         message : '已取消！'
                     }) 
                 });
+            }else{
+                // 直接移除
+                this.executeDelete(scope);
             }
             
         },
@@ -1632,14 +1464,14 @@ export default {
         /**
          * 关闭表格编辑状态
          */
-        closeTableEditStatusCell(){
-            this.data.forEach(item => {
-                if(item.$edit){
-                    item.$edit = false
-                }
-            });
-            this.toolsObject = {};
-        },
+        // closeTableEditStatusCell(){
+        //     this.data.forEach(item => {
+        //         if(item.$edit){
+        //             item.$edit = false
+        //         }
+        //     });
+        //     this.toolsObject = {};
+        // },
         /**
          * 获取字典数据
          */
@@ -1706,12 +1538,130 @@ export default {
             }
             
         },
+        /**
+         * 获取expand, index, selection插槽
+         */
+        getIndexSelectionExpandSlots(type){
+            let scopedSlots = {};
+            if(this.$scopedSlots[type] || this.$slots[type]){
+                scopedSlots =  {
+                    scopedSlots: {
+                        default: scope => {
+                            return this.$scopedSlots[type](scope) || this.$slots[type]
+                        }
+                    }
+                }
+            };
+            return scopedSlots;
+        },
+        /**
+         * 获取按钮key值
+         */
+        getButtonKey(item, index){
+            return (item.target || item.emit) + index;
+        },
+        /**
+         * 获取表格下标
+         */
+        getIndexMethod(index){
+            index++;
+            return this.indexSortBy === 'absolute' ? (this.currentPage - 1) * this.currentPageSize + index : index;
+        },
+        /**
+         * 获取column最小宽度
+         */
+        getColumnMinWidth(item){
+            let {minWidth, label: {length}, editType} = item;
+            let clacWidth = minWidth ? minWidth : 20 + length * 13 + (item.sortable ? 24 : 0) + (item.filters ? 12 : 0);
+            return clacWidth;
+        },
+        /**
+         * 获取表格数据项渲染条件
+         */
+        getColumnVisible(item){
+            let type = typeof item.columnVisible;
+            return type === 'boolean' ? item.columnVisible : (type === 'function' ? item.columnVisible() : true);
+        },
+        /**
+         * 返回单元格样式
+         */
+        getCellStyle({row,column, rowIndex, columnIndex}){
+            return this.validateObject[`${column.property}-${row[this.uniqueKey]}`] === false ? this.returnCellErrorStyle : {};
+        },
+        /**
+         * 返回单元格class todo
+         */
+        getCellClassName({row,column, rowIndex, columnIndex}){
+            let obj = {
+                'is-error__cell': this.validateObject[`${column.property}-${row[this.uniqueKey]}`] === false, 
+                'is-edit__cell': this.getRowEditStatus(row)
+            }
+            return Object.keys(obj).filter(key => obj[key]).join(' ');
+        },
+        /**
+         * 返回验证提示
+         */
+        getValidateTips(column, row){
+            if(column.required && isEmpty(row[column.prop])){
+                return <span><i class="el-icon-warning-outline" style="margin-right: 4px"></i>{`${column.label}不能为空`}</span>
+            }else if(column.validator && !isEmpty(row[column.prop]) ){
+                let result = this.checkRequireFields({key: column.prop, row});
+                if(result.result){
+                    return <span><i class="el-icon-circle-check" style="margin-right: 4px"></i>校验通过</span>;
+                }else{
+                    return <span><i class="el-icon-circle-close" style="margin-right: 4px"></i>{column.validateTips ? column.validateTips : '校验失败!'}</span> 
+                }
+            }else{
+                return <span><i class="el-icon-circle-check" style="margin-right: 4px"></i>校验通过</span> 
+            }
+        },
+        /**
+         * 获取控件绑定事件
+         */
+        getControlEvents(column, scope){
+            let controlEvents = {};
+            if(typeof column.controlEvents === 'object'){
+                for(let i in column.controlEvents){
+                    controlEvents[i] = params => {
+                        typeof column.controlEvents[i] === 'function' ? column.controlEvents[i]({ params, scope, column, that: this }) : () => {}
+                    }
+                };
+                return controlEvents;
+            }else{
+                return controlEvents;
+            }
+        },
+        /**
+         * 返回控件选项列表
+         */
+        getOptions(item){
+            return this.dicts[item.dict] || this.$attrs[item.optionsKey] || item.options || [];
+        },
+        /**
+         * 返回选项列表字段值配置
+         */
+        getOptionsFields(item, opt, field){
+            return item.optionControl
+                ? opt[item.optionControl[field]]
+                : (item.dict ? opt[this.dictControl[field]] : opt[this.optionControl[field]])    
+        },
+        // 返回控件默认属性
+        setControlProperty(item) {
+            let {editType, control} = item;
+            let _config = deepClone(this.controlProperty[editType]);
+            if (control) {
+                for (let i in control) {
+                    _config[i] = control[i];
+                }
+            }
+            return _config;
+        },
     },
 }
 </script>
 
-<style lang="scss" >
-@import './style'; 
+<style lang="scss" scoped>
+@import './style.scss'; 
 </style>
 
 <style>

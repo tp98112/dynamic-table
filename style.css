@@ -1,0 +1,85 @@
+.dynamic-table-wrap .cell {
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+.dynamic-table-wrap th.el-table__cell > .cell {
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+.dynamic-table-wrap.el-table__fixed-right {
+  height: 100% !important;
+}
+
+.dynamic-table .cell .el-checkbox-group .el-checkbox {
+  margin-right: 10px;
+}
+
+.dynamic-table .is-edit__cell .cell.el-tooltip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dynamic-table .is-edit__cell .cell-text {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dynamic-table .is-edit__cell .cursor-pointer {
+  cursor: pointer;
+}
+
+.dynamic-table .is-edit__cell .el-input,
+.dynamic-table .is-edit__cell .el-select,
+.dynamic-table .is-edit__cell .el-checkbox-group {
+  flex: 1;
+  margin: 0 0.5px;
+}
+
+.dynamic-table .is-edit__cell .el-table__expand-icon+.el-select {
+  max-width: calc(100% - 24px);
+}
+
+.action-button-wrap {
+  display: flex;
+}
+
+.action-button-wrap .el-link + .el-link {
+  margin-left: 10px;
+}
+
+.action-button-wrap .el-button + .el-button {
+  margin-left: 10px;
+}
+
+.pagination-wrap {
+  display: flex;
+  overflow: hidden;
+  padding: 0.26vw 0.651vw;
+}
+
+.dynamicTable-dialog .el-dialog {
+  min-width: 400px;
+  margin-top: inherit !important;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.dynamicTable-dialog .el-dialog__body {
+  max-height: calc(100vh - 130px);
+  overflow: auto;
+}
+
+.dynamicTable-dialog .el-dialog__body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dynamicTable-dialog .el-dialog__body::-webkit-scrollbar-thumb {
+  background: #E4E7ED;
+  border-radius: 20px;
+}

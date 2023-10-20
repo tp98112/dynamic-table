@@ -43,10 +43,10 @@ export default{
             type: Boolean,
             default: false
         },
-        deleteReport:{
-            /** 统一编辑模式下 删除事件是否上报 */ 
+        confirmBeforeDelete:{
+            /** 删除事件是否二次确认 */ 
             type: Boolean,
-            default: false
+            default: true
         },
         initFields: {
             // 初始化字段 可在此设置字段默认值
@@ -82,7 +82,7 @@ export default{
         align: {
             // 表格单元格对齐方式
             type: String,
-            default: 'center'
+            default: 'left'
         },
         indexSortBy: {
             // 表格索引排序方式 absolute / relative
@@ -156,11 +156,16 @@ export default{
             // 树形表格配置
             type: String,
         },
-        boxSelectStyle: {
+        errorCellBlink: {
+            // 闪烁校验错误的单元格(行内编辑时)
+            type: Boolean,
+            default: true
+        },
+        cellErrorStyle: {
             // 校验失败的标记样式 在el-table__cell上
             type: Object,
             default(){
-                return {animation: 'flicker .2s linear 10', backgroundSize: '20px 20px', backgroundColor: '#F56C6C',backgroundImage: 'linear-gradient(-45deg, rgba(255, 255, 255, .2) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, .2) 50%, rgba(255, 255, 255, .2) 75%, transparent 75%, transparent)'}
+                return {backgroundSize: '20px 20px', backgroundColor: '#409EFF',backgroundImage: 'linear-gradient(-45deg, rgba(255, 255, 255, .2) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, .2) 50%, rgba(255, 255, 255, .2) 75%, transparent 75%, transparent)'}
             }
         },
         dblClickToEditCell: {
@@ -233,7 +238,7 @@ export default{
         // 内置的操作按钮 类型
         actionButtonType: {
             type: String,
-            default: 'button'
+            default: 'link'
         },
         // 操作栏按钮大小
         actionButtonSize: {
@@ -299,7 +304,7 @@ export default{
             // 默认排序方式
             type: Object,
         },
-        newActionButton: {
+        actionButtons: {
             // 按钮集合
             type: Array,
             default() {

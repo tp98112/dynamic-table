@@ -36,15 +36,17 @@ export default {
                     ],
             tableConfig: {
                 height: 500,
+                border: true,
                 // maxHeight: 200,
                 dynamic: true, 
                 // unifiedEdit: true,
+                dblClickToEditCell: true,
                 editMode: 'inline',
                 rowKey: 'id',
                 pagination: true,
                 total: 20,
-                // virtualPage: true,
-                needRefreshEvents: [],
+                virtualPage: true,
+              //  needRefreshEvents: [],
                 initFields: {
                     input: '输入框',
                     select: 24,
@@ -65,9 +67,11 @@ export default {
                 {
                     label: "输入框",
                     prop: "input",
-                    align: "center",
                     editType: "input",
                     required: true,
+                    control: {
+                        // type: 'textarea'
+                    },
                     // sortable: true,
                     // formVisible({form}){
                     //     return form.select == 1
@@ -84,7 +88,6 @@ export default {
                     panel: 1, // 面板
                     label: "下拉框",
                     prop: "select",
-                    align: "center",
                     editType: "select",
                     optionsKey: 'selectOptions',
                     
@@ -93,14 +96,12 @@ export default {
                     panel: 1, // 面板
                     label: "日期选择器",
                     prop: "address",
-                    align: 'center',
                     editType: "date-picker",
                 },
                 {
                     panel: 2, // 面板
                     label: "开关",
                     prop: "switch",
-                    align: 'center',
                     editType: "switch",
                     validator(params){
                     
@@ -120,7 +121,6 @@ export default {
                     panel: 2, // 面板
                     label: "链接",
                     prop: "link",
-                    align: 'center',
                     editType: "link",
                 },
                 {
@@ -138,7 +138,6 @@ export default {
                             value: 2
                         }
                     ],
-                    align: 'center'
                 },
                 {
                     panel: 2, // 面板
@@ -191,7 +190,7 @@ export default {
             ],
           })
         }
-       // this.tableConfig.data = arr;
+       this.tableConfig.data = arr;
     },
     methods: {
         test(){

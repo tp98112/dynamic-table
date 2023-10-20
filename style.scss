@@ -1,5 +1,9 @@
 .dynamic-table-wrap{
-    ::v-deep.cell{
+    ::v-deep .cell{
+        padding-left:5px;
+        padding-right:5px;
+    }
+    ::v-deep th.el-table__cell>.cell{
         padding-left:5px;
         padding-right:5px;
     }
@@ -15,28 +19,31 @@
                 }
             }
         }
-        ::v-deep.cell.el-tooltip{
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            .cell-text{
-                // 默认展示文本内容
-                max-width: 100%;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
-            .cursor-pointer{
-                cursor: pointer;
-            }
-            // 输入控件
-            .el-input, .el-select, .el-checkbox-group{
-                flex:1;
-                // max-width: calc(100% - 24px);
-            }
-            .el-table__expand-icon+.el-select{
-                max-width: calc(100% - 24px);
+        ::v-deep.is-edit__cell{
+            .cell.el-tooltip{
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                .cell-text{
+                    // 默认展示文本内容
+                    max-width: 100%;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+                .cursor-pointer{
+                    cursor: pointer;
+                }
+                // 输入控件
+                .el-input, .el-select, .el-checkbox-group{
+                    flex:1;
+                    margin: 0 0.5px;
+                }
+                .el-table__expand-icon+.el-select{
+                    max-width: calc(100% - 24px);
+                }
             }
         }
+        
         
     }
     .action-button-wrap{
