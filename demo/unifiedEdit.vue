@@ -1,6 +1,6 @@
 <template>
     <div>
-        <DynamicTable ref="dynamicTable" v-bind="tableConfig"  :selectOptions="selectOptions" @change="tableChange" @delete="handleDelete"></DynamicTable>
+        <DynamicTable ref="dynamicTable" v-bind.sync="tableConfig" :selectOptions="selectOptions" @change="tableChange" @delete="handleDelete"></DynamicTable>
       <el-button @click="test">ceshi</el-button>
     </div>
 </template>
@@ -46,11 +46,11 @@ export default {
                 pagination: true,
                 total: 20,
                 virtualPage: true,
+                reserveSelection: true,
               //  needRefreshEvents: [],
                 initFields: {
                     input: '输入框',
                     select: 24,
-                   
                 },
                 accessControl: {
                     update: true,
@@ -59,7 +59,7 @@ export default {
                 },
                 column: [
                     {
-                        type: 'index',
+                        type: 'selection',
                         label: '序号'
                     },
                    
@@ -175,6 +175,7 @@ export default {
     },
     
     mounted(){
+        window.this = this;
       let arr = [];
         for(let i = 0; i < 20; i ++ ){
           arr.push({
@@ -212,7 +213,7 @@ export default {
         },
         tableChange(event) {
             console.log("tableChange", event)
-             event.success()
+            event.success && event.success()
             // event.close();
             // let executeFunc = {
             //   update() {

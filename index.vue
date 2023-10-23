@@ -706,6 +706,7 @@ export default {
                 return;
             };
             if(this.confirmBeforeDelete){
+                // 二次确认
                 this.setMappingData(scope.row, {'$deleteLoading': true});
                 this.$confirm(`确认要删除此条数据吗?`, '确认删除', {
                     confirmButtonText: '确定',
@@ -716,17 +717,7 @@ export default {
                             instance.confirmButtonLoading = true;
                             instance.confirmButtonText = '执行中...';
                             const success = info => {
-                                // todo
-                                if(this.needRefreshEvents.indexOf('delete') > -1){
-                                    if(this.data.length === 1 && this.currentPage > 1){
-                                        this.pageTurning(this.currentPage - 1)
-                                    }else{
-                                        this.emitPageChange(); // 刷新
-                                    }
-                                }else{
-                                    // 不刷新 更新本地备份数据
-                                    this.executeDelete(scope);
-                                };
+                                this.executeDeleteBefore(scope);
                                 instance.confirmButtonLoading = false;
                                 done();
                                 this.executePromp(info, {type:'success', message: info ? info : '删除成功！'})
@@ -750,7 +741,8 @@ export default {
                     }) 
                 });
             }else{
-                // 直接移除
+                // 立即移除
+                this.handleEmit({type: 'deleted', row: scope.row});
                 this.executeDelete(scope);
             }
             
@@ -763,49 +755,64 @@ export default {
                 this.$message.info("请先选中要删除的数据！");
                 return;
             }
-            this.$confirm(`确认删除选中的${this.selectionList.length}条数据吗?`, '确认删除', {
-                confirmButtonText: '确定',
-                cancelButtonText: '取消',
-                type: 'warning',
-                beforeClose: (action, instance, done) => {
-                    if (action === 'confirm') {
-                        this.setTableLoading(true);
-                        instance.confirmButtonLoading = true;
-                        instance.confirmButtonText = '执行中...';
-                        const success = info => {
-                            if(this.needRefreshEvents.indexOf('delete') > -1){
-                                if(this.data.length === this.selectionList.length && this.currentPage > 1){
-                                    this.pageTurning(this.currentPage - 1)
-                                }else{
-                                    this.emitPageChange(); // 刷新
-                                }
-                            }else{
-                                // 不刷新 更新本地备份数据
-                                this.executeBatchDelete(this.selectionList);
+            if(this.confirmBeforeDelete){
+                // 删除前确认
+                this.$confirm(`确认删除选中的${this.selectionList.length}条数据吗?`, '确认删除', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning',
+                    beforeClose: (action, instance, done) => {
+                        if (action === 'confirm') {
+                            this.setTableLoading(true);
+                            instance.confirmButtonLoading = true;
+                            instance.confirmButtonText = '执行中...';
+                            const success = info => {
+                                this.executeDeleteBefore();
+                                this.setTableLoading(false);
+                                instance.confirmButtonLoading = false;
+                                done();
+                                this.executePromp(info, {type:'success', message: info ? info : '删除成功！'})
                             };
-                            this.setTableLoading(false);
-                            instance.confirmButtonLoading = false;
-                            done();
-                            this.executePromp(info, {type:'success', message: info ? info : '删除成功！'})
-                        };
-                        const fail = info => {
-                            this.setTableLoading(false);
-                            instance.confirmButtonLoading = false;
-                            done();
-                            this.executePromp(info, {type:'error', message: info ? info : '删除失败！'})
-                        };
-                        this.$emit('change', {type: 'delete', selection: this.selectionList, success, fail })
-                    }else{
-                        done()
+                            const fail = info => {
+                                this.setTableLoading(false);
+                                instance.confirmButtonLoading = false;
+                                done();
+                                this.executePromp(info, {type:'error', message: info ? info : '删除失败！'})
+                            };
+                            this.handleEmit({type: 'delete', selection: this.selectionList, success, fail });
+                        }else{
+                            done()
+                        }
                     }
+                }).catch(() => {
+                    this.$message({
+                        type: 'info',
+                        message : '已取消！'
+                    }) 
+                });
+            }else{
+                // 立即移除
+                this.handleEmit({type: 'deleted', selection: this.selectionList});
+                this.executeBatchDelete(this.selectionList);
+            }
+            
+        },
+        executeDeleteBefore(scope){
+            if(!this.virtualPage && this.needRefreshEvents.indexOf('delete') > -1){
+                if(this.data.length === 1 && this.currentPage > 1){
+                    this.pageTurning(this.currentPage - 1)
+                }else{
+                    this.emitPageChange(); // 刷新
                 }
-            }).catch(() => {
+            }else{
+                // 不刷新列表, 直接删除
+                if(scope && scope.row){
+                    this.executeDelete(scope);
+                }else{
+                    this.executeBatchDelete(this.selectionList);
+                }
                 
-                this.$message({
-                    type: 'info',
-                    message : '已取消！'
-                }) 
-            });
+            };
         },
         // 获取被emit的数据
         getEmitData(params){
@@ -1017,7 +1024,12 @@ export default {
                     delete this.backupTableData[item[this.uniqueKey]];
                     return true;
                 }
-            })
+            });
+
+            if(this.virtualPage){
+                this.returnTableData.length === 0 && this.currentPage > 1 && this.pageTurning(this.currentPage - 1)
+                this.$emit('update:total', this.data.length);
+            }
         },
         /**
          * 批量删除本地数据 并更新备份
@@ -1038,7 +1050,11 @@ export default {
                     }
                 })
             })
-
+            this.selectionList.length && this.$refs.dynamicTable.clearSelection();
+            if(this.virtualPage){
+                this.returnTableData.length === 0 && this.currentPage > 1 && this.pageTurning(this.currentPage - 1)
+                this.$emit('update:total', this.data.length);
+            }
         },
         /**
          * 上报分页器事件
