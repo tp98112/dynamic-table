@@ -82,7 +82,7 @@ export default{
         align: {
             // 表格单元格对齐方式
             type: String,
-            default: 'left'
+            default: 'center'
         },
         indexSortBy: {
             // 表格索引排序方式 absolute / relative
@@ -103,6 +103,15 @@ export default{
             // 表格尺寸 medium / small / mini
             type: String,
             default: 'mini'
+        },
+        fullHeight: {
+            // 自适应容器高度
+            type: Boolean,
+            default: false
+        },
+        subtractHeight:{
+            // 自适应容器高度时需要减去的高度
+            type: Number,
         },
         sumText: {
             // 合计行第一列文字
@@ -209,6 +218,19 @@ export default{
             // 操作栏按钮对齐方式 left/center/right
             type: String,
             default: 'center'
+        },
+        addButtonControl: {
+            // 新增按钮配置(根)
+            type: Object,
+            default(){
+                return {}
+            },
+            validator(val){
+                if('location' in val){
+                    return ['header', 'append'].indexOf(val.location) > -1;
+                };
+                return true;
+            }
         },
         accessControl: {
             // 按钮访问控制

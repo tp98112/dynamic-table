@@ -22,6 +22,7 @@ export default {
             dataLoading: this.loading === true ? true : false, // 表格数据loading
             currentPage: 1, // 当前页码
             currentPageSize: this.pageSizes[this.pageSizeIndex], // 当前页大小
+            tableHeight: this.height,
             toolsObject: {},
             validateObject: {}, // 验证对象
             selectionList: [], // 多选列表
@@ -268,9 +269,9 @@ export default {
          * 渲染操作栏表头
          */
         const renderActionHeader = (scope, button) => {
-            if(this.getRenderConditions('root', scope)){
+            if(this.internalAddButtonControl.location === 'header' && this.getRenderConditions('root', scope)){
                 return this.actionButtonType === 'link' ? 
-                <el-link on-click={() => {this.handleNew(scope, button)}} icon="el-icon-plus" type="primary" size={this.actionButtonSize} key="link-root" title="新增"></el-link> : 
+                <el-link on-click={() => {this.handleNew(scope, button)}} type={this.internalAddButtonControl.type} icon={this.internalAddButtonControl.icon} size={this.actionButtonSize} key="link-root" title="新增">{this.internalAddButtonControl.text}</el-link> : 
                 <el-button on-click={() => {this.handleNew(scope, button)}} icon="el-icon-plus" size={this.actionButtonSize} key="button-root" title="新增"></el-button>
             }else{
                 return '操作'
@@ -379,6 +380,14 @@ export default {
             </div>
         }
         /**
+         * 渲染append位置的新增按钮
+         */
+        const renderAddButtonInAppend = () => {
+            return <div class="table-append-new-button">
+                <el-link on-click={this.handleAddButtonInAppend} type={this.internalAddButtonControl.type} icon={this.internalAddButtonControl.icon}>{this.internalAddButtonControl.text}</el-link>
+            </div>
+        };
+        /**
          * 渲染弹窗按钮
          */
         const renderDialogButton = () => {
@@ -431,7 +440,7 @@ export default {
                 { this.formReady ? renderDialogButton() : ''}
             </el-dialog>
         }
-        return (<div class="dynamic-table-wrap">
+        return (<div class={`dynamic-table-wrap ${this.fullHeight && 'full-height'}`}>
             <el-table data={this.returnTableData}
             ref="dynamicTable" 
             v-loading={this.dataLoading}
@@ -441,7 +450,7 @@ export default {
             stripe={this.stripe}
             row-key={this.uniqueKey} 
             size={this.tableSize}
-            height={this.height}
+            height={this.tableHeight}
             max-height={this.maxHeight}
             tree-props={this.treeProps}
             show-summary={this.showSummary}
@@ -462,7 +471,7 @@ export default {
             class={this.dynamic && (this.editMode === 'inline' || this.unifiedEdit) ? 'dynamic-table' : ''}>
                 {renderColumns(this.column)}{renderActionColumn()}
                 <template slot="empty">{this.$slots['table-empty']}</template>
-                <template slot="append">{this.$slots['table-append']}</template>
+                <template slot="append">{this.$slots['table-append'] && this.$slots['table-append'] || (this.internalAddButtonControl.location === 'append' && this.getRenderConditions('root') && renderAddButtonInAppend())}</template>
             </el-table>
             {this.pagination ? renderPagination() : ''}
             {this.editMode === 'window' && this.dynamic && !this.unifiedEdit ? renderEditDialog() : ''}
@@ -505,20 +514,27 @@ export default {
                 let wrapWidth = 20;
                 this.actionButtons.forEach((item, index) => {
                     let textLength = (item.label && item.label.length ? item.label.length : 0) + (item.icon ? 1 : 0);
-                    let buttonWidth = item.width ? item.width : (32 + textLength * this.actionButtonFontSize[this.actionButtonType] + (item.label && item.icon ? 5 : 0) + (index ? 10 : 0)); // 图标与文字有5px的margin 除最后一个按钮, 都有5px的margin-left
+                    let buttonWidth = item.width ? item.width : (this.getButtonExtraWidth + textLength * this.actionButtonFontSize[this.actionButtonType] + (item.label && item.icon ? 5 : 0) + (index ? 10 : 0)); // 图标与文字有5px的margin 除最后一个按钮, 都有5px的margin-left
                     wrapWidth += buttonWidth;
-                    
+                    console.log(item.label, buttonWidth)
                 })
+                console.log(wrapWidth, this.actionButtons)
                 return wrapWidth
             }
         },
-        
+        getButtonExtraWidth(){
+            return this.actionButtonType === 'button' ? 32 : 0;
+        }
         
         
   },
-  mounted(){
-   
-  },
+    mounted(){
+        this.addResizeListener();
+        console.log(this.$refs.dynamicTable)
+    },
+    beforeDestroy(){
+        window.removeEventListener('resize', this.setTableHeight)
+    },
     methods: {
         
         /**
@@ -575,15 +591,15 @@ export default {
                 }
             })
         },
-        handleNew(scope, button){
-            if(typeof button.premise === 'function' && !(button.premise(scope))){
+        handleNew(scope, button = {actionName: '新增'}){
+            if(button && typeof button.premise === 'function' && !(button.premise(scope))){
                 // 未通过前置条件
                 return;
             };
-            this.formConfig.currentMode = 'new'; // 标记当前操作模式
-            this.formTitle = button.actionName || '新增'; // 标记操作名称
             if(this.editMode === 'window' && !this.unifiedEdit){
                 // 弹窗编辑
+                this.formConfig.currentMode = 'new'; // 标记当前操作模式
+                this.formTitle = button.actionName; // 标记操作名称
                 this.currentEditRow = scope && scope.row ? scope.row : null;
                 this.formConfig.disabledForm = false; 
                 if(typeof button.getFormData === 'function'){
@@ -604,7 +620,7 @@ export default {
                 };
                 // 当使用自定义模板 创建了非 一对一 管理的表格时 可以传入initFields 指定初始化数据 否则将造成新增错误!
                 // 合并初始化数据字段
-                let isInternalEvent = scope.column && scope.store && scope._self && scope.hasOwnProperty('$index');
+                let isInternalEvent = scope && scope.column && scope.store && scope._self && scope.hasOwnProperty('$index');
                 newRow = Object.assign(newRow, deepClone(isInternalEvent ? this.initFields : scope))
                 newRow[this.uniqueKey] = getId();
                 if(scope && scope.row){
@@ -654,21 +670,20 @@ export default {
         //     });
         //     return targetData;
         // },
-        handleEdit(scope, button){
+        handleEdit(scope, button = {actionName: '编辑'}){
             if(typeof button.premise === 'function' && !(button.premise(scope))){
                 // 未通过前置条件
                 return;
             };
             let row = scope.row;
-            
-            this.currentEditRow = row; // 标记当前编辑行
-            this.formConfig.currentMode = 'update'; // 标记当前操作模式
             if(this.editMode === 'inline'){
                 // 行内编辑
                 this.setMappingData(row, {'$edit': true}, true); // 第三个参数为true, 编辑时需更新备份数据
             }else{
                 // 弹窗表单编辑
-                this.formTitle = button.actionName || '编辑'; // 操作名称
+                this.currentEditRow = row; // 标记当前编辑行
+                this.formConfig.currentMode = 'update'; // 标记当前操作模式
+                this.formTitle = button.actionName; // 操作名称
                 this.formConfig.disabledForm = false; 
                 this.formConfig.currentPanel = button.panel; // 设置表单的当前面板
                 if(typeof button.getFormData === 'function'){
@@ -687,7 +702,7 @@ export default {
             };
             // 内置事件存在emit时, 一同触发
             if(button.emit){
-                this.$emit('change', {type: button.emit, row: this.getEmitData(row)})
+                this.handleEmit({type: button.emit, row, $row: this.getMappingData(row)})
             }
         },
         /**
@@ -939,6 +954,13 @@ export default {
             }
         },
         /**
+         * 刷新当前页
+         */
+        reload(){
+            this.setTableLoading(true);
+            this.emitPageChange();
+        },
+        /**
          * 设置表格数据加载loading
          */
         setTableLoading(state){
@@ -1134,9 +1156,9 @@ export default {
             }else if(trigger.emit){
                 // 表单触发
                 if(scope.form){
-                    this.handleEmit({type: trigger.emit, trigger, scope, cancel: this.closeDialog, save: this.dialogConfirm})
+                    this.handleEmit({type: trigger.emit, trigger, scope, cancel: this.closeDialog, save: this.dialogConfirm, reload: this.reload})
                 }else{
-                    this.handleEmit({type: trigger.emit, trigger, scope, row: scope.row, $row: this.getMappingData(scope.row)})
+                    this.handleEmit({type: trigger.emit, trigger, scope, row: scope.row, $row: this.getMappingData(scope.row), reload: this.reload})
                 }
                 
             }  
@@ -1175,8 +1197,8 @@ export default {
          * @scope 当前数据行
          */
         getRenderConditions(type, scope){
-            if(type in this.defaultAccessControl){
-                let target = this.defaultAccessControl[type];
+            if(type in this.internalAccessControl){
+                let target = this.internalAccessControl[type];
                 let validateType = typeof target;
                 let executeFunc = {
                     string: () => {
@@ -1505,6 +1527,17 @@ export default {
             }
         },
         /**
+         * 处理append插槽位置上的新增事件
+         */
+        handleAddButtonInAppend(){
+            let emit = this.internalAddButtonControl.emit;
+            if(emit){
+                this.handleEmit({type: emit, add: this.handleNew})
+            }else{
+                this.handleNew();
+            }
+        },
+        /**
          * 获取数据行的编辑状态
          */
         getRowEditStatus(row) {
@@ -1672,6 +1705,31 @@ export default {
             }
             return _config;
         },
+        /**
+         * 开启监听设置表格高度
+         */
+        addResizeListener(){
+            if(this.fullHeight){
+                this.setTableHeight();
+                window.addEventListener('resize', this.setTableHeight)
+            }
+        },
+        /**
+         * 设置表格高度
+         */
+        setTableHeight(){
+            let tableHeight = this.$el.parentNode.clientHeight;
+            // this.subtractHeight && (tableHeight -= this.subtractHeight);
+            if(this.subtractHeight){
+                tableHeight -= this.subtractHeight
+            }
+            if(this.pagination){
+                let pagination = this.$el.getElementsByClassName('pagination-wrap')[0].getBoundingClientRect();
+                tableHeight -= (pagination.height + 1);
+            };
+            this.tableHeight = tableHeight;
+            
+        }
     },
 }
 </script>

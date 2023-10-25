@@ -5,7 +5,7 @@ export default {
                 button: 12,
                 link: 14
             }, // 操作栏按钮文字大小
-            defaultAccessControl: {
+            internalAccessControl: {
                 // 操作栏按钮访问控制
                 root: false, // 根节点新增
                 new: true,
@@ -18,6 +18,14 @@ export default {
                 $cancel: true,
                 $close: true,
                 ...this.accessControl
+            },
+            internalAddButtonControl: {
+                // 新增按钮配置(根)
+                icon: 'el-icon-plus',
+                text: '新增',
+                type: 'primary',
+                location: 'append',
+                ...this.addButtonControl
             },
             privateFields: ['$edit', '$index', '$rootIndex', '$saveLoading', '$deleteLoading', '$new', '$rowKey'], // 组件私有属性
             supportedComponents: Object.freeze({

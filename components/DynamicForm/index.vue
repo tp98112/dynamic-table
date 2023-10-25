@@ -771,6 +771,7 @@ export default {
       let hasRequired = false;
       this.formItemList.forEach((item) => {
         item.$key = getId(true);
+        if(!item.prop){return};
         item.editType =
           item.editType in this.supportedComponents ? item.editType : "unknown";
         const prop = item.module ? `${item.module}-${item.prop}` : item.prop; // 分模块
