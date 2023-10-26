@@ -16,13 +16,14 @@ export default {
     data(){
         return {
             backupTableData: {}, // 备份表数据
-            dicts: {}, // 字典数据
+            dicts: {}, // 字典数据集合
             initFieldsCollection: {}, // 字段集合
             currentEditRow: null, // 当前编辑数据行
             dataLoading: this.loading === true ? true : false, // 表格数据loading
             currentPage: 1, // 当前页码
             currentPageSize: this.pageSizes[this.pageSizeIndex], // 当前页大小
             tableHeight: this.height,
+            
             toolsObject: {},
             validateObject: {}, // 验证对象
             selectionList: [], // 多选列表
@@ -284,7 +285,7 @@ export default {
             return this.actionButtonType === 'link' ? 
             <el-link on-click={() => {this.reportEvent(item, scope)}} 
                 type={typeof item.type === 'function' ? (item.type(scope)) : item.type} 
-                icon={typeof item.icon === 'function' ? (item.icon(scope)) : item.icon} 
+                icon={this.getLinkIcon(item, scope)} 
                 title={typeof item.title === 'function' ? (item.title(scope)) : item.title}
                 class={typeof item.class === 'function' ? (item.class(scope)) : item.class} 
                 disabled={this.setDisabledState(item, scope)} 
@@ -588,7 +589,8 @@ export default {
                         //     // console.log('字典数据', this.dicts)
                         // });
                     }
-                }
+                };
+
             })
         },
         handleNew(scope, button = {actionName: '新增'}){
@@ -621,7 +623,7 @@ export default {
                 // 当使用自定义模板 创建了非 一对一 管理的表格时 可以传入initFields 指定初始化数据 否则将造成新增错误!
                 // 合并初始化数据字段
                 let isInternalEvent = scope && scope.column && scope.store && scope._self && scope.hasOwnProperty('$index');
-                newRow = Object.assign(newRow, deepClone(isInternalEvent ? this.initFields : scope))
+                newRow = Object.assign(newRow, deepClone(isInternalEvent ? this.initFields : Object.assign(deepClone(this.initFields), scope)))
                 newRow[this.uniqueKey] = getId();
                 if(scope && scope.row){
                     // children子集新增
@@ -652,6 +654,7 @@ export default {
                     backupRow.$edit = true; // 默认开启编辑
                     backupRow.$saveLoading = false; // 保存按钮loading
                     this.$set(this.backupTableData, newRow[this.uniqueKey], backupRow);
+                    console.log("根节点新增", this.backupTableData, newRow[this.uniqueKey])
                     this.data[this.insertDataMethod](newRow);
                 };
             }
@@ -873,12 +876,11 @@ export default {
             let $row = this.getMappingData(scope.row);
             let mode = $row.$new ? 'new' : 'update';
             const success = (info) => {
+                $row.$saveLoading = false;
+                $row.$new = false;
+                $row.$edit = false;
                 if(this.needRefreshEvents.indexOf(mode) > -1){
                     this.emitPageChange(); // 刷新当前页
-                }else{
-                    $row.$saveLoading = false;
-                    $row.$new = false;
-                    $row.$edit = false;
                 }
                 this.executePromp(info, {type:'success', message: info ? info : '数据已更新！'})
             };
@@ -1235,7 +1237,7 @@ export default {
             if(info === null){
                 return;
             }
-            if(info !== undefined || this.defaultPrompt){
+            if(info !== undefined || this.internalPrompt){
                 this.$message(msg);
             }
         },
@@ -1559,6 +1561,7 @@ export default {
         getMappingData(row) {
             !row[this.uniqueKey] && (row[this.uniqueKey] = getId()); 
             if(!this.backupTableData[row[this.uniqueKey]]){
+                console.log("获取映射数据")
                 let backupRow = deepClone(row);
                 backupRow.$edit = false;
                 backupRow.$new = false;
@@ -1608,6 +1611,14 @@ export default {
          */
         getButtonKey(item, index){
             return (item.target || item.emit) + index;
+        },
+        /**
+         * 获取link按钮icon
+         */
+        getLinkIcon(item, scope){
+            return item.target === 'save' && this.getRowSaveLoading(scope.row) && 'el-icon-loading' 
+            || typeof item.icon === 'function' && (item.icon(scope)) 
+            || item.icon;
         },
         /**
          * 获取表格下标
@@ -1671,14 +1682,26 @@ export default {
             let controlEvents = {};
             if(typeof column.controlEvents === 'object'){
                 for(let i in column.controlEvents){
-                    controlEvents[i] = params => {
-                        typeof column.controlEvents[i] === 'function' ? column.controlEvents[i]({ params, scope, column, that: this }) : () => {}
+                    controlEvents[i] = value => {
+                        let option = this.findOption(column, value);
+                        let take = {
+                            value, option, scope, column, rocTable: this
+                        };
+                        typeof column.controlEvents[i] === 'function' ? column.controlEvents[i](take) : () => {}
                     }
                 };
                 return controlEvents;
             }else{
                 return controlEvents;
             }
+        },
+        /**
+         * 返回当前选中项
+         */
+        findOption(column, value){
+            let options = this.getOptions(column);
+            let valueKey = column.optionControl && column.optionControl.value || column.dict && this.dictControl.value || this.optionControl.value;
+            return options.find(item => item[valueKey] === value)
         },
         /**
          * 返回控件选项列表

@@ -488,14 +488,14 @@ export default {
         let controlEvents = {};
         if (typeof item.controlEvents === "object") {
           for (let i in item.controlEvents) {
-            controlEvents[i] = (params) => {
+            controlEvents[i] = (value) => {
               typeof item.controlEvents[i] === "function"
                 ? item.controlEvents[i]({
-                    params,
+                    value,
                     form: this.form,
                     dicts: this.dicts,
-                    trigger: item,
-                    that: this,
+                    column: item,
+                    rocForm: this,
                   })
                 : () => {
                   };
@@ -879,14 +879,6 @@ export default {
     //   return false
     // },
 
-    // 控制方法
-    controlMethod($event, item) {
-      if (typeof item.controlMethod === 'function') {
-        item.controlMethod({ params: $event, form: this.form, item, that: this })
-      } else if(item.emit){
-        this.$emit('change', {type: item.emit, params: $event, form: this.form, trigger: item, that: this })
-      }
-    },
     // 表单 自定义按钮触发事件
     customButtonEvents(item) {
       if(item.target === 'reset'){

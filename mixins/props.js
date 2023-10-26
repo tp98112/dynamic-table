@@ -204,7 +204,7 @@ export default{
                 return val === 'unshift' || val === 'push'
             }
         },
-        defaultPrompt: {
+        internalPrompt: {
             // 是否显示默认的内置提示
             type: Boolean,
             default: true
