@@ -189,11 +189,14 @@ export default{
         },
         needRefreshEvents: {
             // 当设置内的事件被触发时, 将触发一次刷新当前页的事件
-            type: Array,
+            type: Object,
             default(){
-                // ['new', 'delete', 'update']
-                // 更新默认不请求翻页
-                return ['new', 'delete', 'update']
+                // 更新默认不请求刷新列表
+                return {
+                    new: true,
+                    update: false,
+                    delete: true
+                }
             }
         },
         insertDataMethod: {

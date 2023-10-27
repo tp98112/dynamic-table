@@ -5,7 +5,7 @@ import methods from './mixins/methods.js';
 import {loopThroughTheArray, loopThroughTheArrayBySome, dateFormat, getFieldType, deepClone, getId, isEmpty} from "./tools.js";
 
 export default {
-    name: 'TpStupidTable',
+    name: 'RocTable',
     inheritAttrs: false,
     mixins: [props, config, methods],
     components: {
@@ -69,6 +69,9 @@ export default {
        
     },
     render(h){
+        /**
+         * 预设编辑时内容
+         */
         const setEditContent = ({column, scope}) => {
             if(this.validateObject[`${column.prop}-${scope.row[this.uniqueKey]}`] === false){
                 return <el-tooltip  placement="bottom" effect="light">
@@ -79,8 +82,28 @@ export default {
             return setEditControl({column, scope})
         }
         /**
-         * ============
-         * 预设编辑时内容
+         * 自定义模板渲染方法
+         */
+        const customTemplate = (column, scope) => {
+            let template = column.template(scope);
+            let type = getFieldType(column.template(scope));
+            if(type === 'String' || (type === 'Object' && getFieldType(template.content) === 'String')){
+                return h('span', {
+                    class: `cell-text ${typeof template.emit === 'string' && 'cursor-pointer'}`,
+                    on: {
+                        click: () => {template.emit ? this.handleEmit({type: template.emit, scope}) : ''}
+                    },
+                    domProps: {
+                        innerHTML: template.content ? template.content : column.template(scope)
+                    }
+                })
+            }else{
+                console.error(`The custom template rendering method returned an incorrect value. expect[string/object] \n Example1: return '<span>${column.label}</span>' \n Example2: return {emit: 'eventType', content: '<span>${column.label}</span>'}`)
+                return <span class="cell-text">{scope.row[scope.column.property]}</span>
+            }
+        };
+        /**
+         * 预设编辑时控件
          */
         const setEditControl = ({column, scope}) => {
             if(typeof column.editRender === 'function'){
@@ -141,6 +164,9 @@ export default {
                     contol={this.setControlProperty(column)} 
                     fileList={scope.row[scope.column.property]} >
                 </tp-upload-button>
+            }else if(typeof column.template === 'function'){
+                // 编辑状态时预设控件不存在 默认的模板渲染方法同样生效
+                return customTemplate(column, scope);
             }else{
                 // 默认内容
                 return <span class="cell-text">{scope.row[scope.column.property]}</span>
@@ -158,22 +184,7 @@ export default {
                 return column.render(h, scope)
             }else if(typeof column.template === 'function'){
                 // 自定义模板渲染方法
-                let template = column.template(scope);
-                let type = getFieldType(column.template(scope));
-                if(type === 'String' || (type === 'Object' && getFieldType(template.content) === 'String')){
-                    return h('span', {
-                        class: `cell-text ${typeof template.emit === 'string' && 'cursor-pointer'}`,
-                        on: {
-                            click: () => {template.emit ? this.handleEmit({type: template.emit, scope}) : ''}
-                        },
-                        domProps: {
-                            innerHTML: template.content ? template.content : column.template(scope)
-                        }
-                    })
-                }else{
-                    console.error(`The custom template rendering method returned an incorrect value. expect[string/object] \n Example1: return '<span>${column.label}</span>' \n Example2: return {emit: 'eventType', content: '<span>${column.label}</span>'}`)
-                    return <span class="cell-text">{scope.row[scope.column.property]}</span>
-                }
+                return customTemplate(column, scope);
             }else{
                 // 默认内容
                 return <span class="cell-text">{this.getDefaultCellValue(column, scope.row[scope.column.property])}</span>
@@ -198,8 +209,6 @@ export default {
                 {scope.column.label}
                 </span>
             }
-            
-            // return scope.column.label
         }
         /**
          * ==============
@@ -389,6 +398,13 @@ export default {
             </div>
         };
         /**
+         * 获取表格追加的内容 append 插槽
+         */
+        const getContentAppendToTable = () => {
+            return this.$slots['table-append'] && this.$slots['table-append'] 
+            || (this.internalAddButtonControl.location === 'append' && this.getRenderConditions('root') && renderAddButtonInAppend());
+        };
+        /**
          * 渲染弹窗按钮
          */
         const renderDialogButton = () => {
@@ -442,7 +458,7 @@ export default {
             </el-dialog>
         }
         return (<div class={`dynamic-table-wrap ${this.fullHeight && 'full-height'}`}>
-            <el-table data={this.returnTableData}
+            <el-table data={this.getTableData}
             ref="dynamicTable" 
             v-loading={this.dataLoading}
             element-loading-text="正在加载，请稍后..."
@@ -472,7 +488,7 @@ export default {
             class={this.dynamic && (this.editMode === 'inline' || this.unifiedEdit) ? 'dynamic-table' : ''}>
                 {renderColumns(this.column)}{renderActionColumn()}
                 <template slot="empty">{this.$slots['table-empty']}</template>
-                <template slot="append">{this.$slots['table-append'] && this.$slots['table-append'] || (this.internalAddButtonControl.location === 'append' && this.getRenderConditions('root') && renderAddButtonInAppend())}</template>
+                <template slot="append">{getContentAppendToTable()}</template>
             </el-table>
             {this.pagination ? renderPagination() : ''}
             {this.editMode === 'window' && this.dynamic && !this.unifiedEdit ? renderEditDialog() : ''}
@@ -482,7 +498,7 @@ export default {
         /**
          * 返回表格数据
          */
-        returnTableData(){
+        getTableData(){
             return this.virtualPage ? this.data.slice((this.currentPage - 1) * this.currentPageSize, this.currentPage * this.currentPageSize) : this.data;
         },
         /**
@@ -563,12 +579,13 @@ export default {
          */
         organizeFieldsData(){
             loopThroughTheArray(this.column, item => {
-                if(item.prop && item.columnVisible !== false){
-                    if(item.prop in this.initFieldsCollection || item.transferProp in this.initFieldsCollection){
+                // propAsKeyOnly为true时, 当前prop不加入到表单
+                if(item.prop && !item.propAsKeyOnly && item.columnVisible !== false){
+                    if(item.prop in this.initFieldsCollection){
                         console.error(`[DynamicTable warn]: Duplicate prop detected: '${item.prop || item.transferProp}'. This may cause an update error`)
                         return;
                     }
-                    this.initFieldsCollection[item.transferProp ? item.transferProp : item.prop] = {
+                    this.initFieldsCollection[item.prop] = {
                         value: this.supportedComponents[item.editType in this.supportedComponents ? item.editType : 'unknown'],
                         label: item.label,
                         editType: item.editType,
@@ -608,7 +625,7 @@ export default {
                     button.getFormData({row: this.currentEditRow, $row: this.currentEditRow ? this.getMappingData(this.currentEditRow) : null, callBack: data => {
                         this.formVisible = true;
                         this.$nextTick(() => {
-                            this.setDynamicForm(data);
+                            this.setRocForm(data);
                         })
                     }} )
                 }else{
@@ -654,11 +671,9 @@ export default {
                     backupRow.$edit = true; // 默认开启编辑
                     backupRow.$saveLoading = false; // 保存按钮loading
                     this.$set(this.backupTableData, newRow[this.uniqueKey], backupRow);
-                    console.log("根节点新增", this.backupTableData, newRow[this.uniqueKey])
                     this.data[this.insertDataMethod](newRow);
                 };
             }
-            // this.$message.info("新增！")
         },
         /**
          * 定位到指定位置的数据
@@ -681,7 +696,7 @@ export default {
             let row = scope.row;
             if(this.editMode === 'inline'){
                 // 行内编辑
-                this.setMappingData(row, {'$edit': true}, true); // 第三个参数为true, 编辑时需更新备份数据
+                this.setMappingData(row, {'$edit': true}, true); // 第三个参数为true, 编辑时需更新映射数据
             }else{
                 // 弹窗表单编辑
                 this.currentEditRow = row; // 标记当前编辑行
@@ -693,13 +708,13 @@ export default {
                     button.getFormData({row:  this.getEmitData(row), callBack: data => {
                         this.formVisible = true;
                         this.$nextTick(() => {
-                            this.setDynamicForm(data);
+                            this.setRocForm(data);
                         })
                     }})
                 }else{
                     this.formVisible = true;
                     this.$nextTick(() => {
-                        this.setDynamicForm(deepClone(row));
+                        this.setRocForm(deepClone(row));
                     })
                 }
             };
@@ -711,8 +726,7 @@ export default {
         /**
          * 更新动态表单字段值
          */
-        setDynamicForm(row){
-            // let form = this.$refs.dynamicForm.form;
+        setRocForm(row){
             this.$refs.dynamicForm.updateFields(row)
         },
         /**
@@ -733,7 +747,7 @@ export default {
                     beforeClose: (action, instance, done) => {
                         if (action === 'confirm') {
                             instance.confirmButtonLoading = true;
-                            instance.confirmButtonText = '执行中...';
+                            instance.confirmButtonText = '进行中...';
                             const success = info => {
                                 this.executeDeleteBefore(scope);
                                 instance.confirmButtonLoading = false;
@@ -748,16 +762,19 @@ export default {
                             };
                             this.handleEmit({type: 'delete', row: scope.row, $row: this.getMappingData(scope.row), success, fail })
                         }else{
-                            done()
+                            if(instance.confirmButtonLoading){
+                                this.$message.info("删除任务进行中，请稍后...")
+                            }else{
+                                this.setMappingData(scope.row, {'$deleteLoading': false})
+                                this.$message({
+                                    type: 'info',
+                                    message : '已取消！'
+                                }) 
+                                done()
+                            }
                         }
                     }
-                }).catch(() => {
-                    this.setMappingData(scope.row, {'$deleteLoading': false})
-                    this.$message({
-                        type: 'info',
-                        message : '已取消！'
-                    }) 
-                });
+                })
             }else{
                 // 立即移除
                 this.handleEmit({type: 'deleted', row: scope.row});
@@ -783,7 +800,7 @@ export default {
                         if (action === 'confirm') {
                             this.setTableLoading(true);
                             instance.confirmButtonLoading = true;
-                            instance.confirmButtonText = '执行中...';
+                            instance.confirmButtonText = '进行中...';
                             const success = info => {
                                 this.executeDeleteBefore();
                                 this.setTableLoading(false);
@@ -799,15 +816,19 @@ export default {
                             };
                             this.handleEmit({type: 'delete', selection: this.selectionList, success, fail });
                         }else{
-                            done()
+                            if(instance.confirmButtonLoading){
+                                this.$message.info("删除任务进行中，请稍后...")
+                            }else{
+                                this.setMappingData(scope.row, {'$deleteLoading': false})
+                                this.$message({
+                                    type: 'info',
+                                    message : '已取消！'
+                                }) 
+                                done()
+                            }
                         }
                     }
-                }).catch(() => {
-                    this.$message({
-                        type: 'info',
-                        message : '已取消！'
-                    }) 
-                });
+                })
             }else{
                 // 立即移除
                 this.handleEmit({type: 'deleted', selection: this.selectionList});
@@ -816,7 +837,7 @@ export default {
             
         },
         executeDeleteBefore(scope){
-            if(!this.virtualPage && this.needRefreshEvents.indexOf('delete') > -1){
+            if(!this.virtualPage && this.internalNeedRefreshEvents.delete){
                 if(this.data.length === 1 && this.currentPage > 1){
                     this.pageTurning(this.currentPage - 1)
                 }else{
@@ -866,7 +887,7 @@ export default {
             this.formConfig.currentPanel = button.panel; // 设置表单的当前面板
             this.formVisible = true;
             this.$nextTick(() => {
-                this.setDynamicForm(deepClone(row));
+                this.setRocForm(deepClone(row));
             })
         },
         /**
@@ -879,7 +900,7 @@ export default {
                 $row.$saveLoading = false;
                 $row.$new = false;
                 $row.$edit = false;
-                if(this.needRefreshEvents.indexOf(mode) > -1){
+                if(this.internalNeedRefreshEvents[mode]){
                     this.emitPageChange(); // 刷新当前页
                 }
                 this.executePromp(info, {type:'success', message: info ? info : '数据已更新！'})
@@ -1051,14 +1072,14 @@ export default {
             });
 
             if(this.virtualPage){
-                this.returnTableData.length === 0 && this.currentPage > 1 && this.pageTurning(this.currentPage - 1)
+                this.getTableData.length === 0 && this.currentPage > 1 && this.pageTurning(this.currentPage - 1)
                 this.$emit('update:total', this.data.length);
             }
         },
         /**
          * 批量删除本地数据 并更新备份
          */
-        executeBatchDelete(list){
+        executeBatchDelete(list = this.selectionList){
             let keys = list.map(item => item[this.uniqueKey]);
             keys.forEach(key => {
                 delete this.backupTableData[key]; // 删除备份数据
@@ -1076,7 +1097,7 @@ export default {
             })
             this.selectionList.length && this.$refs.dynamicTable.clearSelection();
             if(this.virtualPage){
-                this.returnTableData.length === 0 && this.currentPage > 1 && this.pageTurning(this.currentPage - 1)
+                this.getTableData.length === 0 && this.currentPage > 1 && this.pageTurning(this.currentPage - 1)
                 this.$emit('update:total', this.data.length);
             }
         },
@@ -1110,8 +1131,8 @@ export default {
          * 设置预置控件的禁用状态
          */
         setDisabledState(column, scope){
-            let row = scope.row;
-            return row.$saveLoading || row.$deleteLoading || (typeof column.disabled === 'function' ? column.disabled(row) : false)
+            let $row = this.getMappingData(scope.row);
+            return $row.$saveLoading || $row.$deleteLoading || (typeof column.disabled === 'function' ? column.disabled(scope.row) : false)
         },
         /**
          * 动态设置按钮label 
@@ -1262,7 +1283,7 @@ export default {
             this.$refs.dynamicForm.validate(({valid, form}) => {
                 if(valid){
                     const success = info => {
-                        if(this.needRefreshEvents.indexOf(this.formConfig.currentMode) > -1){
+                        if(this.internalNeedRefreshEvents[this.formConfig.currentMode]){
                             this.emitPageChange() // 刷新当前页
                         }else{
                             this.saveFormDataToTable(form)
@@ -1561,7 +1582,6 @@ export default {
         getMappingData(row) {
             !row[this.uniqueKey] && (row[this.uniqueKey] = getId()); 
             if(!this.backupTableData[row[this.uniqueKey]]){
-                console.log("获取映射数据")
                 let backupRow = deepClone(row);
                 backupRow.$edit = false;
                 backupRow.$new = false;
@@ -1617,7 +1637,7 @@ export default {
          */
         getLinkIcon(item, scope){
             return item.target === 'save' && this.getRowSaveLoading(scope.row) && 'el-icon-loading' 
-            || typeof item.icon === 'function' && (item.icon(scope)) 
+            || item.target === 'delete' && this.getRowDeleteLoading(scope.row) && 'el-icon-loading' || typeof item.icon === 'function' && (item.icon(scope)) 
             || item.icon;
         },
         /**

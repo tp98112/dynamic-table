@@ -27,6 +27,11 @@ export default {
                 location: 'append',
                 ...this.addButtonControl
             },
+            internalNeedRefreshEvents: Object.assign({
+                new: true,
+                update: false,
+                delete: true
+            }, this.needRefreshEvents),
             privateFields: ['$edit', '$index', '$rootIndex', '$saveLoading', '$deleteLoading', '$new', '$rowKey'], // 组件私有属性
             supportedComponents: Object.freeze({
                 'date-picker': '', // 时间选择器
