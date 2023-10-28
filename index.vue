@@ -383,7 +383,7 @@ export default {
                     background
                     on={{
                         'size-change': this.handleSizeChange, 
-                        'current-change': this.pageTurning,
+                        'current-change': this.handleSetPage,
                     }}
                 ></el-pagination>
                 {this.$scopedSlots['pagination-right'] ? this.$scopedSlots['pagination-right']({currentPage: this.currentPage,total: this.total,currentPageSize: this.currentPageSize}) : this.$slots['pagination-right']}
@@ -459,7 +459,7 @@ export default {
         }
         return (<div class={`dynamic-table-wrap ${this.fullHeight && 'full-height'}`}>
             <el-table data={this.getTableData}
-            ref="dynamicTable" 
+            ref="elTable" 
             v-loading={this.dataLoading}
             element-loading-text="正在加载，请稍后..."
             element-loading-spinner="el-icon-loading"
@@ -547,7 +547,7 @@ export default {
   },
     mounted(){
         this.addResizeListener();
-        console.log(this.$refs.dynamicTable)
+        console.log(this.$refs.elTable)
     },
     beforeDestroy(){
         window.removeEventListener('resize', this.setTableHeight)
@@ -582,7 +582,7 @@ export default {
                 // propAsKeyOnly为true时, 当前prop不加入到表单
                 if(item.prop && !item.propAsKeyOnly && item.columnVisible !== false){
                     if(item.prop in this.initFieldsCollection){
-                        console.error(`[DynamicTable warn]: Duplicate prop detected: '${item.prop || item.transferProp}'. This may cause an update error`)
+                        console.error(`[RocTable warn]: Duplicate prop detected: '${item.prop || item.transferProp}'. This may cause an update error`)
                         return;
                     }
                     this.initFieldsCollection[item.prop] = {
@@ -662,7 +662,7 @@ export default {
                         this.$set(scope.row, 'children',  [newRow]);
                     };
                     this.$nextTick(() => {
-                        this.$refs.dynamicTable.toggleRowExpansion(scope.row, true)
+                        this.$refs.elTable.toggleRowExpansion(scope.row, true)
                     })
                 }else{
                     // 根节点新增
@@ -839,7 +839,7 @@ export default {
         executeDeleteBefore(scope){
             if(!this.virtualPage && this.internalNeedRefreshEvents.delete){
                 if(this.data.length === 1 && this.currentPage > 1){
-                    this.pageTurning(this.currentPage - 1)
+                    this.handleSetPage(this.currentPage - 1)
                 }else{
                     this.emitPageChange(); // 刷新
                 }
@@ -968,7 +968,7 @@ export default {
          * 分页器当前页码改变事件
          * @val 当前页码
          */
-        pageTurning(val){
+        handleSetPage(val){
             if(this.virtualPage){
                 this.currentPage = val;
             }else{
@@ -1072,7 +1072,7 @@ export default {
             });
 
             if(this.virtualPage){
-                this.getTableData.length === 0 && this.currentPage > 1 && this.pageTurning(this.currentPage - 1)
+                this.getTableData.length === 0 && this.currentPage > 1 && this.handleSetPage(this.currentPage - 1)
                 this.$emit('update:total', this.data.length);
             }
         },
@@ -1095,9 +1095,9 @@ export default {
                     }
                 })
             })
-            this.selectionList.length && this.$refs.dynamicTable.clearSelection();
+            this.selectionList.length && this.$refs.elTable.clearSelection();
             if(this.virtualPage){
-                this.getTableData.length === 0 && this.currentPage > 1 && this.pageTurning(this.currentPage - 1)
+                this.getTableData.length === 0 && this.currentPage > 1 && this.handleSetPage(this.currentPage - 1)
                 this.$emit('update:total', this.data.length);
             }
         },
@@ -1379,7 +1379,7 @@ export default {
                         this.$set(this.currentEditRow, 'children', [copyForm])
                     };
                     this.$nextTick(() => {
-                        this.$refs.dynamicTable.toggleRowExpansion(this.currentEditRow, true)
+                        this.$refs.elTable.toggleRowExpansion(this.currentEditRow, true)
                     })
                 }else{
                     this.data[this.insertDataMethod](copyForm)
