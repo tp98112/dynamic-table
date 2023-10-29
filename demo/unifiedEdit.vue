@@ -47,16 +47,20 @@ export default {
                 total: 20,
                 virtualPage: true,
                 reserveSelection: true,
-              //  needRefreshEvents: [],
                 initFields: {
                     input: '输入框',
                     select: 24,
+                },
+                actionButtonType: 'button',
+                refreshTableOnSuccess: {
+                  update: false
                 },
                 accessControl: {
                     update: true,
                     root: true
                     
                 },
+                builtInButtons: [],
                 column: [
                     {
                         type: 'selection',

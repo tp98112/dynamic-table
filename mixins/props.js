@@ -1,3 +1,4 @@
+import $ from '../propsValidator.js';
 export default{
     props: {
         dynamic:{
@@ -28,15 +29,6 @@ export default{
             // 为true时将触发一次分页事件
             type: Boolean,
             default: false
-        },
-        emitDataType: {
-            /**
-             * 组件emit事件传递的数据类型  引用/非引用
-             * reference: 引用 父组件拿到的参数发生更改将同步影响表格
-             * non-reference: 非引用 表格传递的参数经过了深拷贝 父组件对数据进行更改不会影响表格
-             * */ 
-            type: String,
-            default: 'non-reference' // 非引用 组件传递的参数经过深拷贝 
         },
         unifiedEdit:{
             /** 为true时统一编辑和保存 为false时为单行独立增删改 */ 
@@ -187,17 +179,9 @@ export default{
             type: String,
             default: 'window'
         },
-        needRefreshEvents: {
+        refreshTableOnSuccess: {
             // 当设置内的事件被触发时, 将触发一次刷新当前页的事件
             type: Object,
-            default(){
-                // 更新默认不请求刷新列表
-                return {
-                    new: true,
-                    update: false,
-                    delete: true
-                }
-            }
         },
         insertDataMethod: {
             // 插入数据的方法 push或unshift
@@ -229,7 +213,7 @@ export default{
                 return {}
             },
             validator(val){
-                if('location' in val){
+                if(val.hasOwnProperty('location')){
                     return ['header', 'append'].indexOf(val.location) > -1;
                 };
                 return true;
@@ -265,10 +249,27 @@ export default{
             type: String,
             default: 'link'
         },
-        // 操作栏按钮大小
         actionButtonSize: {
+          // 操作栏按钮大小
             type: String,
             default: 'mini'
+        },
+        // actionButtonFontSize: {
+        //   // 操作栏按钮的字体大小 button/link
+        //   type: Object,
+        //   validator(value){
+        //     if(value.hasOwnProperty('link') && typeof value.link !== 'number' || value.hasOwnProperty('button') && typeof value.button !== 'number'){
+        //       console.error('The value of "link" and "button" properties in actionButtonFontSize must be a number');
+        //       return false;
+        //     }
+        //   }
+        // },
+        actionBarWidthParams:{
+          // 用于计算操作栏宽度的相关参数
+          type: Object,
+          validator(obj){
+
+          }
         },
         pagination: {
             // 是否展示分页
@@ -369,6 +370,13 @@ export default{
                 ]
             }
         },
+        builtInButtons: {
+          // 内置按钮
+          type: Array,
+          validator(arr){
+            
+          }
+        },
         rowClick: {
             // 行单击事件
             type: Function,
@@ -468,4 +476,94 @@ export default{
             type: Function,
         },
     },
+    computed: {
+      /**
+       * @computed internalAccessControl 操作栏按钮访问控制
+       * @returns {Object}
+       */
+      internalAccessControl(){
+        let obj = this.accessControl || (this.$ROCTABLE || {}).accessControl;
+        return Object.assign({
+            root: false, // 根节点新增
+            new: true,
+            view: true,
+            update: true,
+            delete: true,
+            cancel: true,
+            // $开头的为表单弹窗按钮
+            $save: true,
+            $cancel: true,
+            $close: true,
+        }, obj)
+      },
+      /**
+       * @computed internalRefreshTableOnSuccess 触发成功回调后需要刷新表格数据的事件
+       * @desc 仅限于内置事件 new、update、delete
+       * @returns {Object}
+       */
+      internalRefreshTableOnSuccess(){
+        let obj = this.refreshTableOnSuccess || (this.$ROCTABLE || {}).refreshTableOnSuccess;
+        return Object.assign({
+          new: true,
+          update: true,
+          delete: true
+        }, obj)
+      },
+      /**
+       * @returns 用于计算操作栏宽度的依赖参数
+       */
+      internalActionBarWidthParams(){
+        let obj = this.actionBarWidthParams || (this.$ROCTABLE || {}).actionBarWidthParams;
+        return Object.assign({
+          cellFillWidth: 12, 
+          buttonFillWidth: 32, 
+          iconTextSpacing: 5, 
+          buttonSpacing: 10, 
+          buttonFontSize: 12, 
+          linkFontSize: 14
+        }, obj);
+      },
+      /**
+       * @computed internalAddButtonControl 新增表格data根数据按钮的配置
+       * @returns {Object}
+       */
+      internalAddButtonControl(){
+        let obj = this.addButtonControl || (this.$ROCTABLE || {}).addButtonControl;
+        return Object.assign({icon: 'el-icon-plus', text: '新增', type: 'primary', location: 'append'}, obj)
+      },
+      /**
+       * @computed internalBuiltInButtons 内置按钮
+       * @returns {Array}
+       */
+      internalBuiltInButtons(){
+        return this.builtInButtons || (this.$ROCTABLE || {}).builtInButtons || [
+          {
+              icon: 'el-icon-check',
+              title: '保存',
+              target: 'save'
+          },
+          {
+              icon: 'el-icon-refresh-right',
+              title: '取消',
+              target: 'cancel'
+          }
+        ];
+      },
+      /**
+       * @returns 操作栏按钮的补充宽度
+       * link类型的按钮补充宽度为0
+       */
+      actionButtonExtraWidth(){
+        return this.actionButtonType === 'button' && this.internalActionBarWidthParams.buttonFillWidth || 0;
+      },
+      /**
+       * @returns 操作栏按钮的文字大小
+       */
+      actionButtonFontSize(){
+        let {buttonFontSize, linkFontSize} = this.internalActionBarWidthParams;
+        return this.actionButtonType === 'button' && buttonFontSize || linkFontSize;
+      },
+      
+    }
 }
+

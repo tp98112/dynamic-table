@@ -1,38 +1,6 @@
 export default {
     data(){
         return {
-            actionButtonFontSize:{
-                button: 12,
-                link: 14
-            }, // 操作栏按钮文字大小
-            internalAccessControl: {
-                // 操作栏按钮访问控制
-                root: false, // 根节点新增
-                new: true,
-                view: true,
-                update: true,
-                delete: true,
-                cancel: true,
-                // $开头的为表单弹窗按钮
-                $save: true,
-                $cancel: true,
-                $close: true,
-                ...this.accessControl
-            },
-            internalAddButtonControl: {
-                // 新增按钮配置(根)
-                icon: 'el-icon-plus',
-                text: '新增',
-                type: 'primary',
-                location: 'append',
-                ...this.addButtonControl
-            },
-            internalNeedRefreshEvents: Object.assign({
-                new: true,
-                update: false,
-                delete: true
-            }, this.needRefreshEvents),
-            privateFields: ['$edit', '$index', '$rootIndex', '$saveLoading', '$deleteLoading', '$new', '$rowKey'], // 组件私有属性
             supportedComponents: Object.freeze({
                 'date-picker': '', // 时间选择器
                 input: '', // 文本输入框
@@ -51,18 +19,6 @@ export default {
                 'time-picker': this.getPickerInitTime(),
                 unknown: '' // 未知的
             }), // 受支持的预设控件
-            builtInButton: Object.freeze([
-                {
-                    icon: 'el-icon-check',
-                    title: '保存',
-                    target: 'save'
-                },
-                {
-                    icon: 'el-icon-refresh-right',
-                    title: '取消',
-                    target: 'cancel'
-                }
-            ]),
             controlProperty: Object.freeze({
                 select: {
                     size: "mini",

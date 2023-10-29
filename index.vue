@@ -2,7 +2,7 @@
 import props from './mixins/props.js';
 import config from './mixins/config.js';
 import methods from './mixins/methods.js';
-import {loopThroughTheArray, loopThroughTheArrayBySome, dateFormat, getFieldType, deepClone, getId, isEmpty} from "./tools.js";
+import {recursiveTraverse, recursiveTraverseBySome, dateFormat, getFieldType, deepClone, getId, isEmpty, getTextWidth} from "./tools.js";
 
 export default {
     name: 'RocTable',
@@ -99,7 +99,7 @@ export default {
                 })
             }else{
                 console.error(`The custom template rendering method returned an incorrect value. expect[string/object] \n Example1: return '<span>${column.label}</span>' \n Example2: return {emit: 'eventType', content: '<span>${column.label}</span>'}`)
-                return <span class="cell-text">{scope.row[scope.column.property]}</span>
+                return this.getDefaultCellValue(column, scope.row[scope.column.property]);
             }
         };
         /**
@@ -169,7 +169,7 @@ export default {
                 return customTemplate(column, scope);
             }else{
                 // 默认内容
-                return <span class="cell-text">{scope.row[scope.column.property]}</span>
+                return this.getDefaultCellValue(column, scope.row[scope.column.property])
             }
         }
         /**
@@ -187,7 +187,7 @@ export default {
                 return customTemplate(column, scope);
             }else{
                 // 默认内容
-                return <span class="cell-text">{this.getDefaultCellValue(column, scope.row[scope.column.property])}</span>
+                return this.getDefaultCellValue(column, scope.row[scope.column.property])
             }
         }
         /**
@@ -320,7 +320,7 @@ export default {
         const renderActionContent = scope => {
             return <div class="action-button-wrap" style={{'justify-content': this.actionAlign}}>
                 {
-                    this.builtInButton.map((item, index) => {
+                    this.internalBuiltInButtons.map((item, index) => {
                         if(this.builtInButtonConditions(item, scope) && this.getRenderConditions(item.target, scope)){
                             let slotName = item.target + '-button';
                             return this.$scopedSlots[slotName] ? this.$scopedSlots[slotName]({event: this[this.builtInEvent(item)], scope}) : 
@@ -508,7 +508,8 @@ export default {
             return this.errorCellBlink ? {animation: 'flicker .2s linear 5', ...this.cellErrorStyle} : this.cellErrorStyle;
         },
         /**
-         * 获取表单插槽
+         * @computed getFormSlots 获取表单插槽
+         * @returns {Object.<string, Function>} 表单插槽渲染方法的集合
          */
         getFormSlots(){
             let scopedSlots = {};
@@ -522,26 +523,33 @@ export default {
             return scopedSlots;
         },
         /**
-         * 获取操作栏宽度
+         * @computed getActionBarWidth 获取操作栏宽度
+         * @desc 
+         *   1. 操作栏单元格宽度：单元格(cell)的基础填充宽度(cellFillWidth) + 所有按钮宽度 + 所有按钮间距
+         *   2. cellFillWidth：单元格(cell)基础填充宽度，为使操作栏按钮组不出现换行，cellFillWidth的最小值取决于cell单元格的左右paddig之和+1
+         *   3. 按钮宽度：按钮填充宽度(padding, border) + 文本宽度 + 文本与icon间距 + 按钮与按钮的间距
+         * @returns {Number} 操作栏宽度 
          */
         getActionBarWidth(){
-            if(this.actionBarWidth){
+            if(typeof this.actionBarWidth === 'number'){
+              // 固定宽度
                 return this.actionBarWidth
+            }else if(typeof this.actionBarWidth === 'number'){
+              // 自定义计算操作栏宽度的方法
+              return this.actionBarWidth(this.actionButtons, this.internalActionBarWidthParams);
             }else{
-                let wrapWidth = 20;
-                this.actionButtons.forEach((item, index) => {
-                    let textLength = (item.label && item.label.length ? item.label.length : 0) + (item.icon ? 1 : 0);
-                    let buttonWidth = item.width ? item.width : (this.getButtonExtraWidth + textLength * this.actionButtonFontSize[this.actionButtonType] + (item.label && item.icon ? 5 : 0) + (index ? 10 : 0)); // 图标与文字有5px的margin 除最后一个按钮, 都有5px的margin-left
-                    wrapWidth += buttonWidth;
-                    console.log(item.label, buttonWidth)
-                })
-                console.log(wrapWidth, this.actionButtons)
-                return wrapWidth
+                // 根据配置自动计算操作栏宽度
+                let {cellFillWidth, iconTextSpacing, buttonSpacing} = this.internalActionBarWidthParams;
+                return this.actionButtons.reduce((acc, item, index) => {
+                  let text = item.label || this.actionButtonType === 'link' && item.title;
+                  let buttonWidth = item.width 
+                  || this.actionButtonExtraWidth + getTextWidth(text, this.actionButtonFontSize) + (item.icon && this.actionButtonFontSize)
+                  + (text && item.icon && iconTextSpacing) + (index && buttonSpacing); // 图标与文字有iconTextSpacing px的margin 除了第一个按钮, 都有buttonSpacing px的margin-left
+                  acc += buttonWidth;
+                  return acc;
+                }, cellFillWidth);
             }
         },
-        getButtonExtraWidth(){
-            return this.actionButtonType === 'button' ? 32 : 0;
-        }
         
         
   },
@@ -562,7 +570,7 @@ export default {
                 // 弹窗编辑
                 if(!this.formColumn){
                     let formColumn = [];
-                    loopThroughTheArray(this.column, item => {
+                    recursiveTraverse(this.column, item => {
                         if(item.formVisible !== false && !item.hasOwnProperty('children') && ['index', 'selection', 'expand'].indexOf(item.type) < 0 ){
                             formColumn.push(item)
                         }
@@ -578,7 +586,7 @@ export default {
          * 整理字段数据
          */
         organizeFieldsData(){
-            loopThroughTheArray(this.column, item => {
+            recursiveTraverse(this.column, item => {
                 // propAsKeyOnly为true时, 当前prop不加入到表单
                 if(item.prop && !item.propAsKeyOnly && item.columnVisible !== false){
                     if(item.prop in this.initFieldsCollection){
@@ -705,7 +713,7 @@ export default {
                 this.formConfig.disabledForm = false; 
                 this.formConfig.currentPanel = button.panel; // 设置表单的当前面板
                 if(typeof button.getFormData === 'function'){
-                    button.getFormData({row:  this.getEmitData(row), callBack: data => {
+                    button.getFormData({row, callBack: data => {
                         this.formVisible = true;
                         this.$nextTick(() => {
                             this.setRocForm(data);
@@ -732,8 +740,8 @@ export default {
         /**
          * 删除数据
          */
-        handleDelete(scope, button){
-            if(typeof button.premise === 'function' && !(button.premise(scope))){
+        async handleDelete(scope, button){
+            if(typeof button.premise === 'function' && !(await button.premise(scope))){
                 // 未通过前置条件
                 return;
             };
@@ -837,7 +845,7 @@ export default {
             
         },
         executeDeleteBefore(scope){
-            if(!this.virtualPage && this.internalNeedRefreshEvents.delete){
+            if(!this.virtualPage && this.internalRefreshTableOnSuccess.delete){
                 if(this.data.length === 1 && this.currentPage > 1){
                     this.handleSetPage(this.currentPage - 1)
                 }else{
@@ -852,28 +860,6 @@ export default {
                 }
                 
             };
-        },
-        // 获取被emit的数据
-        getEmitData(params){
-            if(this.emitDataType === 'reference'){
-                // 引用数据类型直接返回
-                return params;
-            }
-            let type = Object.prototype.toString.call(params)
-            let newParams = deepClone(params) // 深拷贝
-            // 非引用数据类型 去除组件带来的私有属性
-            if(type === "[object Object]"){
-                this.privateFields.forEach(field => {
-                    delete newParams[field];
-                });
-            }else if(type === "[object Array]"){
-                newParams.forEach(item => {
-                    this.privateFields.forEach(field => {
-                        delete item[field];
-                    });
-                })
-            }
-            return newParams;
         },
         handleView(scope, button){
             if(typeof button.premise === 'function' && !(button.premise(scope))){
@@ -900,7 +886,7 @@ export default {
                 $row.$saveLoading = false;
                 $row.$new = false;
                 $row.$edit = false;
-                if(this.internalNeedRefreshEvents[mode]){
+                if(this.internalRefreshTableOnSuccess[mode]){
                     this.emitPageChange(); // 刷新当前页
                 }
                 this.executePromp(info, {type:'success', message: info ? info : '数据已更新！'})
@@ -1059,7 +1045,7 @@ export default {
          * 删除本地数据 并更新备份
          */
         executeDelete({row}){
-            loopThroughTheArrayBySome(this.data, (item, index, parent) => {
+            recursiveTraverseBySome(this.data, (item, index, parent) => {
                 if(parent && item[this.uniqueKey] === row[this.uniqueKey]){
                     parent.children.splice(index, 1)
                     delete this.backupTableData[item[this.uniqueKey]];
@@ -1083,7 +1069,7 @@ export default {
             let keys = list.map(item => item[this.uniqueKey]);
             keys.forEach(key => {
                 delete this.backupTableData[key]; // 删除备份数据
-                loopThroughTheArrayBySome(this.data, (item, index, parent) => {
+                recursiveTraverseBySome(this.data, (item, index, parent) => {
                     if(parent && item[this.uniqueKey] === key){
                         parent.children.splice(index, 1);
                         delete this.backupTableData[item[this.uniqueKey]];
@@ -1283,7 +1269,7 @@ export default {
             this.$refs.dynamicForm.validate(({valid, form}) => {
                 if(valid){
                     const success = info => {
-                        if(this.internalNeedRefreshEvents[this.formConfig.currentMode]){
+                        if(this.internalRefreshTableOnSuccess[this.formConfig.currentMode]){
                             this.emitPageChange() // 刷新当前页
                         }else{
                             this.saveFormDataToTable(form)
@@ -1463,7 +1449,7 @@ export default {
         checkTableData(){
            // 数据校验
             let finalResult = true;
-            loopThroughTheArray(this.data, (item, index, parent) => {
+            recursiveTraverse(this.data, (item, index, parent) => {
                 for(let i in this.initFieldsCollection){
                     let checkResult = this.checkRequireFields({key: i, row: item}); // 验证结果
                     if(checkResult.result){
@@ -1479,12 +1465,6 @@ export default {
             if(finalResult){
                 // checkTableData方法返回的数据默认经过深拷贝
                 let sendData = deepClone(this.data);
-                loopThroughTheArray(sendData, (item, index) => {
-                    // 移除组件带来的私有变量
-                    this.privateFields.forEach(field => {
-                        delete item[field];
-                    })
-                })
                 return sendData;
             }else{
                 this.$message.error('表格数据校验失败，请检查完善后再试！')

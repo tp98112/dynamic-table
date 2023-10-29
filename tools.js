@@ -1,4 +1,34 @@
 /**
+ * 获取指定字符串在指定字体大小下所占据的实际宽度
+ * @param {string} text - 要计算宽度的字符串
+ * @param {string} fontSize - 字体大小，例如 "14px"
+ * @returns {number} 字符串占据的实际宽度（以像素为单位）
+ */
+export function getTextWidth(text, fontSize) {
+  if(['string', 'number'].indexOf(typeof text) > -1){
+    // 创建一个 span 元素
+    const span = document.createElement("span");
+    // 设置 span 的样式
+    span.style.fontSize = fontSize + 'px';
+    span.style.visibility = "hidden";
+    span.style.position = "absolute";
+    span.style.top = "-9999px";
+    span.style.left = "-9999px";
+    // 设置 span 的文本内容
+    span.innerText = text;
+    // 将 span 插入到页面中
+    document.body.appendChild(span);
+    // 获取 span 的实际宽度
+    const width = span.offsetWidth;
+    // 移除 span
+    document.body.removeChild(span);
+    // 返回实际宽度
+    return width;
+  }else{
+    return 0;
+  }
+}
+/**
  * 指定次数迭代
  */
 export function iterateNTimes(n, callback) {
@@ -16,7 +46,7 @@ export function isEmpty(value){
  * @parent 父级数据
  * 
  */
-export function loopThroughTheArray(data, execute, parent){
+export function recursiveTraverse(data, execute, parent){
     let loop = (arr, parent) => {
         arr.forEach((item, index) => {
             execute(item, index, parent)
@@ -28,10 +58,10 @@ export function loopThroughTheArray(data, execute, parent){
     loop(data, parent)
 }
 /**
- *  同 loopThroughTheArray
+ *  同 recursiveTraverse
  *  使用some遍历方法 可在回调函数返回true时跳出循环
  */ 
-export function loopThroughTheArrayBySome(data, execute, parent){
+export function recursiveTraverseBySome(data, execute, parent){
     let loop = (arr, parent) => {
         return arr.some((item, index) => {
             if(execute(item, index, parent)){
