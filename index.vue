@@ -2,7 +2,7 @@
 import props from './mixins/props.js';
 import config from './mixins/config.js';
 import methods from './mixins/methods.js';
-import {recursiveTraverse, recursiveTraverseBySome, dateFormat, getFieldType, deepClone, getId, isEmpty, getTextWidth} from "./tools.js";
+import {recursiveTraverse, recursiveTraverseBySome, dateFormat, getFieldType, deepClone, getId, isEmpty, getTextWidth, getPageNumber } from "./tools.js";
 
 export default {
     name: 'RocTable',
@@ -378,7 +378,7 @@ export default {
                     page-size={this.currentPageSize}
                     pager-count={this.pagerCount}
                     layout={this.layout}
-                    total={this.total}
+                    total={this.getTotal}
                     small={this.smallPagination}
                     background
                     on={{
@@ -390,10 +390,10 @@ export default {
             </div>
         }
         /**
-         * 渲染append位置的新增按钮
+         * 追加新增按钮
          */
-        const renderAddButtonInAppend = () => {
-            return <div class="table-append-new-button">
+        const renderAddButtonInAppend = (location) => {
+            return this.internalAddButtonControl.location === location && this.getRenderConditions('root') && <div class={`table-new-button-${location}${this.border && ' border' || ''}`}>
                 <el-link on-click={this.handleAddButtonInAppend} type={this.internalAddButtonControl.type} icon={this.internalAddButtonControl.icon}>{this.internalAddButtonControl.text}</el-link>
             </div>
         };
@@ -402,7 +402,7 @@ export default {
          */
         const getContentAppendToTable = () => {
             return this.$slots['table-append'] && this.$slots['table-append'] 
-            || (this.internalAddButtonControl.location === 'append' && this.getRenderConditions('root') && renderAddButtonInAppend());
+            || renderAddButtonInAppend('append');
         };
         /**
          * 渲染弹窗按钮
@@ -490,6 +490,7 @@ export default {
                 <template slot="empty">{this.$slots['table-empty']}</template>
                 <template slot="append">{getContentAppendToTable()}</template>
             </el-table>
+            {renderAddButtonInAppend('bottom')}
             {this.pagination ? renderPagination() : ''}
             {this.editMode === 'window' && this.dynamic && !this.unifiedEdit ? renderEditDialog() : ''}
         </div>)
@@ -500,6 +501,12 @@ export default {
          */
         getTableData(){
             return this.virtualPage ? this.data.slice((this.currentPage - 1) * this.currentPageSize, this.currentPage * this.currentPageSize) : this.data;
+        },
+        /**
+         * 表格数据总量
+         */
+        getTotal(){
+            return this.virtualPage ? this.data.length : this.total;
         },
         /**
          * 返回校验错误的单元格样式
@@ -543,8 +550,8 @@ export default {
                 return this.actionButtons.reduce((acc, item, index) => {
                   let text = item.label || this.actionButtonType === 'link' && item.title;
                   let buttonWidth = item.width 
-                  || this.actionButtonExtraWidth + getTextWidth(text, this.actionButtonFontSize) + (item.icon && this.actionButtonFontSize)
-                  + (text && item.icon && iconTextSpacing) + (index && buttonSpacing); // 图标与文字有iconTextSpacing px的margin 除了第一个按钮, 都有buttonSpacing px的margin-left
+                  || this.actionButtonExtraWidth + getTextWidth(text, this.actionButtonFontSize) + (item.icon && this.actionButtonFontSize || 0)
+                  + (text && item.icon && iconTextSpacing || 0) + (index && buttonSpacing); // 图标与文字有iconTextSpacing px的margin 除了第一个按钮, 都有buttonSpacing px的margin-left
                   acc += buttonWidth;
                   return acc;
                 }, cellFillWidth);
@@ -680,6 +687,16 @@ export default {
                     backupRow.$saveLoading = false; // 保存按钮loading
                     this.$set(this.backupTableData, newRow[this.uniqueKey], backupRow);
                     this.data[this.insertDataMethod](newRow);
+                    if(this.virtualPage){
+                        this.$emit('update:total', this.data.length);
+                        if(this.data.length > this.currentPageSize){
+                            this.handleSetPage(getPageNumber(this.data.length, this.currentPageSize))
+                        }
+                        this.$nextTick(() => {
+                            let element = this.$refs.elTable.$refs.bodyWrapper;
+                            element.scrollTop = this.insertDataMethod === 'push' && element.scrollHeight || 0;
+                        })
+                    }
                 };
             }
         },

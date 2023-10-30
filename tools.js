@@ -28,6 +28,31 @@ export function getTextWidth(text, fontSize) {
     return 0;
   }
 }
+
+/**
+ * 获取在指定数据总量, 分页大小和下标下, 该条数据所在的页码
+ * @param {number} total 
+ * @param {number} pageSize 
+ * @param {number} index 
+ * @returns {number}
+ */
+export function getPageNumber(total, pageSize, index) {
+    if (pageSize <= 0 || index < 0 || total <= 0) {
+        return -1; // 错误的输入参数
+    }
+
+    const totalPages = Math.ceil(total / pageSize); // 总页数
+
+    if (typeof index === 'undefined') {
+        return totalPages; // 没有提供数据下标，返回总页数
+    }
+
+    if (index >= total) {
+        return totalPages; // 超出数据范围，返回最后一页
+    }
+
+    return Math.floor(index / pageSize) + 1; // 返回该数据所在的页码
+}
 /**
  * 指定次数迭代
  */

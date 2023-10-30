@@ -63,12 +63,25 @@
         padding: 0.26vw 0.651vw;
     }
 
-    .table-append-new-button{
+    .table-new-button-append{
         height: 30px;
         margin: 2px;
         display: flex;
         align-items: center;
         justify-content: center;
+    }
+    .table-new-button-bottom{
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        
+        background-color: #fff;
+    }
+    .table-new-button-bottom.border{
+        border-left: 1px solid #dfe6ec;
+        border-right: 1px solid #dfe6ec;
+        border-bottom: 1px solid #dfe6ec;
     }
 }
 
