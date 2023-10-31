@@ -415,6 +415,7 @@ export default {
       componentId: getId(true),
       form: {}, // 表单
       rules: {}, // 验证规则
+      backupPanelData: {},
       dicts: this.received_dicts, // 默认接收父组件传递的字典数据 避免重复请求
       formItemList: [], // 表单列表
       defaultFieldsValue: JSON.parse(JSON.stringify(this.initFields)), // 默认字段值
@@ -449,19 +450,28 @@ export default {
       this.collatingDataStructures();
       this.$emit("created", { form: this.form });
     },
-    currentPanel() {
+    currentPanel(newValue, oldValue) {
+    
       // 切换面板
       if (this.splitPanelData) {
         // 数据隔离 重置表单和验证规则
-        this.form = {};
-        this.rules = {};
+        this.backupPanelData[`form-${oldValue}`] = this.form;
+        this.backupPanelData[`rules-${oldValue}`] = this.rules;
+        if(this.backupPanelData[`form-${newValue}`]){
+          this.form = this.backupPanelData[`form-${newValue}`];
+          this.rules = this.backupPanelData[`rules-${newValue}`];
+        }else{
+          this.form = {};
+          this.rules = {};
+          
+          // 初始化
+          this.collatingDataStructures();
+          // this.$emit("created", { form: this.form }); // todo
+        }
         // 设置新面板
-        this.formItemList = this.column.filter((item) => {
-          return item.panel === this.currentPanel;
-        });
-        // 初始化
-        this.collatingDataStructures();
-        this.$emit("created", { form: this.form });
+          this.formItemList = this.column.filter((item) => {
+            return item.panel === this.currentPanel;
+          });
       }
     },
   },

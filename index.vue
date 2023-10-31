@@ -1295,7 +1295,7 @@ export default {
          * 表单关闭前清除验证
          */
         beforeClose(done){
-            if(this.currentEditRow){
+            if(this.formConfig.currentMode === 'update'){
                 // 如果是编辑数据则在关闭时重置表单
                 setTimeout(() => {
                     this.$refs.rocForm.resetFields(true) // 重置表单
@@ -1531,7 +1531,7 @@ export default {
                 // 自定义单元格双击事件
                 this.$listeners['cell-dblclick'](row, column, cell, event)
             }
-            if(this.dblClickToEditCell){
+            if(this.dblClickToEditCell && column.property){
                 // 双击编辑单元格
                 if(this.toolsObject[`${column.property}-${row[this.uniqueKey]}`]){
                     let check = this.checkRequireFields({key: column.property, row}); // 验证结果

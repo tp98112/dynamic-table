@@ -51,6 +51,7 @@ export default {
                     input: '输入框',
                     select: 24,
                 },
+                showAction: true,
                 actionButtonType: 'button',
                 refreshTableOnSuccess: {
                   update: false
@@ -60,7 +61,6 @@ export default {
                     root: true
                     
                 },
-                builtInButtons: [],
                 column: [
                     {
                         type: 'selection',
