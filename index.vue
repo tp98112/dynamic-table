@@ -27,6 +27,7 @@ export default {
             toolsObject: {},
             validateObject: {}, // 验证对象
             selectionList: [], // 多选列表
+            internalFormDialogWidth: null, // 内部的弹窗宽度 仅当操作栏按钮单独配置formDialogWidth生效
             formVisible: false, // 编辑弹窗显隐
             dialogConfirmLoading: false, // 弹窗loading
             uniqueKey: this.rowKey ? this.rowKey : '$rowKey', // 唯一键
@@ -36,8 +37,10 @@ export default {
                 // 编辑表单配置
                 initFields: this.initFields, // 初始化字段
                 cols: this.formCols, // 一行放置的表单项数量
+                eventType: null,
                 currentMode: 'new', // 操作模式
                 currentPanel: '', // 当前面板
+                splitPanelData: this.splitPanelData, // 不同面板是否启用数据隔离
                 formLabelWidth: this.formLabelWidth, // 表单标签宽度
                 labelPosition: this.formLabelPosition, // 表单标签对齐方式
                 formItemsCover: this.formItemsCover, // 表单项是否占满容器
@@ -329,7 +332,7 @@ export default {
                     })
                 }
                 {
-                    this.actionButtons.map((item, index) => {
+                    this.internalActionButtons.map((item, index) => {
                         if(this.getRenderConditions(item.target || item.emit, scope) && (item.target ? this.builtInButtonConditions(item, scope) : true)){
                             let slotName = (item.target || item.emit) + '-button';
                             return this.$scopedSlots[slotName] ? this.$scopedSlots[slotName](item.target ? 
@@ -350,7 +353,7 @@ export default {
             if(this.$scopedSlots.action){
                 // 完全自定义操作栏插槽
                 return this.$scopedSlots.action(this.data);
-            }else if(this.dynamic && this.showAction){
+            }else if(this.internalActionStatus){
                 return <el-table-column align={this.actionAlign} fixed="right" width={this.getActionBarWidth} min-width={this.getActionBarWidth}
                     {...{
                         scopedSlots: {
@@ -412,18 +415,18 @@ export default {
                 {
                     this.formDialogButton.map((item, index) => {
                         if(this.getRenderConditions(item.target || item.emit) && (item.target ? this.builtInButtonConditions(item) : true) ){
-                            return <el-button on-click={() => {this.reportEvent(item, {form: this.$refs.dynamicForm?.form})}} 
-                            type={typeof item.type === 'function' ? (item.type({form: this.$refs.dynamicForm?.form})) : item.type} 
-                            icon={typeof item.icon === 'function' ? (item.icon({form: this.$refs.dynamicForm?.form})) : item.icon} 
-                            title={typeof item.title === 'function' ? (item.title({form: this.$refs.dynamicForm?.form})) : item.title} 
-                            plain={typeof item.plain === 'function' ? (item.plain({form: this.$refs.dynamicForm?.form})) : item.plain} 
-                            class={typeof item.class === 'function' ? (item.class({form: this.$refs.dynamicForm?.form})) : item.class} 
+                            return <el-button on-click={() => {this.reportEvent(item, {form: this.$refs.rocForm?.form})}} 
+                            type={typeof item.type === 'function' ? (item.type({form: this.$refs.rocForm?.form})) : item.type} 
+                            icon={typeof item.icon === 'function' ? (item.icon({form: this.$refs.rocForm?.form})) : item.icon} 
+                            title={typeof item.title === 'function' ? (item.title({form: this.$refs.rocForm?.form})) : item.title} 
+                            plain={typeof item.plain === 'function' ? (item.plain({form: this.$refs.rocForm?.form})) : item.plain} 
+                            class={typeof item.class === 'function' ? (item.class({form: this.$refs.rocForm?.form})) : item.class} 
                             round={item.round}
                             circle={item.circle}
                             key={this.getButtonKey(item, index)}
                             disabled={item.disabled} 
                             loading={item.target === '$update' ? this.dialogConfirmLoading : false}
-                            size={this.formDialogButtonSize}>{this.setButtonText(item, this.$refs.dynamicForm?.form)}</el-button>
+                            size={this.formDialogButtonSize}>{this.setButtonText(item, this.$refs.rocForm?.form)}</el-button>
                         }
                         
                     })
@@ -437,7 +440,7 @@ export default {
             return <el-dialog  
             visible={this.formVisible} 
             on={{['update:visible']: state => {this.formVisible = state}}} 
-            title={this.formTitle} width={this.formDialogWidth} 
+            title={this.formTitle} width={this.getFormDialogWidth} 
             append-to-body 
             before-close={this.beforeClose} 
             modal={this.formDialogModal}
@@ -447,7 +450,7 @@ export default {
                     props={this.formConfig}
                     received_dicts={this.dicts}
                     attrs={this.$attrs}
-                    ref="dynamicForm"
+                    ref="rocForm"
                     on={{created: () => {this.formReady = true}, change: this.emitDynamicFormEvents}}
                     {...{
                         scopedSlots: this.getFormSlots
@@ -515,6 +518,13 @@ export default {
             return this.errorCellBlink ? {animation: 'flicker .2s linear 5', ...this.cellErrorStyle} : this.cellErrorStyle;
         },
         /**
+         * @computed getFormDialogWidth 获取弹窗宽度
+         * @desc 当操作栏按钮单独配置了formDialogWidth时返回internalFormDialogWidth
+         */
+        getFormDialogWidth(){
+            return this.internalFormDialogWidth || this.formDialogWidth || (this.$ROCTABLE || {}).formDialogWidth || '50%';
+        },
+        /**
          * @computed getFormSlots 获取表单插槽
          * @returns {Object.<string, Function>} 表单插槽渲染方法的集合
          */
@@ -543,11 +553,11 @@ export default {
                 return this.actionBarWidth
             }else if(typeof this.actionBarWidth === 'number'){
               // 自定义计算操作栏宽度的方法
-              return this.actionBarWidth(this.actionButtons, this.internalActionBarWidthParams);
+              return this.actionBarWidth(this.internalActionButtons, this.internalActionBarWidthParams);
             }else{
                 // 根据配置自动计算操作栏宽度
                 let {cellFillWidth, iconTextSpacing, buttonSpacing} = this.internalActionBarWidthParams;
-                return this.actionButtons.reduce((acc, item, index) => {
+                return this.internalActionButtons.reduce((acc, item, index) => {
                   let text = item.label || this.actionButtonType === 'link' && item.title;
                   let buttonWidth = item.width 
                   || this.actionButtonExtraWidth + getTextWidth(text, this.actionButtonFontSize) + (item.icon && this.actionButtonFontSize || 0)
@@ -632,10 +642,15 @@ export default {
             };
             if(this.editMode === 'window' && !this.unifiedEdit){
                 // 弹窗编辑
-                this.formConfig.currentMode = 'new'; // 标记当前操作模式
-                this.formTitle = button.actionName; // 标记操作名称
-                this.currentEditRow = scope && scope.row ? scope.row : null;
+                this.formTitle = button.actionName; // 弹窗标题
+                this.internalFormDialogWidth = button.formDialogWidth; // 通过按钮单独配置的弹窗宽度
+                this.formConfig.eventType = button.eventType; // 标记当前事件类型
+                this.formConfig.currentMode = 'new'; // 标记当前操作模式 (new/update/view)
+                this.formConfig.currentPanel = button.panel; // 设置表单的当前面板
                 this.formConfig.disabledForm = false; 
+                this.formConfig.cols = button.formCols || this.formCols; 
+                
+                this.currentEditRow = scope && scope.row ? scope.row : null;
                 if(typeof button.getFormData === 'function'){
                     button.getFormData({row: this.currentEditRow, $row: this.currentEditRow ? this.getMappingData(this.currentEditRow) : null, callBack: data => {
                         this.formVisible = true;
@@ -645,6 +660,12 @@ export default {
                     }} )
                 }else{
                     this.formVisible = true;
+                    let isInternalEvent = scope && scope.column && scope.store && scope._self && scope.hasOwnProperty('$index'); // 判断是否由组件触发
+                    if(!isInternalEvent && getFieldType(scope) === 'Object'){
+                        this.$nextTick(() => {
+                            this.setRocForm(scope);
+                        })
+                    }
                 }
             }else{
                 // 行内编辑
@@ -725,8 +746,10 @@ export default {
             }else{
                 // 弹窗表单编辑
                 this.currentEditRow = row; // 标记当前编辑行
+                this.internalFormDialogWidth = button.formDialogWidth; // 通过按钮单独配置的弹窗宽度
+                this.formConfig.eventType = button.eventType; // 标记当前事件类型
                 this.formConfig.currentMode = 'update'; // 标记当前操作模式
-                this.formTitle = button.actionName; // 操作名称
+                this.formTitle = button.actionName || button.label; // 操作名称
                 this.formConfig.disabledForm = false; 
                 this.formConfig.currentPanel = button.panel; // 设置表单的当前面板
                 if(typeof button.getFormData === 'function'){
@@ -752,7 +775,7 @@ export default {
          * 更新动态表单字段值
          */
         setRocForm(row){
-            this.$refs.dynamicForm.updateFields(row)
+            this.$refs.rocForm.updateFields(row)
         },
         /**
          * 删除数据
@@ -768,6 +791,7 @@ export default {
                 this.$confirm(`确认要删除此条数据吗?`, '确认删除', {
                     confirmButtonText: '确定',
                     cancelButtonText: '取消',
+                    lockScroll: false,
                     type: 'warning',
                     beforeClose: (action, instance, done) => {
                         if (action === 'confirm') {
@@ -820,6 +844,7 @@ export default {
                 this.$confirm(`确认删除选中的${this.selectionList.length}条数据吗?`, '确认删除', {
                     confirmButtonText: '确定',
                     cancelButtonText: '取消',
+                    lockScroll: false, // 解决页面抖动
                     type: 'warning',
                     beforeClose: (action, instance, done) => {
                         if (action === 'confirm') {
@@ -884,6 +909,7 @@ export default {
                 return;
             };
             let row = scope.row;
+            this.formConfig.eventType = button.eventType; // 标记当前事件类型
             this.formConfig.currentMode = 'view'; // 标记操作模式
             this.formTitle = button.actionName || '查看';
             this.formConfig.disabledForm = true;
@@ -1163,8 +1189,8 @@ export default {
                 cancel: 'handleCancel',
                 // 表单弹窗事件
                 $update: 'dialogConfirm',
-                $cancel: 'closeDialog',
-                $close: 'closeDialog',
+                $cancel: 'resetFormOnClose',
+                $close: 'resetFormOnClose',
             };
             return item.target in target ? target[item.target] : 'unknownMethod'
         },
@@ -1182,7 +1208,7 @@ export default {
             }else if(trigger.emit){
                 // 表单触发
                 if(scope.form){
-                    this.handleEmit({type: trigger.emit, trigger, scope, cancel: this.closeDialog, save: this.dialogConfirm, reload: this.reload})
+                    this.handleEmit({type: trigger.emit, trigger, scope, cancel: this.resetFormOnClose, save: this.dialogConfirm, reload: this.reload})
                 }else{
                     this.handleEmit({type: trigger.emit, trigger, scope, row: scope.row, $row: this.getMappingData(scope.row), reload: this.reload})
                 }
@@ -1207,7 +1233,7 @@ export default {
                     cancel: target.$edit && !this.unifiedEdit,
                 };
             }else{
-                // 表单弹窗 this.$refs.dynamicForm?.form
+                // 表单弹窗 this.$refs.rocForm?.form
                 execute = {
                     ///// 表单弹窗控制属性
                     $update: this.formConfig.currentMode === 'update' || this.formConfig.currentMode === 'new',
@@ -1272,10 +1298,10 @@ export default {
             if(this.currentEditRow){
                 // 如果是编辑数据则在关闭时重置表单
                 setTimeout(() => {
-                    this.$refs.dynamicForm.resetFields(true) // 重置表单
+                    this.$refs.rocForm.resetFields(true) // 重置表单
                 },200)
             }else{
-                this.$refs.dynamicForm.clearValidate(); // 清空校验信息
+                this.$refs.rocForm.clearValidate(); // 清空校验信息
             }
             done()
         },
@@ -1283,7 +1309,7 @@ export default {
          * 编辑弹窗确认dialogConfirm
          */
         dialogConfirm(){
-            this.$refs.dynamicForm.validate(({valid, form}) => {
+            this.$refs.rocForm.validate(({valid, form}) => {
                 if(valid){
                     const success = info => {
                         if(this.internalRefreshTableOnSuccess[this.formConfig.currentMode]){
@@ -1291,11 +1317,7 @@ export default {
                         }else{
                             this.saveFormDataToTable(form)
                         };
-                        this.dialogConfirmLoading = false; // 关闭loading
-                        this.formVisible = false; // 关闭弹窗
-                        setTimeout(() => {
-                            this.$refs.dynamicForm.resetFields(true) // 重置表单
-                        },200)
+                        this.resetFormOnClose(); // 关闭并重置表单
                         this.executePromp(info, {type: 'success', message: info ? info : `${this.formConfig.currentMode === 'new' ? '新增': '更新'}数据成功！`})
                     };
                     const fail = info => {
@@ -1307,22 +1329,35 @@ export default {
                     if(this.formConfig.currentMode === 'new' && this.currentEditRow){
                         row.parent = deepClone(this.currentEditRow);
                     }
-                    let type = this.formConfig.currentMode === 'new' ? 'new' : 'update';
-                    this.handleEmit({type, row, form, success, fail})
+                    let type = this.formConfig.eventType || this.formConfig.currentMode; // 注释：新增了事件类型
+                    this.handleEmit({type, row, form, panel: this.formConfig.currentPanel, rocTable: this, success, fail})
                 }else{
 
                 }
             })
         },
         /**
-         * 编辑弹窗取消
+         * 关闭弹窗时重置表单
          */
-        closeDialog(){
+        resetFormOnClose(){
+            console.log('this.$refs.form', this.$refs.rocForm.form);
+            this.dialogConfirmLoading = false;
             this.formVisible = false;
-            this.$refs.dynamicForm.resetFields(true);
             setTimeout(() => {
-                this.$refs.dynamicForm.resetFields(true);
+                this.$refs.rocForm.resetFields(true);
             }, 200)
+        },
+        /**
+         * 关闭弹窗
+         */
+        closeDialog(resetForm){
+            this.dialogConfirmLoading = false;
+            this.formVisible = false;
+            if(resetForm){
+                setTimeout(() => {
+                    this.$refs.rocForm.resetFields(true);
+                }, 200)
+            }
         },
         /**
          * 表头双击事件
@@ -1395,7 +1430,7 @@ export default {
                 };
             }
             this.formVisible = false;
-            // this.$refs.dynamicForm.resetFields(); // 确认后重置表单
+            // this.$refs.rocForm.resetFields(); // 确认后重置表单
         },
         /**
          * 获取表格默认展示值

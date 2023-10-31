@@ -21,7 +21,7 @@
         :label-width="item.formLabelWidth"
         :style="setFormItemStyle(item)"
       >
-        <slot :name="'form-' + item.prop" v-bind="{ form, mode: '' }">
+        <slot :name="'form-' + (item.prop || item.key)" v-bind="{ form, mode: '' }">
           <renderColumn
             v-if="typeof item.render === 'function'"
             :renderContent="item.render"
@@ -329,8 +329,12 @@ export default {
       type: Number,
       default: 20,
     },
+    eventType: {
+      // 事件类型
+      type: [String, Number],
+    },
     currentMode: {
-      // 当前操作模式
+      // 当前操作模式 new/update/view
       type: [String, Number],
     },
     disabledForm: {
@@ -342,7 +346,7 @@ export default {
       // 当前面板
       type: [String, Number],
     },
-    dataIsolation: {
+    splitPanelData: {
       // 当存在不同面板时 是否启用数据隔离
       type: Boolean,
       default: false,
@@ -447,7 +451,7 @@ export default {
     },
     currentPanel() {
       // 切换面板
-      if (this.dataIsolation) {
+      if (this.splitPanelData) {
         // 数据隔离 重置表单和验证规则
         this.form = {};
         this.rules = {};
@@ -508,14 +512,14 @@ export default {
       };
     },
     getFormItems() {
-      if (this.currentPanel && !this.dataIsolation) {
+      if (this.currentPanel) {
         // 存在面板设置但是没有数据隔离时
         return this.formItemList.filter((item) => {
           return item.panel === this.currentPanel && this.getFormVisible(item);
         });
       } else {
         return this.formItemList.filter(item => {
-          return this.getFormVisible(item);
+          return !item.hasOwnProperty('panel') && this.getFormVisible(item);
         });
       }
     },
@@ -659,8 +663,8 @@ export default {
           },
           "date-picker": {
             type: "date",
-            format: "yyyy-MM-dd", // 当是datetimerange报错 todo
-            "value-format": "yyyy-MM-dd",
+            // format: "yyyy-MM-dd", // 当是datetimerange报错 todo
+            // "value-format": "yyyy-MM-dd",
             editable: false,
             clearable: true,
             readonly: false,
@@ -733,7 +737,7 @@ export default {
     },
   },
   created() {
-    if (this.currentPanel && this.dataIsolation) {
+    if (this.currentPanel && this.splitPanelData) {
       // 存在面板设置与数据隔离时
       this.formItemList = this.column.filter((item) => {
         return item.panel === this.currentPanel;
@@ -771,13 +775,13 @@ export default {
       let hasRequired = false;
       this.formItemList.forEach((item) => {
         item.$key = getId(true);
-        if(!item.prop){return};
+        if(!item.prop || item.propAsKeyOnly){return};
         item.editType =
           item.editType in this.supportedComponents ? item.editType : "unknown";
         const prop = item.module ? `${item.module}-${item.prop}` : item.prop; // 分模块
-        let defaultValue = this.initFields.hasOwnProperty(prop)
-          ? this.initFields[prop]
-          : this.supportedComponents[item.editType];
+        let defaultValue = item.hasOwnProperty('defaultValue') ? item.defaultValue : 
+        (this.initFields.hasOwnProperty(prop) ? this.initFields[prop] : 
+        this.supportedComponents[item.editType]);
         
         this.$set(this.form, prop, defaultValue); // 初始化表单字段数据
         this.defaultFieldsValue[prop] = JSON.parse(JSON.stringify(defaultValue)); // 初始化字段默认值
@@ -849,7 +853,7 @@ export default {
             };
           } else if (typeof validator === "function") {
             func = (rule, value, callback) => {
-              validator(this.form, callback);
+              validator({value, form: this.form, callback});
             };
           }
           validate.validator = func;
@@ -902,7 +906,7 @@ export default {
           });
         }
         if (typeof func === "function") {
-          func({valid, form: valid ? this.deepClone(Object.assign(this.initFields, this.form)) : null, module: valid ? this.getFormModule() : null});
+          func({valid, form: valid ? this.deepClone(Object.assign(this.deepClone(this.initFields), this.form)) : null, module: valid ? this.getFormModule() : null});
         }
       });
       return validResult;

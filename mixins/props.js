@@ -199,7 +199,7 @@ export default{
         showAction: {
             /** 操作栏显隐状态 */ 
             type: Boolean,
-            default: true
+            default: undefined
         },
         actionAlign: {
             // 操作栏按钮对齐方式 left/center/right
@@ -332,43 +332,7 @@ export default{
         },
         actionButtons: {
             // 按钮集合
-            type: Array,
-            default() {
-                return [
-                    {
-                        // label: '新增', // 按钮或链接的标签
-                        type: 'primary',
-                        title: '新增', // 鼠标覆盖时显示的描述信息
-                        icon: 'el-icon-plus',
-                        target: 'new',
-                        plain: true,
-                        actionName: '新增数据' // 操作名称 打开弹窗时将作为弹窗标题
-                    },
-                    {
-                        type: 'info',
-                        title: '查看',
-                        icon: "el-icon-view",
-                        target: 'view',
-                        plain: true,
-                        actionName: '查看数据' // 操作名称 打开弹窗时将作为弹窗标题
-                    },
-                    {
-                        type: 'warning',
-                        title: '编辑',
-                        icon: "el-icon-edit",
-                        target: 'update',
-                        plain: true,
-                        actionName: '编辑数据' // 操作名称 打开弹窗时将作为弹窗标题
-                    },
-                    {
-                        type: 'danger',
-                        title: '删除',
-                        icon: 'el-icon-delete-solid',
-                        target: 'delete',
-                        plain: true
-                    }
-                ]
-            }
+            type: Array
         },
         builtInButtons: {
           // 内置按钮
@@ -393,6 +357,11 @@ export default{
             // 编辑表单数据项配置 该值不传时取column
             type: Array,
         },
+        splitPanelData: {
+            // 编辑表单的不同面板是否启用数据隔离
+            type: Boolean,
+            default: false
+        },
         formCols: {
             // 表单一行放置控件数量
             type: [Number, String],
@@ -410,7 +379,6 @@ export default{
         formDialogWidth: {
             // 表单弹窗宽度
             type: [Number, String],
-            default: '50%'
         },
         formLabelWidth: {
             // 自定义表单标签宽度
@@ -447,6 +415,11 @@ export default{
             type: Boolean,
             default: false
         },
+        lockScroll: {
+            // 是否在 Dialog 出现时将 body 滚动锁定
+            type: Boolean,
+            default: false
+        },
         formDialogButton: {
             // 表单弹窗按钮
             type: Array,
@@ -477,6 +450,21 @@ export default{
         },
     },
     computed: {
+      /**
+       * 操作栏显隐状态
+       */
+      internalActionStatus(){
+        if(typeof this.showAction === 'boolean'){
+            return this.showAction;
+        };
+        let showAction = (this.$ROCTABLE || {}).showAction;
+        if(typeof showAction === 'boolean'){
+            return showAction;
+        }else if(this.actionButtons || (this.$ROCTABLE || {}).actionButtons){
+            return true;
+        }
+        return false;
+      },
       /**
        * @computed internalAccessControl 操作栏按钮访问控制
        * @returns {Object}
@@ -532,6 +520,46 @@ export default{
         return Object.assign({icon: 'el-icon-plus', text: '新增', type: 'primary', location: 'append'}, obj)
       },
       /**
+       * @computed internalActionButtons 自定义操作栏按钮
+       * @returns {Array}
+       */
+      internalActionButtons(){
+        return this.actionButtons || (this.$ROCTABLE || {}).actionButtons || [
+            {
+                // label: '新增', // 按钮或链接的标签
+                type: 'primary',
+                title: '新增', // 鼠标覆盖时显示的描述信息
+                icon: 'el-icon-plus',
+                target: 'new',
+                plain: true,
+                actionName: '新增数据' // 操作名称 打开弹窗时将作为弹窗标题
+            },
+            {
+                type: 'info',
+                title: '查看',
+                icon: "el-icon-view",
+                target: 'view',
+                plain: true,
+                actionName: '查看数据' // 操作名称 打开弹窗时将作为弹窗标题
+            },
+            {
+                type: 'warning',
+                title: '编辑',
+                icon: "el-icon-edit",
+                target: 'update',
+                plain: true,
+                actionName: '编辑数据' // 操作名称 打开弹窗时将作为弹窗标题
+            },
+            {
+                type: 'danger',
+                title: '删除',
+                icon: 'el-icon-delete-solid',
+                target: 'delete',
+                plain: true
+            }
+        ];
+      },
+      /**
        * @computed internalBuiltInButtons 内置按钮
        * @returns {Array}
        */
@@ -550,14 +578,16 @@ export default{
         ];
       },
       /**
-       * @returns 操作栏按钮的补充宽度
-       * link类型的按钮补充宽度为0
+       * @computed actionButtonExtraWidth 操作栏按钮的补充宽度
+       * @desc link类型的按钮补充宽度为0
+       * @returns {number}
        */
       actionButtonExtraWidth(){
         return this.actionButtonType === 'button' && this.internalActionBarWidthParams.buttonFillWidth || 0;
       },
       /**
-       * @returns 操作栏按钮的文字大小
+       * @computed 操作栏按钮的文字大小
+       * @returns {number}
        */
       actionButtonFontSize(){
         let {buttonFontSize, linkFontSize} = this.internalActionBarWidthParams;
