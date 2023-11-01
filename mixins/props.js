@@ -89,15 +89,18 @@ export default{
         stripe: {
             // 斑马纹
             type: Boolean,
-            default: true
+            default: undefined
         },
         tableSize: {
             // 表格尺寸 medium / small / mini
             type: String,
-            default: 'mini'
+            validator(val){
+                return ['medium', 'small', 'mini'].indexOf(val) > -1;
+            }
         },
-        fullHeight: {
+        autoContainerHeight: {
             // 自适应容器高度
+            // 表格自适应容器高度时，容器可使用overflow: auto防止表格将原本自适应的高度撑大
             type: Boolean,
             default: false
         },
@@ -450,6 +453,18 @@ export default{
         },
     },
     computed: {
+        /**
+         * 表格大小
+         */
+        internalTableSize(){
+            return this.tableSize || (this.$ROCTABLE || {}).tableSize || 'mini';
+        },
+        /**
+         * 斑马纹
+         */
+        internalStripe(){
+            return this.stripe || (this.$ROCTABLE || {}).stripe || true;
+        },
       /**
        * 操作栏显隐状态
        */

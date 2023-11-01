@@ -533,6 +533,7 @@ export default {
               form: this.form,
               panel: this.currentPanel,
               mode: this.currentMode,
+              rocForm: this
             })
           : true;
       };

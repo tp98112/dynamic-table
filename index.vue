@@ -67,7 +67,7 @@ export default {
         this.initTableColumn();
         if(this.loadData){
             // 触发分页事件 获取数据
-            this.refreshTableData()
+            this.reload()
         }
        
     },
@@ -386,7 +386,7 @@ export default {
                     background
                     on={{
                         'size-change': this.handleSizeChange, 
-                        'current-change': this.handleSetPage,
+                        'current-change': this.setPage,
                     }}
                 ></el-pagination>
                 {this.$scopedSlots['pagination-right'] ? this.$scopedSlots['pagination-right']({currentPage: this.currentPage,total: this.total,currentPageSize: this.currentPageSize}) : this.$slots['pagination-right']}
@@ -460,16 +460,16 @@ export default {
                 { this.formReady ? renderDialogButton() : ''}
             </el-dialog>
         }
-        return (<div class={`dynamic-table-wrap ${this.fullHeight && 'full-height'}`}>
+        return (<div class={{'tp-dynamic-table-wrap': true, 'auto-container-height': this.autoContainerHeight}}>
             <el-table data={this.getTableData}
             ref="elTable" 
             v-loading={this.dataLoading}
             element-loading-text="正在加载，请稍后..."
             element-loading-spinner="el-icon-loading"
             border={this.border}
-            stripe={this.stripe}
+            stripe={this.internalStripe}
             row-key={this.uniqueKey} 
-            size={this.tableSize}
+            size={this.internalTableSize}
             height={this.tableHeight}
             max-height={this.maxHeight}
             tree-props={this.treeProps}
@@ -711,7 +711,7 @@ export default {
                     if(this.virtualPage){
                         this.$emit('update:total', this.data.length);
                         if(this.data.length > this.currentPageSize){
-                            this.handleSetPage(getPageNumber(this.data.length, this.currentPageSize))
+                            this.setPage(getPageNumber(this.data.length, this.currentPageSize))
                         }
                         this.$nextTick(() => {
                             let element = this.$refs.elTable.$refs.bodyWrapper;
@@ -889,7 +889,7 @@ export default {
         executeDeleteBefore(scope){
             if(!this.virtualPage && this.internalRefreshTableOnSuccess.delete){
                 if(this.data.length === 1 && this.currentPage > 1){
-                    this.handleSetPage(this.currentPage - 1)
+                    this.setPage(this.currentPage - 1)
                 }else{
                     this.emitPageChange(); // 刷新
                 }
@@ -997,7 +997,7 @@ export default {
          * 分页器当前页码改变事件
          * @val 当前页码
          */
-        handleSetPage(val){
+        setPage(val){
             if(this.virtualPage){
                 this.currentPage = val;
             }else{
@@ -1006,11 +1006,11 @@ export default {
             }
         },
         /**
-         * 刷新当前页
+         * 刷新当前页 reset todo
          */
-        reload(){
+        reload(query, reset){
             this.setTableLoading(true);
-            this.emitPageChange();
+            this.emitPageChange({query: deepClone(query)});
         },
         /**
          * 设置表格数据加载loading
@@ -1101,7 +1101,7 @@ export default {
             });
 
             if(this.virtualPage){
-                this.getTableData.length === 0 && this.currentPage > 1 && this.handleSetPage(this.currentPage - 1)
+                this.getTableData.length === 0 && this.currentPage > 1 && this.setPage(this.currentPage - 1)
                 this.$emit('update:total', this.data.length);
             }
         },
@@ -1126,14 +1126,14 @@ export default {
             })
             this.selectionList.length && this.$refs.elTable.clearSelection();
             if(this.virtualPage){
-                this.getTableData.length === 0 && this.currentPage > 1 && this.handleSetPage(this.currentPage - 1)
+                this.getTableData.length === 0 && this.currentPage > 1 && this.setPage(this.currentPage - 1)
                 this.$emit('update:total', this.data.length);
             }
         },
         /**
          * 上报分页器事件
          */
-        emitPageChange({page, pageSize} = {}){
+        emitPageChange({page, pageSize, query} = {}){
             const success = info => {
                 page && (this.currentPage = page);
                 pageSize && (this.currentPageSize = pageSize);
@@ -1153,7 +1153,8 @@ export default {
                 currentPage: page || this.currentPage,
                 currentPageSize: pageSize || this.currentPageSize,
                 success,
-                fail
+                fail,
+                query
             })
         },
          /**
@@ -1272,13 +1273,6 @@ export default {
                 // 没有控制 默认为true
                 return true;
             };
-        },
-        /**
-         * 刷新当前页
-         */
-        refreshTableData(){
-            this.setTableLoading(true);
-            this.emitPageChange();
         },
         /**
          * 内置信息提示
@@ -1784,7 +1778,7 @@ export default {
          * 开启监听设置表格高度
          */
         addResizeListener(){
-            if(this.fullHeight){
+            if(this.autoContainerHeight){
                 this.setTableHeight();
                 window.addEventListener('resize', this.setTableHeight)
             }
