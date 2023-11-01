@@ -20,6 +20,13 @@ export default{
                 return []
             }
         },
+        queryForPage: {
+            // 请求表格数据时携带的额外参数 todo
+            type: Object,
+            default(){
+                return {}
+            }
+        },
         integrateAllEventsIntoTheEmitNamedChange: {
             // 将所有事件集成到名为change的自定义触发事件中
             type: Boolean,
@@ -39,6 +46,11 @@ export default{
             /** 删除事件是否二次确认 */ 
             type: Boolean,
             default: true
+        },
+        emitBeforeExecute: {
+            // 新增、更新、删除，执行之前是否通知
+            type: Boolean,
+            default: true // todo
         },
         initFields: {
             // 初始化字段 可在此设置字段默认值
@@ -179,8 +191,7 @@ export default{
         },
         editMode: {
             // 编辑方式 表格内编辑 / 弹窗编辑
-            type: String,
-            default: 'window'
+            type: String
         },
         refreshTableOnSuccess: {
             // 当设置内的事件被触发时, 将触发一次刷新当前页的事件
@@ -464,19 +475,30 @@ export default{
     },
     computed: {
         /**
-         * 表格大小
+         * @computed internalEditMode
+         * @returns 编辑模式
+         */
+        internalEditMode(){
+            return this.editMode || (this.$ROCTABLE || {}).editMode || 'window';
+        },
+        /**
+         * @computed internalTableSize
+         * @desc 表格大小
          */
         internalTableSize(){
             return this.tableSize || (this.$ROCTABLE || {}).tableSize || 'mini';
         },
         /**
-         * 斑马纹
+         * @computed internalStripe
+         * @desc 斑马纹
          */
         internalStripe(){
             return this.stripe || (this.$ROCTABLE || {}).stripe || true;
         },
       /**
-       * 操作栏显隐状态
+       * @computed internalActionStatus
+       * @desc 操作栏显隐状态
+       * 
        */
       internalActionStatus(){
         if(typeof this.showAction === 'boolean'){
@@ -485,14 +507,14 @@ export default{
         let showAction = (this.$ROCTABLE || {}).showAction;
         if(typeof showAction === 'boolean'){
             return showAction;
-        }else if(this.actionButtons || (this.$ROCTABLE || {}).actionButtons){
+        }else if(this.actionButtons){
             return true;
         }
         return false;
       },
       /**
-       * @computed internalAccessControl 操作栏按钮访问控制
-       * @returns {Object}
+       * @computed internalAccessControl
+       * @returns {Object} 操作栏按钮访问控制
        */
       internalAccessControl(){
         let obj = this.accessControl || (this.$ROCTABLE || {}).accessControl;
@@ -510,9 +532,9 @@ export default{
         }, obj)
       },
       /**
-       * @computed internalRefreshTableOnSuccess 触发成功回调后需要刷新表格数据的事件
+       * @computed internalRefreshTableOnSuccess 
        * @desc 仅限于内置事件 new、update、delete
-       * @returns {Object}
+       * @returns {Object} 触发成功回调后需要刷新表格数据的事件集合
        */
       internalRefreshTableOnSuccess(){
         let obj = this.refreshTableOnSuccess || (this.$ROCTABLE || {}).refreshTableOnSuccess;
@@ -523,17 +545,18 @@ export default{
         }, obj)
       },
       /**
+       * @computed internalActionBarWidthParams
        * @returns 用于计算操作栏宽度的依赖参数
        */
       internalActionBarWidthParams(){
         let obj = this.actionBarWidthParams || (this.$ROCTABLE || {}).actionBarWidthParams;
         return Object.assign({
-          cellFillWidth: 12, 
-          buttonFillWidth: 32, 
-          iconTextSpacing: 5, 
-          buttonSpacing: 10, 
-          buttonFontSize: 12, 
-          linkFontSize: 14
+          cellFillWidth: 12, // 单元格填充宽度(最小值应大于左右padding之和，看情况在此基础上适量增加)
+          buttonFillWidth: 32, // 按钮填充宽度
+          iconTextSpacing: 5, // 图表与文字的间距
+          buttonSpacing: 10, // 按钮之间的间距
+          buttonFontSize: 12, // 按钮文本大小
+          linkFontSize: 14 // 链接文本大小
         }, obj);
       },
       /**

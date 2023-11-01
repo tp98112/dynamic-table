@@ -540,6 +540,7 @@ export default {
           ? item.formVisible
           : type === "function"
           ? item.formVisible({
+              value: this.form[item.prop],
               form: this.form,
               panel: this.currentPanel,
               mode: this.currentMode,

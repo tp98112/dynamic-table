@@ -488,14 +488,14 @@ export default {
                 'cell-dblclick': this.handleCellDblclick,
                 'selection-change': this.handleSelectionChange
             }} 
-            class={this.dynamic && (this.editMode === 'inline' || this.unifiedEdit) ? 'dynamic-table' : ''}>
+            class={this.dynamic && (this.internalEditMode === 'inline' || this.unifiedEdit) ? 'dynamic-table' : ''}>
                 {renderColumns(this.column)}{renderActionColumn()}
                 <template slot="empty">{this.$slots['table-empty']}</template>
                 <template slot="append">{getContentAppendToTable()}</template>
             </el-table>
             {renderAddButtonInAppend('bottom')}
             {this.pagination ? renderPagination() : ''}
-            {this.editMode === 'window' && this.dynamic && !this.unifiedEdit ? renderEditDialog() : ''}
+            {this.dynamic && this.internalEditMode === 'window' &&  !this.unifiedEdit && renderEditDialog() || null}
         </div>)
     },
     computed: {
@@ -583,7 +583,7 @@ export default {
          * 表头数据初始化
          */
         initTableColumn(){
-            if(this.editMode === 'window' && !this.unifiedEdit){
+            if(this.internalEditMode === 'window' && !this.unifiedEdit){
                 // 弹窗编辑
                 if(!this.formColumn){
                     let formColumn = [];
@@ -640,7 +640,7 @@ export default {
                 // 未通过前置条件
                 return;
             };
-            if(this.editMode === 'window' && !this.unifiedEdit){
+            if(this.internalEditMode === 'window' && !this.unifiedEdit){
                 // 弹窗编辑
                 this.formTitle = button.actionName; // 弹窗标题
                 this.internalFormDialogWidth = button.formDialogWidth; // 通过按钮单独配置的弹窗宽度
@@ -740,7 +740,7 @@ export default {
                 return;
             };
             let row = scope.row;
-            if(this.editMode === 'inline'){
+            if(this.internalEditMode === 'inline'){
                 // 行内编辑
                 this.setMappingData(row, {'$edit': true}, true); // 第三个参数为true, 编辑时需更新映射数据
             }else{
@@ -1152,9 +1152,10 @@ export default {
                 type: 'pageChange',
                 currentPage: page || this.currentPage,
                 currentPageSize: pageSize || this.currentPageSize,
+                query: Object.assign(this.queryForPage, query),
                 success,
                 fail,
-                query
+                
             })
         },
          /**
@@ -1228,7 +1229,7 @@ export default {
                     new: (!this.unifiedEdit && !target.$new && !target.$edit) || this.unifiedEdit,
                     update: !target.$edit && !this.unifiedEdit,
                     delete: (!target.$new && !target.$edit) || this.unifiedEdit,
-                    view: this.editMode === 'window' && !this.unifiedEdit && !target.$new && !target.$edit,
+                    view: this.internalEditMode === 'window' && !this.unifiedEdit && !target.$new && !target.$edit,
                     save: target.$edit && !this.unifiedEdit,
                     remove: target.$new && !this.unifiedEdit,
                     cancel: target.$edit && !this.unifiedEdit,
@@ -1700,7 +1701,7 @@ export default {
         getCellClassName({row,column, rowIndex, columnIndex}){
             let obj = {
                 'is-error__cell': this.validateObject[`${column.property}-${row[this.uniqueKey]}`] === false, 
-                'is-edit__cell': this.getRowEditStatus(row)
+                'is-edit__cell': this.unifiedEdit || this.getRowEditStatus(row)
             }
             return Object.keys(obj).filter(key => obj[key]).join(' ');
         },
