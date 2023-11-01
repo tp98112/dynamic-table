@@ -76,22 +76,23 @@ export default {
                 //         emit: '$save2'
                 //     },
                 // ],
-                // newActionButton: [
-                //     {
-                //         label: '面板一',
-                //         target: 'update',
-                //         panel: 1,
-                //     },
-                //     {
-                //         label: '面板二',
-                //         target: 'update',
-                //         panel: 2,
-                //     },
-                //     {
-                //         label: '测试',
-                //         emit: 'haha'
-                //     }
-                // ],
+                splitPanelData: true,
+                actionButtons: [
+                    {
+                        label: '面板一',
+                        target: 'new',
+                        panel: 1,
+                    },
+                    {
+                        label: '面板二',
+                        target: 'new',
+                        panel: 2,
+                    },
+                    {
+                        label: '测试',
+                        target: 'new'
+                    }
+                ],
                 column: [
                     {
                         type: 'index',

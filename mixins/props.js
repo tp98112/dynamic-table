@@ -341,7 +341,17 @@ export default{
           // 内置按钮
           type: Array,
           validator(arr){
-            
+            let [save, cancel] = [0, 0];
+            arr.forEach(item => {
+              item.target === 'save' && save++;
+              item.target === 'cancel' && cancel++;
+            })
+            let result = save === 1 && cancel === 1;
+            if(result){
+              return true
+            }else{
+              console.error("The builtInButtons property must contain one save button and one cancel button, with their target attribute values set to 'save' and 'cancel' respectively")
+            } 
           }
         },
         rowClick: {
