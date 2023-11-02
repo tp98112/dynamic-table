@@ -509,12 +509,12 @@ export default {
          * 表格数据总量
          */
         getTotal(){
-            return this.virtualPage ? this.data.length : this.total;
+            return this.virtualPage ? this.data.length : (this.data.length > this.total && this.data.length || this.total);
         },
         /**
          * 返回校验错误的单元格样式
          */
-        returnCellErrorStyle(){
+        getCellErrorStyle(){
             return this.errorCellBlink ? {animation: 'flicker .2s linear 5', ...this.cellErrorStyle} : this.cellErrorStyle;
         },
         /**
@@ -693,7 +693,7 @@ export default {
                     this.$set(this.backupTableData, newRow[this.uniqueKey], backupRow);
                     if(scope.row.children){
                         // 新增数据行
-                        scope.row.children[this.insertDataMethod](newRow);
+                        scope.row.children[this.internalInsertDataMethod](newRow);
                     }else{
                         this.$set(scope.row, 'children',  [newRow]);
                     };
@@ -707,17 +707,17 @@ export default {
                     backupRow.$edit = true; // 默认开启编辑
                     backupRow.$saveLoading = false; // 保存按钮loading
                     this.$set(this.backupTableData, newRow[this.uniqueKey], backupRow);
-                    this.data[this.insertDataMethod](newRow);
+                    this.data[this.internalInsertDataMethod](newRow);
                     if(this.virtualPage){
                         this.$emit('update:total', this.data.length);
                         if(this.data.length > this.currentPageSize){
                             this.setPage(getPageNumber(this.data.length, this.currentPageSize))
                         }
-                        this.$nextTick(() => {
-                            let element = this.$refs.elTable.$refs.bodyWrapper;
-                            element.scrollTop = this.insertDataMethod === 'push' && element.scrollHeight || 0;
-                        })
-                    }
+                    };
+                    this.$nextTick(() => {
+                        let element = this.$refs.elTable.$refs.bodyWrapper;
+                        element.scrollTop = this.internalInsertDataMethod === 'push' && element.scrollHeight || 0;
+                    })
                 };
             }
         },
@@ -929,10 +929,16 @@ export default {
                 $row.$saveLoading = false;
                 $row.$new = false;
                 $row.$edit = false;
-                if(this.internalRefreshTableOnSuccess[mode]){
+                let infoType = getFieldType(info);
+                if(infoType === 'Object'){
+                    // 对象 直接更新当前行
+                    for(let i in info){
+                        scope.row[i] = info[i];
+                    }
+                }else if(this.internalRefreshTableOnSuccess[mode]){
                     this.emitPageChange(); // 刷新当前页
-                }
-                this.executePromp(info, {type:'success', message: info ? info : '数据已更新！'})
+                };
+                this.executePromp(info, {type:'success', message: '数据已更新！'})
             };
             const fail = (info) => {
                 $row.$saveLoading = false;
@@ -959,7 +965,7 @@ export default {
                 }
             };
             if(checkRow){
-                this.handleEmit({type: $row.$new ? 'new' : 'update', row: scope.row, $row, success, fail })
+                this.handleEmit({type: $row.$new ? 'new' : 'update', row: scope.row, $row, scope, success, fail })
             }else{
                 // 验证失败 恢复当前行状态
                 $row.$saveLoading = false;
@@ -1152,7 +1158,7 @@ export default {
                 type: 'pageChange',
                 currentPage: page || this.currentPage,
                 currentPageSize: pageSize || this.currentPageSize,
-                query: Object.assign(this.queryForPage, query),
+                query: getFieldType(query) === 'Object' && Object.assign(this.queryForPage, query) || query,
                 success,
                 fail,
                 
@@ -1406,7 +1412,7 @@ export default {
                 if(this.currentEditRow){
                     // children
                     if(this.currentEditRow.children){
-                        this.currentEditRow.children[this.insertDataMethod](copyForm)
+                        this.currentEditRow.children[this.internalInsertDataMethod](copyForm)
                     }else{
                         // 无children
                         this.$set(this.currentEditRow, 'children', [copyForm])
@@ -1415,7 +1421,7 @@ export default {
                         this.$refs.elTable.toggleRowExpansion(this.currentEditRow, true)
                     })
                 }else{
-                    this.data[this.insertDataMethod](copyForm)
+                    this.data[this.internalInsertDataMethod](copyForm)
                 }
             }else{
                 // 更新当前行数据
@@ -1693,7 +1699,7 @@ export default {
          * 返回单元格样式
          */
         getCellStyle({row,column, rowIndex, columnIndex}){
-            return this.validateObject[`${column.property}-${row[this.uniqueKey]}`] === false ? this.returnCellErrorStyle : {};
+            return this.validateObject[`${column.property}-${row[this.uniqueKey]}`] === false ? this.getCellErrorStyle : {};
         },
         /**
          * 返回单元格class todo
@@ -1797,6 +1803,10 @@ export default {
                 let pagination = this.$el.getElementsByClassName('pagination-wrap')[0].getBoundingClientRect();
                 tableHeight -= (pagination.height + 1);
             };
+            if(this.internalAccessControl.root && this.internalAddButtonControl.location === 'bottom'){
+                let height = this.$el.getElementsByClassName('table-new-button-bottom')[0].clientHeight;
+                tableHeight -= height;
+            }
             this.tableHeight = tableHeight;
             
         }

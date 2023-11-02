@@ -974,6 +974,7 @@ export default {
      * 更新表单数据
      */
     updateFields(target) {
+      console.log("更新表单数据", target)
       for (let i in target) {
         this.$set(this.form, i, target[i]);
       }

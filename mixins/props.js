@@ -200,7 +200,6 @@ export default{
         insertDataMethod: {
             // 插入数据的方法 push或unshift
             type: [String],
-            default: 'unshift',
             validator(val){
                 return val === 'unshift' || val === 'push'
             }
@@ -513,6 +512,16 @@ export default{
         return false;
       },
       /**
+       * @computed internalInsertDataMethod
+       * @desc 插入数据的方法 push或unshift
+       * @returns {String}
+       */
+      internalInsertDataMethod(){
+        return this.insertDataMethod || (this.$ROCTABLE || {}).insertDataMethod || 
+        this.internalAddButtonControl.location === 'bottom' && 'push' || 
+        this.internalAddButtonControl.location === 'header' && 'unshift';
+      },
+      /**
        * @computed internalAccessControl
        * @returns {Object} 操作栏按钮访问控制
        */
@@ -565,7 +574,7 @@ export default{
        */
       internalAddButtonControl(){
         let obj = this.addButtonControl || (this.$ROCTABLE || {}).addButtonControl;
-        return Object.assign({icon: 'el-icon-plus', text: '新增', type: 'primary', location: 'append'}, obj)
+        return Object.assign({icon: 'el-icon-plus', text: '新增', type: 'primary', location: 'bottom'}, obj)
       },
       /**
        * @computed internalActionButtons 自定义操作栏按钮
