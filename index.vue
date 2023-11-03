@@ -938,7 +938,7 @@ export default {
                 }else if(this.internalRefreshTableOnSuccess[mode]){
                     this.emitPageChange(); // 刷新当前页
                 };
-                this.executePromp(info, {type:'success', message: '数据已更新！'})
+                this.executePromp(info, {type:'success', message : '数据已更新！'})
             };
             const fail = (info) => {
                 $row.$saveLoading = false;

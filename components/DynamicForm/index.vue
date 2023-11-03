@@ -430,7 +430,7 @@ export default {
         switch: false, // 开关
         select: "", // 下拉选择器
         link: "", // 文字链接
-        "time-picker": this.getPickerInitTime(), // 时间范围选择器
+        "time-picker": '', // 时间范围选择器
         "radio-group": "", // 单选框组
         "checkbox-group": [], // 多选框组
         "input-number": 0, // 计数器
@@ -974,7 +974,6 @@ export default {
      * 更新表单数据
      */
     updateFields(target) {
-      console.log("更新表单数据", target)
       for (let i in target) {
         this.$set(this.form, i, target[i]);
       }

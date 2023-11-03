@@ -227,7 +227,7 @@ export default{
             },
             validator(val){
                 if(val.hasOwnProperty('location')){
-                    return ['header', 'append', 'bottom'].indexOf(val.location) > -1;
+                    return ['header', 'bottom'].indexOf(val.location) > -1;
                 };
                 return true;
             }
