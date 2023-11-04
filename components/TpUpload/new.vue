@@ -172,14 +172,21 @@ export default {
       let element = document.getElementsByClassName('el-upload--picture-card');
       if(this.mode === 'view' || this.fileList.length === this.bindValues.limit){
         element && element[0] && (element[0].style.display = 'none');
+        element && element[0] && (element[0].style.visibility = 'hidden');
       }else{
         if(element && element[0]){
           if(hasDelay){
             setTimeout(() => {
               element[0].style.removeProperty('display');
+              setTimeout(() => {
+                element[0].style.removeProperty('visibility');
+              }, 50)
             }, 1200)
           }else{
             element[0].style.removeProperty('display');
+            setTimeout(() => {
+                element[0].style.removeProperty('visibility');
+              }, 50)
           }
         }
       }
