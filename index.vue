@@ -622,14 +622,18 @@ export default {
                 if(item.prop){
                   // 字典数据
                     if(item.dict && !(item.dict in this.dicts)){
-                        // this.$set(this.dicts, item.dict, null); // 首先初始化, 避免接口返回异常时表单子组件再次发起请求
-                        // this.getDicts(item.dict).then(response => {
-                        //     let {code, context} = response;
-                        //     if(code === "K-000000" && context){
-                        //         this.$set(this.dicts, item.dict, context)
-                        //     }
-                        //     // console.log('字典数据', this.dicts)
-                        // });
+                        this.$set(this.dicts, item.dict, null); // 首先初始化, 避免接口返回异常时表单子组件再次发起请求
+                        if(typeof this.internalGetDicts === 'function'){
+                            this.internalGetDicts({dict: item.dict, callBack: data => {
+                                if(Array.isArray(data)){
+                                    this.$set(this.dicts, item.dict, data);
+                                }else{
+                                    console.error('The input parameter of the callback function must be an array')
+                                }
+                            }})
+                        }else{
+                            console.error('The getDicts must be of type function')
+                        }
                     }
                 };
 
@@ -1341,7 +1345,6 @@ export default {
          * 关闭弹窗时重置表单
          */
         resetFormOnClose(){
-            console.log('this.$refs.form', this.$refs.rocForm.form);
             this.dialogConfirmLoading = false;
             this.formVisible = false;
             setTimeout(() => {

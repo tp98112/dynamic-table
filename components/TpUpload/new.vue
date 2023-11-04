@@ -1,13 +1,14 @@
 <template>
   <el-upload 
+    v-if="Array.isArray(fileList)"
     v-bind="bindValues"
     ref="upload"
-    :show-file-list="true"
-    :file-list="fileList"
-    list-type="picture-card"
+    :showFileList="true"
+    :fileList="fileList"
+    listType="picture-card"
+    :on-exceed="exceedQuantityLimit"
+    :on-change="handleUploadChange"
     :class="{'el-upload-list--picture-wrap': true, 'disabled-animation': !fileList.length}"
-    :on-exceed="(file, fileList) => { exceedQuantityLimit(file, fileList) }"
-    :on-change="(file, fileList) => { handleUploadChange(file, fileList) }"
   >
     <i slot="default" class="el-icon-plus"></i>
     <div slot="file" slot-scope="{ file }">
@@ -34,7 +35,7 @@
         <span
           v-if="mode !== 'view'"
           class="el-upload-list__item-delete"
-          @click="removeUploadImg(file)"
+          @click="handleRemoveUploadImg(file)"
         >
           <i class="el-icon-delete"></i>
         </span>
@@ -50,7 +51,7 @@ export default {
      * 文件列表
      */
     fileList: {
-        type: Array,
+        type: [Array, String],
         required: true,
         default(){
             return []
@@ -64,6 +65,11 @@ export default {
         default(){
             return {}
         }
+    },
+    avatar: {
+      // todo
+      type: Boolean,
+      default: false
     },
     accept: {
         type: String,
@@ -79,7 +85,7 @@ export default {
       timer: null,
       bindValues: Object.assign({
           action: "",
-          // limit: 4,
+          multiple: false,
           'auto-upload': false,
           multiple: true,
           accept: "image/png,image/jpeg,image/gif"
@@ -87,19 +93,32 @@ export default {
     };
   },
   computed: {
-    /**
-     * 获取预览列表
-     */
-    getPreviewSrcList() {
-      return (arr) => {
-          return arr.map((item) => item.url);
-      };
-    },
+
+    
   },
   watch: {
     mode(){
       this.setUploadElementDisplay();
-    }
+    },
+    fileList(val){
+      if(Array.isArray(val)){
+        this.$nextTick(() => {
+          this.setUploadElementDisplay();
+        })
+        
+      }else{
+        // 重置文件列表
+        this.setUrlToFileList();
+      }
+    },
+  },
+  created(){
+    if(Array.isArray(this.fileList)){
+        this.setUploadElementDisplay();
+      }else{
+        // 重置文件列表
+        this.setUrlToFileList();
+      }
   },
   mounted(){
     this.setUploadElementDisplay();
@@ -111,24 +130,42 @@ export default {
     handleUploadChange(file, fileList){
       if(file.status === "ready"){
         // 检查格式
-        if(!file.raw.type || this.bindValues.accept.indexOf(file.raw.type) < 0){
-          this.$message.error(`请上传 ${this.getAcceptFileType()} 格式的图片！`);
-          this.$refs.upload.uploadFiles.splice(this.$refs.upload.uploadFiles.findIndex(item => {item.uid === file.uid}), 1)
-          return;
-        };
-        if(this.bindValues?.size && file.size / 1024 > this.bindValues.size){
-          // 单位 kb
-          this.$message.error(`上传图片大小不能超过${this.control.size}KB！`);
-          this.$refs.upload.uploadFiles.splice(this.$refs.upload.uploadFiles.findIndex(item => {item.uid === file.uid}), 1)
+        if(!this.handleCheckFormat(file)){
           return;
         }
         this.fileList.push(file);
-        this.setUploadElementDisplay(true);
         // 上报change事件
         clearTimeout(this.timer);
         this.timer = setTimeout(() => {
           this.$emit('change', this.fileList)
         }, 100)
+      }
+    },
+    /**
+     * 检查文件格式
+     */
+    handleCheckFormat(file){
+      if(!file.raw.type || this.bindValues.accept.indexOf(file.raw.type) < 0){
+        this.$message.error(`请上传 ${this.getAcceptFileType()} 格式的图片！`);
+        this.$refs.upload.uploadFiles.splice(this.$refs.upload.uploadFiles.findIndex(item => {item.uid === file.uid}), 1)
+        return false;
+      };
+      if(this.bindValues?.size && file.size / 1024 > this.bindValues.size){
+        // 单位 kb
+        this.$message.error(`上传图片大小不能超过${this.control.size}KB！`);
+        this.$refs.upload.uploadFiles.splice(this.$refs.upload.uploadFiles.findIndex(item => {item.uid === file.uid}), 1)
+        return false;
+      }
+      return true;
+    },
+    /**
+     * 转文件列表
+     */
+    setUrlToFileList(){
+      if(this.fileList && typeof this.fileList === 'string'){
+        this.$emit('change', [{url: this.fileList, status: 'success'}])
+      }else{
+        this.$emit('change', [])
       }
     },
     setUploadElementDisplay(hasDelay){
@@ -146,6 +183,12 @@ export default {
           }
         }
       }
+    },
+    /**
+     * 获取预览列表
+     */
+    getPreviewSrcList() {
+      return Array.isArray(this.fileList) && this.fileList.map((item) => item.url) || [];
     },
     getAcceptFileType(){
       const regex = /image\/(\w+)/g;  // 匹配 image/ 后面的字符串
@@ -186,14 +229,16 @@ export default {
     /**
      * 移除图片
      */
-    removeUploadImg(file){
+    handleRemoveUploadImg(file){
       this.fileList.some((item,index) => {
         if(item.uid === file.uid){
             this.fileList.splice(index, 1)
             return true;
         }
       })
-      this.setUploadElementDisplay(true);
+      if(!this.fileList.length){
+        this.setUploadElementDisplay()
+      }
       this.$emit('change', this.fileList)
     },
     /**

@@ -19,6 +19,7 @@
         :prop="getProp(item)"
         :label="item.formLabel ? item.formLabel : item.label ? item.label : ''"
         :label-width="item.formLabelWidth"
+        :class="setFormItemClass(item)"
         :style="setFormItemStyle(item)"
       >
         <slot :name="'form-' + (item.prop || item.key)" v-bind="{ form, mode: '' }">
@@ -198,7 +199,7 @@
             @change="setUploadImage($event, item)"
             :mode="currentMode"
             :control="returnControlProperty(item)"
-            :fileList="form[item.prop]" 
+            :fileList.sync="form[item.prop]" 
             ></tp-upload-images>
             <!-- 上传下拉选择器 -->
             <div
@@ -257,6 +258,10 @@
             :size="size"
             style="width: 100%"
             />
+            <RocTable v-else-if="isRender(item.editType, 'roc-table')" 
+            v-bind="returnControlProperty(item)"
+            :disabled="setDisabled(item.disabled)"
+            v-on="getControlEvents(item)"/>
             <!-- 按钮组 -->
             <div v-else-if="isRender(item.editType, 'button-group')" :style="{display: 'flex', alignItems: 'center',height: '100%', justifyContent: item.justifyContent}">
               <el-button
@@ -303,6 +308,7 @@ export default {
     renderColumn,
     TpUploadButton: () => import('../TpUpload/Button.vue'),
     TpUploadImages: () => import('../TpUpload/new.vue'),
+    RocTable: () => import('../../index.vue')
   },
   props: {
     column: {
@@ -358,6 +364,10 @@ export default {
         return {};
       },
     },
+    getDicts: {
+      // 获取字典数据方法
+      type: Function,
+    },
     received_dicts: {
       // 接收表格字典
       type: Object,
@@ -368,7 +378,7 @@ export default {
     labelPosition: {
       // 表单标签对齐方式
       type: String,
-      default: "center",
+      default: "left",
     },
     formLabelWidth: {
       // 表单标签宽度 px
@@ -440,6 +450,7 @@ export default {
         "upload-button": [], // 上传-按钮
         "upload-select": [], // 上传-下拉框
         'select-tree': '', // 选择树
+        'roc-table': null,
         "button-group": "",
         unknown: "", // 未知的
       }), // 受支持的预设控件
@@ -476,6 +487,13 @@ export default {
     },
   },
   computed: {
+    /**
+     * @computed internalGetDicts
+     * @desc 获取字典数据
+     */
+    internalGetDicts(){
+        return this.getDicts || (this.$ROCFORM || this.$ROCTABLE || {}).getDicts;
+    },
     /**
      * 返回选项列表字段值配置
      */
@@ -554,11 +572,6 @@ export default {
         (this.formLabelLength * this.formLabelFontSize +
         this.formLabelFillWidth +
         "px");
-    },
-    getPreviewSrcList() {
-      return (arr) => {
-        return arr.map((item) => item.url);
-      };
     },
     formItemWidth() {
       // 返回表单项宽度
@@ -684,6 +697,7 @@ export default {
           },
           "time-picker": {
             "is-range": true,
+            valueFormat: 'HH:ss:mm',
             "range-separator": "至",
             "start-placeholder": "开始时间",
             "end-placeholder": "结束时间",
@@ -729,7 +743,8 @@ export default {
           },
           'select-tree': {
             clearable: true,
-          }
+          },
+          'roc-table': {}
         };
       }
       return (item) => {
@@ -771,6 +786,17 @@ export default {
       item.editType === 'upload-image' && (style.marginBottom = '7.6px');
       return style;
     },
+    /**
+     * 设置FormItem class
+     */
+    setFormItemClass(item){
+      return {
+        'form--item-label-left': item.labelPosition === 'left',
+        'form--item-label-center': item.labelPosition === 'center',
+        'form--item-label-right': item.labelPosition === 'right',
+        'form--item-label-top': item.labelPosition === 'top',
+      }
+    },
     // 返回时间范围选择器初始值
     getPickerInitTime() {
       let arr = [new Date(), new Date()];
@@ -787,16 +813,6 @@ export default {
       let hasRequired = false;
       this.formItemList.forEach((item) => {
         item.$key = getId(true);
-        if(!item.prop || item.propAsKeyOnly){return};
-        item.editType =
-          item.editType in this.supportedComponents ? item.editType : "unknown";
-        const prop = item.module ? `${item.module}-${item.prop}` : item.prop; // 分模块
-        let defaultValue = item.hasOwnProperty('defaultValue') ? item.defaultValue : 
-        (this.initFields.hasOwnProperty(prop) ? this.initFields[prop] : 
-        this.supportedComponents[item.editType]);
-        
-        this.$set(this.form, prop, defaultValue); // 初始化表单字段数据
-        this.defaultFieldsValue[prop] = JSON.parse(JSON.stringify(defaultValue)); // 初始化字段默认值
         // 检查最长标签长度
         this.formLabelLength =
           item.label?.length > this.formLabelLength
@@ -807,20 +823,31 @@ export default {
           this.formLabelFillWidth = this.formLabelFillWidth + 10;
           hasRequired = true;
         }
+        if(!item.prop || item.propAsKeyOnly){return};
+        item.editType =
+          item.editType in this.supportedComponents ? item.editType : "unknown";
+        const prop = item.module ? `${item.module}-${item.prop}` : item.prop; // 分模块
+        let defaultValue = item.hasOwnProperty('defaultValue') ? item.defaultValue : 
+        (this.initFields.hasOwnProperty(prop) ? this.initFields[prop] : 
+        this.supportedComponents[item.editType]);
+        
+        this.$set(this.form, prop, defaultValue); // 初始化表单字段数据
+        this.defaultFieldsValue[prop] = JSON.parse(JSON.stringify(defaultValue)); // 初始化字段默认值
+        
 
         //// 获取字典
         if (item.dict && !(item.dict in this.dicts)) {
-        //   this.getDicts(item.dict).then(response => {
-        //       let {code, context} = response;
-        //       if(code === "K-000000" && context){
-        //           this.$set(this.dicts, item.dict, context)
-        //           if(typeof item.selectedIndex === 'number'){
-        //             // 默认选中项
-        //             this.form[prop] = context[item.selectedIndex][this.dictControl.value];
-        //           }
-        //       }
-        //       // console.log('字典数据', this.dicts)
-        //   });
+          if(typeof this.internalGetDicts === 'function'){
+            this.internalGetDicts({dict: item.dict, callBack: data => {
+              if(Array.isArray(data)){
+                  this.$set(this.dicts, item.dict, data);
+              }else{
+                  console.error('The input parameter of the callback function must be an array')
+              }
+            }})
+          }else{
+            console.error('The getDicts must be of type function')
+          }
         }
 
         // 校验
@@ -1018,6 +1045,7 @@ export default {
      * 更新上传图片
      */
     setUploadImage(fileList, item){
+      console.log("更新上传图片", fileList)
       this.form[item.prop] = fileList;
       this.submitFormValidation(item, 'change')
     },
@@ -1124,6 +1152,9 @@ export default {
         cursor: default;
       }
     }
+  }
+  .form--item-label-top{
+    display: block;
   }
 }
 .form-items-cover {

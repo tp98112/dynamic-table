@@ -69,6 +69,10 @@ export default{
                 }
             }
         },
+        getDicts: {
+            // 获取字典数据方法
+            type: Function,
+        },
         // 字典数据字段控制
         dictControl: {
             type: Object,
@@ -411,7 +415,7 @@ export default{
         formLabelPosition: {
             // 表单标签对齐方式
             type: String,
-            default: 'center'
+            default: 'left'
         },
         formGutter: {
             // 表单项间距
@@ -493,6 +497,13 @@ export default{
          */
         internalStripe(){
             return this.stripe || (this.$ROCTABLE || {}).stripe || true;
+        },
+        /**
+         * @computed internalGetDicts
+         * @desc 获取字典数据
+         */
+        internalGetDicts(){
+            return this.getDicts || (this.$ROCTABLE || {}).getDicts;
         },
       /**
        * @computed internalActionStatus
