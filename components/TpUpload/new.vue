@@ -3,15 +3,24 @@
     v-if="Array.isArray(fileList)"
     v-bind="bindValues"
     ref="upload"
-    :showFileList="true"
+    :show-file-list="true"
     :fileList="fileList"
     listType="picture-card"
     :on-exceed="exceedQuantityLimit"
     :on-change="handleUploadChange"
-    :class="{'el-upload-list--picture-wrap': true, 'disabled-animation': !fileList.length}"
+    :on-success="handleOnSuccess"
+    :on-error="handleOnError"
+    :before-upload="handleBeforeUpload"
+    :before-remove="handleBeforeRemove"
+    :on-progress="handleOnProgress"
+    :class="{'el-upload-list--picture-wrap': true, 'disabled-animation': disabledAnimation || !fileList.length}"
   >
     <i slot="default" class="el-icon-plus"></i>
-    <div slot="file" slot-scope="{ file }">
+    <div slot="file" slot-scope="{ file }" 
+    v-loading="file.$loading"
+    element-loading-spinner="el-icon-loading"
+    element-loading-text="上传中...">
+      <span v-if="file.status === 'success'" class="success-mark"><i class="el-icon-check"></i></span>
       <el-image
         style="width: 148px; height: 148px;"
         :src="file.url"
@@ -41,6 +50,14 @@
         </span>
       </span>
     </div>
+
+    <!-- 上传提示 -->
+    <div class="el-upload__tip" slot="tip" v-if="bindValues.showTip" style="margin-top: 0px">
+      请上传
+      <template v-if="bindValues.size"> 大小不超过 <b style="color: #f56c6c">{{ getFileSize }}</b>， </template>
+      <template v-if="bindValues.accept"> 格式为 <b style="color: #f56c6c">{{ getAcceptFileType() }}</b> </template>
+      的图片
+    </div>
   </el-upload>
 </template>
 
@@ -66,11 +83,6 @@ export default {
             return {}
         }
     },
-    avatar: {
-      // todo
-      type: Boolean,
-      default: false
-    },
     accept: {
         type: String,
         default: "image/png,image/jpeg,image/gif"
@@ -78,37 +90,73 @@ export default {
     mode: {
       type: String,
       default: 'new'
+    },
+    onSuccess: {
+      type: Function
+    },
+    onError: {
+      type: Function
+    },
+    showSuccessMark: {
+      // 显示上传成功状态的标识
+      type: Boolean,
+      default: true
     }
   },
   data() {
     return {
       timer: null,
+      disabledAnimation: false,
+      tasks: 0, // 任务数量
+      successTasks:0, // 成功的任务
+      errorTasks:0, // 失败的任务
+      completedTask: 0, // 已结束的任务
       bindValues: Object.assign({
           action: "",
           multiple: false,
           'auto-upload': false,
           multiple: true,
-          accept: "image/png,image/jpeg,image/gif"
+          accept: "image/png,image/jpeg,image/gif",
+          showTip: true,
+          decimalPlace: 2, // 保留小数位数
       },this.control),
     };
   },
   computed: {
-
-    
+    getFileSize(){
+      let {size, decimalPlace} = this.bindValues;
+      let index = 0;
+      if(size){
+        const units = ['KB', 'MB'];
+        while (size >= 1024 && index < units.length - 1) {
+          size /= 1024; // 当大小超过 1MB 时，转换为 MB 和 KB 的形式
+          index++;
+        }
+        let pow = Math.pow(10, decimalPlace);
+        size = parseInt(size * pow) / pow;
+        return `${ size } ${units[index]}`; // 返回转换后的文件大小字符串，保留两位小数
+      }
+      return ""
+    }
   },
   watch: {
     mode(){
       this.setUploadElementDisplay();
     },
-    fileList(val){
-      if(Array.isArray(val)){
+    fileList(value){
+      if(Array.isArray(value)){
         this.$nextTick(() => {
-          this.setUploadElementDisplay();
+          this.setUploadElementDisplay(true);
         })
         
       }else{
         // 重置文件列表
         this.setUrlToFileList();
+      }
+    },
+    tasks(val){
+      if(!val){
+        this.showUploadResultMessage();
       }
     },
   },
@@ -124,22 +172,78 @@ export default {
     this.setUploadElementDisplay();
   },
   methods: {
+    showUploadResultMessage(){
+      if(!this.errorTasks){
+        this.$message.success(`上传${this.tasks > 1 && '全部图片' || '图片'}成功！`);
+        this.$emit("success", {success: this.successTasks, error: this.errorTasks})
+      }else if(this.tasks === this.errorTasks){
+        this.$message.error("上传图片失败！")
+      }else{
+        this.$message.info(`${successTasks}张图片上传成功，${errorTasks}张图片上传失败！`)
+      }
+      this.$emit("uploadTaskEnd", {success: this.successTasks, error: this.errorTasks})
+      this.successTasks = 0;
+      this.errorTasks = 0;
+    },
+    handleHttpRequest(event){
+      console.log("event", event)
+    },
     /**
      * 文件状态改变时
      */
     handleUploadChange(file, fileList){
+      console.log(file, file.status)
       if(file.status === "ready"){
         // 检查格式
         if(!this.handleCheckFormat(file)){
           return;
         }
         this.fileList.push(file);
+        this.setUploadElementDisplay()
         // 上报change事件
         clearTimeout(this.timer);
         this.timer = setTimeout(() => {
           this.$emit('change', this.fileList)
         }, 100)
       }
+    },
+    handleOnProgress(event, file, fileList){
+      // console.log("文件上传时的钩子", file, file.status)
+      file.$loading = true;
+    },
+    /**
+     * 上传成功的回调
+     */
+    handleOnSuccess(response, file, fileList){
+      // console.log("上传成功的回调", response, fileList)
+      this.tasks--;
+      this.successTasks++;
+      file.$loading = false;
+      if(typeof this.onSuccess === 'function'){
+        this.onSuccess(response, file, fileList)
+      }
+    },
+    /**
+     * 上传失败的回调
+     */
+    handleOnError(err, file, fileList){
+      file.$loading = false;
+      this.tasks--;
+      this.errorTasks++;
+      this.setUploadElementDisplay();
+      this.$emit('change', fileList);
+      if(typeof this.onSuccess === 'function'){
+        this.onError(response, file, fileList)
+      }
+    },
+    handleBeforeRemove(file, fileList){
+      
+    },
+    handleBeforeUpload(file){
+      console.log(file);
+      this.disabledAnimation = true;
+      this.tasks++; // 标记上传任务
+      this.$set(file, '$loading', true)
     },
     /**
      * 检查文件格式
@@ -244,7 +348,7 @@ export default {
         }
       })
       if(!this.fileList.length){
-        this.setUploadElementDisplay()
+        this.setUploadElementDisplay(true)
       }
       this.$emit('change', this.fileList)
     },
@@ -260,17 +364,42 @@ export default {
       }
       
     },
+    /**
+     * 手动上传
+     */
+    submitUpload() {
+      this.$refs.upload.submit();
+    },
   },
 };
 </script>
 
 <style lang="scss" scoped>
 .el-upload-list--picture-wrap{
+  min-height: 200px;
   ::v-deep.el-upload--picture-card{
     margin-bottom: 14.4px;
   }
   ::v-deep.el-upload-list__item{
     margin: 0 8px 0px 0;
+  }
+
+  .success-mark{
+    position: absolute;
+    z-index: 1;
+    right: -17px;
+    top: -7px;
+    width: 46px;
+    height: 26px;
+    background: #13ce66;
+    text-align: center;
+    transform: rotate(45deg);
+    box-shadow: 0 1px 1px #ccc;
+    i{
+      font-size: 12px;
+      margin-top: 12px;
+      transform: rotate(-45deg);
+    }
   }
 }
 

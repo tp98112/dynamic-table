@@ -185,7 +185,7 @@ export default{
             // 校验失败的标记样式 在el-table__cell上
             type: Object,
             default(){
-                return {backgroundSize: '20px 20px', backgroundColor: '#409EFF',backgroundImage: 'linear-gradient(-45deg, rgba(255, 255, 255, .2) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, .2) 50%, rgba(255, 255, 255, .2) 75%, transparent 75%, transparent)'}
+                return {backgroundSize: '20px 20px', backgroundColor: '#F2F6FC',backgroundImage: 'linear-gradient(-45deg, rgba(255, 255, 255, .2) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, .2) 50%, rgba(255, 255, 255, .2) 75%, transparent 75%, transparent)'}
             }
         },
         dblClickToEditCell: {
@@ -475,6 +475,11 @@ export default{
             // 表单弹框关闭时调用自定义事件
             type: Function,
         },
+        isFormComponent: {
+            // 标记当前表格(RocTable)是否是表单(RocForm)的子组件
+            type: Boolean,
+            default: false
+        }
     },
     computed: {
         /**

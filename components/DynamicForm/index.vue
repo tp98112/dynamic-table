@@ -196,10 +196,12 @@
             <!-- 照片墙图片上传 -->
             <tp-upload-images 
             v-else-if="item.editType === 'upload-image'"
+            :ref="`upload-image-${item.prop}`"
             @change="setUploadImage($event, item)"
+            @uploadTaskEnd="handleUploadTaskEnd"
             :mode="currentMode"
             :control="returnControlProperty(item)"
-            :fileList.sync="form[item.prop]" 
+            :fileList="form[item.prop]" 
             ></tp-upload-images>
             <!-- 上传下拉选择器 -->
             <div
@@ -258,7 +260,10 @@
             :size="size"
             style="width: 100%"
             />
-            <RocTable v-else-if="isRender(item.editType, 'roc-table')" 
+            <RocTable v-else-if="isRender(item.editType, 'roc-table')"
+            :isFormComponent="true"
+            :ref="'roc-table-' + item.prop"
+            :data="returnOptions(item)" 
             v-bind="returnControlProperty(item)"
             :disabled="setDisabled(item.disabled)"
             v-on="getControlEvents(item)"/>
@@ -288,7 +293,7 @@
 </template>
 
 <script>
-import { getId } from "../../tools.js";
+import { getId, getFieldType } from "../../tools.js";
 const renderColumn = {
   props: {
     data: Object,
@@ -645,19 +650,7 @@ export default {
         }
       }
     },
-    /**
-     * 返回输入控件的验证触发方式
-     */
-    returnInputTrigger(){
-      return type => {
-        // let change = ['select', 'date-picker', 'radio-group', 'switch', 'time-picker', 'checkbox-group', 'cascader']
-        if(['input', 'input-number', 'autocomplete'].indexOf(type) > -1){
-          return 'blur';
-        }else{
-          return 'change'
-        }
-      }
-    },
+    
     returnOptions() {
       return (item) => {
         return (
@@ -750,7 +743,17 @@ export default {
       return (item) => {
         let { editType, control } = item;
         let _config = config()[editType];
-        if (control) {
+        // 动态返回控制属性
+        if(getFieldType(control) === "Function"){
+          control = control({
+            value: this.form[item.prop],
+            form: this.form,
+            dicts: this.dicts,
+            column: item,
+            rocForm: this
+          })
+        }
+        if (getFieldType(control) === "Object") {
           for (let i in control) {
             _config[i] = control[i];
           }
@@ -795,6 +798,16 @@ export default {
         'form--item-label-center': item.labelPosition === 'center',
         'form--item-label-right': item.labelPosition === 'right',
         'form--item-label-top': item.labelPosition === 'top',
+      }
+    },
+    /**
+     * 返回输入控件的验证触发方式
+     */
+    getInputTrigger(type){
+      if(['input', 'input-number', 'autocomplete', 'roc-table'].indexOf(type) > -1){
+        return 'blur';
+      }else{
+        return 'change'
       }
     },
     // 返回时间范围选择器初始值
@@ -858,51 +871,100 @@ export default {
         }
         let validate = {
           required: item.required === true ? true : false,
-          trigger: item.validateTrigger ? item.validateTrigger : this.returnInputTrigger(item.editType),
+          trigger: item.validateTrigger ? item.validateTrigger : this.getInputTrigger(item.editType),
         }; // 验证
 
-        if (validator) {
-          // 自定义验证
-          let func = null;
-          if (Object.prototype.toString.call(validator) === "[object RegExp]") {
-            // 正则
-            func = (rule, value, callback) => {
-              if (this.notEmpty(value)) {
-                if (validator.test(value)) {
-                  callback();
-                } else {
-                  callback(
-                    new Error(
-                      item.validateTips
-                        ? item.validateTips
-                        : "校验失败, 请检查后重新输入"
-                    )
-                  );
-                }
-              } else if (item.required) {
+        let validatorType = getFieldType(validator);
+        // 优先设置特殊组件验证规则
+        this.setSpecialItemsValidator(validate, validator, validatorType, item);
+        // 其他验证
+        if(!validate.validator){
+          this.setValidator(validate, validator, validatorType, item)
+        }
+        
+        this.rules[prop] = [validate];
+      });
+    },
+    /**
+     * * 优先设置特殊组件验证规则
+     * @method setSpecialItemsValidator
+     * @param {Object} validate 验证器
+     * @param {Function} validator 用户自定义验证方法
+     * @param {String} validatorType 验证方法的类型
+     * @param {Object} item 当前项
+     */
+    setSpecialItemsValidator(validate, validator, validatorType, item){
+      let func = null;
+      if(item.editType === 'roc-table'){
+        // 当组件为RocTable时添加默认验证
+        if(validatorType === "Function"){
+          func = (rule, value, callback) => {
+            validator({value, form: this.form, callback});
+          };
+        }else{
+          func = (rule, value, callback) => {
+            if(this.$refs['roc-table-' + item.prop][0].checkTableData()){
+              callback();
+            }else{
+              console.log("当组件为RocTable时添加默认验证", validatorType)
+              callback(new Error('校验失败, 请检查后重新输入'));
+            }
+          };
+        }
+        // 添加验证方法到验证器
+        validate.validator = func;
+      }
+    },
+    /**
+     * 设置组件验证规则
+     * @method setSpecialItemsValidator
+     * @param {Object} validate 验证器
+     * @param {Function} validator 验证方法
+     * @param {String} validatorType 验证方法的类型
+     * @param {Object} item 当前项
+     */
+    setValidator(validate, validator, validatorType, item){
+      let func = null;
+      if (validator) {
+        // 自定义验证
+        if (validatorType === 'RegExp') {
+          // 正则
+          func = (rule, value, callback) => {
+            if (this.notEmpty(value)) {
+              if (validator.test(value)) {
+                callback();
+              } else {
                 callback(
                   new Error(
                     item.validateTips
                       ? item.validateTips
-                      : `请输入${item.label}`
+                      : "校验失败, 请检查后重新输入"
                   )
                 );
               }
-              callback();
-            };
-          } else if (typeof validator === "function") {
-            func = (rule, value, callback) => {
-              validator({value, form: this.form, callback});
-            };
-          }
-          validate.validator = func;
-        } else {
-          validate.message = item.validateTips
-            ? item.validateTips
-            : `${item.formLabel || item.label}不能为空`;
+            } else if (item.required) {
+              callback(
+                new Error(
+                  item.validateTips
+                    ? item.validateTips
+                    : `请输入${item.label}`
+                )
+              );
+            }
+            callback();
+          };
+        } else if (validatorType === "Function") {
+          func = (rule, value, callback) => {
+            validator({value, form: this.form, callback});
+          };
         }
-        this.rules[prop] = [validate];
-      });
+        // 添加验证方法到验证器
+        validate.validator = func; 
+      } else {
+        validate.message = item.validateTips
+          ? item.validateTips
+          : `${item.formLabel || item.label}不能为空`;
+      }
     },
     // 表单图片选择器
     // beforeAvatarUpload(file, prop) {
@@ -1045,9 +1107,14 @@ export default {
      * 更新上传图片
      */
     setUploadImage(fileList, item){
-      console.log("更新上传图片", fileList)
       this.form[item.prop] = fileList;
       this.submitFormValidation(item, 'change')
+    },
+    /**
+     * 图片上传结束
+     */
+    handleUploadTaskEnd(params){
+      this.$emit("uploadTaskEnd", params)
     },
     // 文件超出限制数量
     exceedQuantityLimit(file, fileList, item) {
@@ -1055,10 +1122,21 @@ export default {
         `${item.label}的上传文件数量不能超过${item.control.limit}个！`
       );
     },
+    /**
+     * 判断图片组件是否能使用内置的submit方法
+     * 传递了action
+     */
+    isAutoUpload(name){
+      if(this.$refs[name] && this.$refs[name][0]){
+        return this.$refs[name][0].control.action && true;
+      }
+      console.error(`ref引用名为${name}的组件不存在！`)
+      return false;
+    },
     submitUpload(prop) {
       // 手动上传
       if (prop) {
-        this.$refs[prop][0].submit();
+        this.$refs[prop][0].submitUpload();
       }
     },
     handleUploadError(err, file, fileList, item) {

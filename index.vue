@@ -101,7 +101,7 @@ export default {
                     }
                 })
             }else{
-                console.error(`The custom template rendering method returned an incorrect value. expect[string/object] \n Example1: return '<span>${column.label}</span>' \n Example2: return {emit: 'eventType', content: '<span>${column.label}</span>'}`)
+                // console.error(`The custom template rendering method returned an incorrect value. expect[string/object] \n Example1: return '<span>${column.label}</span>' \n Example2: return {emit: 'eventType', content: '<span>${column.label}</span>'}`)
                 return this.getDefaultCellValue(column, scope.row[scope.column.property]);
             }
         };
@@ -235,7 +235,7 @@ export default {
                             width={column.width}
                             index={this.getIndexMethod}
                             selectable={column.selectable}
-                            reserve-selection={this.reserveSelection}
+                            reserve-selection={typeof column.reserveSelection === 'boolean' ? column.reserveSelection : this.reserveSelection}
                             {
                                 ...this.getIndexSelectionExpandSlots(column.type)
                             }
@@ -451,7 +451,7 @@ export default {
                     received_dicts={this.dicts}
                     attrs={this.$attrs}
                     ref="rocForm"
-                    on={{created: () => {this.formReady = true}, change: this.emitDynamicFormEvents}}
+                    on={{created: () => {this.formReady = true}, change: this.emitDynamicFormEvents, uploadTaskEnd: this.handleUploadTaskEnd}}
                     {...{
                         scopedSlots: this.getFormSlots
                     }}
@@ -510,6 +510,12 @@ export default {
          */
         getTotal(){
             return this.virtualPage ? this.data.length : (this.data.length > this.total && this.data.length || this.total);
+        },
+        /**
+         * 总页数
+         */
+        getTotalPages(){
+            return Math.ceil(this.total / this.currentPageSize);
         },
         /**
          * 返回校验错误的单元格样式
@@ -873,7 +879,6 @@ export default {
                             if(instance.confirmButtonLoading){
                                 this.$message.info("删除任务进行中，请稍后...")
                             }else{
-                                this.setMappingData(scope.row, {'$deleteLoading': false})
                                 this.$message({
                                     type: 'info',
                                     message : '已取消！'
@@ -892,8 +897,14 @@ export default {
         },
         executeDeleteBefore(scope){
             if(!this.virtualPage && this.internalRefreshTableOnSuccess.delete){
-                if(this.data.length === 1 && this.currentPage > 1){
+                if(!scope && this.data.length === 1 && this.currentPage > 1 && this.currentPage === this.getTotalPages){
+                    // 当分页总数大于1,并且当前页为最末页时, 最后一项移除时，自动翻到上一页
                     this.setPage(this.currentPage - 1)
+                }else if(this.selectionList.length ===  this.data.length && this.currentPage > 1 && this.currentPage === this.getTotalPages){
+                    // 当分页总数大于1，并且当前页为最末页时，批量删除的数量刚好等于当页数量时回到上一页
+                    this.setPage(this.currentPage - 1)
+                }else if(this.selectionList.length > this.data.length){
+                    this.setPage(1); // 多页批量删除时回到第一页
                 }else{
                     this.emitPageChange(); // 刷新
                 }
@@ -1136,6 +1147,7 @@ export default {
             })
             this.selectionList.length && this.$refs.elTable.clearSelection();
             if(this.virtualPage){
+                // todo 批量删除时有潜在问题
                 this.getTableData.length === 0 && this.currentPage > 1 && this.setPage(this.currentPage - 1)
                 this.$emit('update:total', this.data.length);
             }
@@ -1261,7 +1273,7 @@ export default {
          * @scope 当前数据行
          */
         getRenderConditions(type, scope){
-            if(type in this.internalAccessControl){
+            if(this.internalAccessControl.hasOwnProperty(type)){
                 let target = this.internalAccessControl[type];
                 let validateType = typeof target;
                 let executeFunc = {
@@ -1316,6 +1328,10 @@ export default {
         dialogConfirm(){
             this.$refs.rocForm.validate(({valid, form}) => {
                 if(valid){
+                    if(this.handelUploadFiles(form)){
+                        // 检查是否存在需要上传的文件
+                        return;
+                    };
                     const success = info => {
                         if(this.internalRefreshTableOnSuccess[this.formConfig.currentMode]){
                             this.emitPageChange() // 刷新当前页
@@ -1340,6 +1356,28 @@ export default {
 
                 }
             })
+        },
+        /**
+         * 检查是否存在需要上传的文件
+         */
+        handelUploadFiles(form){
+            let tasks = 0;
+            this.column.forEach(item => {
+                if(['upload-image', 'test'].indexOf(item.editType) > -1 ){
+                    let refName = `${item.editType}-${item.prop}`;
+                    if(this.$refs.rocForm.isAutoUpload(refName) && this.findReadyFile(form[item.prop])){
+                        tasks++;
+                        this.$refs.rocForm.submitUpload(refName)
+                    }
+                }
+            });
+            return tasks;
+        },
+        /**
+         * 是否存在未上传的文件
+         */
+        findReadyFile(arr){
+            return arr.some(item => item.status === 'ready')
         },
         /**
          * 关闭弹窗时重置表单
@@ -1523,7 +1561,7 @@ export default {
                 let sendData = deepClone(this.data);
                 return sendData;
             }else{
-                this.$message.error('表格数据校验失败，请检查完善后再试！')
+                !this.isFormComponent && this.$message.error('表格数据校验失败，请检查完善后再试！')
                 return false;
             }
         },
@@ -1556,6 +1594,14 @@ export default {
             this.selectionList = selection;
             if(this.$listeners['selection-change']){
                 this.$listeners['selection-change'](selection)
+            }
+        },
+        /**
+         * 组件上传任务结束
+         */
+        handleUploadTaskEnd(params){
+            if(!params.error){
+                this.dialogConfirm();
             }
         },
         /**
@@ -1687,9 +1733,14 @@ export default {
          * 获取column最小宽度
          */
         getColumnMinWidth(item){
-            let {minWidth, label: {length}, editType} = item;
-            let clacWidth = minWidth ? minWidth : 20 + length * 13 + (item.sortable ? 24 : 0) + (item.filters ? 12 : 0);
-            return clacWidth;
+            let {minWidth, label, autoMinWidth} = item;
+            if(minWidth){
+                return minWidth
+            }else if(autoMinWidth === true && label){
+                // 自动最小宽度
+                return 20 + label.length * 13 + (item.sortable ? 24 : 0) + (item.filters ? 12 : 0)
+            }
+            return undefined;
         },
         /**
          * 获取表格数据项渲染条件
