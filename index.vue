@@ -101,7 +101,6 @@ export default {
                     }
                 })
             }else{
-                // console.error(`The custom template rendering method returned an incorrect value. expect[string/object] \n Example1: return '<span>${column.label}</span>' \n Example2: return {emit: 'eventType', content: '<span>${column.label}</span>'}`)
                 return this.getDefaultCellValue(column, scope.row[scope.column.property]);
             }
         };
@@ -1174,11 +1173,24 @@ export default {
                 type: 'pageChange',
                 currentPage: page || this.currentPage,
                 currentPageSize: pageSize || this.currentPageSize,
-                query: getFieldType(query) === 'Object' && Object.assign(this.queryForPage, query) || query,
+                query: this.getQuryParams(query),
                 success,
                 fail,
                 
             })
+        },
+        /**
+         * 获取查询列表参数
+         */
+        getQuryParams(query){
+            let queryType = getFieldType(query);
+            if(["String", 'Number'].indexOf(queryType) > -1 ){
+                return query;
+            }else if(getFieldType(this.queryForPage) === 'Object' && queryType === 'Object'){
+                return Object.assign(this.queryForPage, query);
+            }else{
+                return this.queryForPage
+            }
         },
          /**
          * 设置预置控件的禁用状态
@@ -1539,15 +1551,19 @@ export default {
         },
         /**
          * 检查并返回表格数据
+         * @param {Boolean} needData - 校验成功时是否需要返回数据
+         * @param {Boolean} immediateRemove - 校验成功时是否立即移除提示信息
+         * @param {Boolean} removeToolAttr - 返回数据时是否需要移除工具属性
          */
-        checkTableData(){
+        checkTableData(needData = true, immediateRemove, removeToolAttr){
            // 数据校验
             let finalResult = true;
             recursiveTraverse(this.data, (item, index, parent) => {
                 for(let i in this.initFieldsCollection){
                     let checkResult = this.checkRequireFields({key: i, row: item}); // 验证结果
                     if(checkResult.result){
-                       this.$delete(this.validateObject, `${i}-${item[this.uniqueKey]}`)
+                        // 注:校验通过立即移除时，会中断用户的输入操作
+                        immediateRemove && this.$delete(this.validateObject, `${i}-${item[this.uniqueKey]}`)
                     }else{
                         // 校验失败 框选标记出该字段位置
                         finalResult = false;
@@ -1557,9 +1573,17 @@ export default {
                 
             })
             if(finalResult){
-                // checkTableData方法返回的数据默认经过深拷贝
-                let sendData = deepClone(this.data);
-                return sendData;
+                if(needData){
+                    // checkTableData方法返回的数据经过深拷贝
+                    let sendData = deepClone(this.data);
+                    if(removeToolAttr){
+                        sendData.forEach(item => {
+                            delete item.$rowKey;
+                        })
+                    }
+                    return sendData;
+                }
+                return true;
             }else{
                 !this.isFormComponent && this.$message.error('表格数据校验失败，请检查完善后再试！')
                 return false;

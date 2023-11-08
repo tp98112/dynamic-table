@@ -36,7 +36,7 @@
               
               v-on="getControlEvents(item)"
               :size="size"
-              v-bind="returnControlProperty(item)"
+              v-bind="getControlProperty(item)"
               :disabled="setDisabled(item.disabled)"
               :readonly="setReadonly(item.readonly)"
             >
@@ -59,13 +59,13 @@
               v-model="form[item.prop]"
               v-on="getControlEvents(item)"
               :size="size"
-              v-bind="returnControlProperty(item)"
+              v-bind="getControlProperty(item)"
               :disabled="setDisabled(item.disabled)"
               :readonly="setReadonly(item.readonly)"
               style="width: 100%"
             >
               <el-option
-                v-for="opt in returnOptions(item)"
+                v-for="opt in getOptions(item)"
                 :key="returnOptionsFields(item, opt, 'value')"
                 :label="returnOptionsFields(item, opt, 'label')"
                 :value="returnOptionsFields(item, opt, 'value')"
@@ -78,7 +78,7 @@
               v-model="form[item.prop]"
               v-on="getControlEvents(item)"
               :size="size"
-              v-bind="returnControlProperty(item)"
+              v-bind="getControlProperty(item)"
               :disabled="setDisabled(item.disabled)"
               :readonly="setReadonly(item.readonly)"
               style="width: 100%"
@@ -89,10 +89,11 @@
               v-model="form[item.prop]"
               v-on="getControlEvents(item)"
               :size="size"
-              v-bind="returnControlProperty(item)"
+              v-bind="getControlProperty(item)"
+              :disabled="setDisabled(item.disabled)"
             >
               <el-radio
-                v-for="(opt, optIndex) of returnOptions(item)"
+                v-for="(opt, optIndex) of getOptions(item)"
                 :key="optIndex"
                 :label="returnOptionsFields(item, opt, 'value')"
               >
@@ -105,7 +106,7 @@
               v-model="form[item.prop]"
               v-on="getControlEvents(item)"
               :size="size"
-              v-bind="returnControlProperty(item)"
+              v-bind="getControlProperty(item)"
               :disabled="setDisabled(item.disabled)"
               :readonly="setReadonly(item.readonly)"
             ></el-switch>
@@ -113,7 +114,7 @@
             <el-link
               v-else-if="isRender(item.editType, 'link')"
               :size="size"
-              v-bind="returnControlProperty(item)"
+              v-bind="getControlProperty(item)"
               :disabled="setDisabled(item.disabled)"
               :readonly="setReadonly(item.readonly)"
               v-on="getControlEvents(item)"
@@ -125,7 +126,7 @@
                 v-model="form[item.prop]"
                 v-on="getControlEvents(item)"
                 :size="size"
-                v-bind="returnControlProperty(item)"
+                v-bind="getControlProperty(item)"
                 :disabled="setDisabled(item.disabled)"
                 :readonly="setReadonly(item.readonly)"
                 style="width: 100%"
@@ -138,12 +139,12 @@
                 v-model="form[item.prop]"
                 v-on="getControlEvents(item)"
                 :size="size"
-                v-bind="returnControlProperty(item)"
+                v-bind="getControlProperty(item)"
                 :disabled="setDisabled(item.disabled)"
                 :readonly="setReadonly(item.readonly)"
               >
                 <el-checkbox
-                  v-for="(opt, optIndex) of returnOptions(item)"
+                  v-for="(opt, optIndex) of getOptions(item)"
                   :key="optIndex"
                   :label="returnOptionsFields(item, opt, 'value')"
                 >
@@ -157,7 +158,7 @@
               v-model="form[item.prop]"
               v-on="getControlEvents(item)"
               :size="size"
-              v-bind="returnControlProperty(item)"
+              v-bind="getControlProperty(item)"
               :disabled="setDisabled(item.disabled)"
               :readonly="setReadonly(item.readonly)"
             ></el-input-number>
@@ -166,10 +167,10 @@
               v-else-if="isRender(item.editType, 'cascader')"
               :ref="'cascader-' + item.prop"
               :size="size"
-              v-bind="returnControlProperty(item)"
+              v-bind="getControlProperty(item)"
               v-model="form[item.prop]"
               v-on="getControlEvents(item)"
-              :options="returnOptions(item)"
+              :options="getOptions(item)"
               style="width: 100%"
               :disabled="setDisabled(item.disabled)"
               :readonly="setReadonly(item.readonly)"
@@ -179,7 +180,7 @@
               v-else-if="isRender(item.editType, 'autocomplete')"
               v-model="form[item.prop]"
               :size="size"
-              v-bind="returnControlProperty(item)"
+              v-bind="getControlProperty(item)"
               v-on="getControlEvents(item)"
               :disabled="setDisabled(item.disabled)"
               :readonly="setReadonly(item.readonly)"
@@ -189,7 +190,7 @@
             <tp-upload-button 
                 v-else-if="item.editType === 'upload-button'"
                 @change="submitFormValidation(item, 'change')"
-                :control="returnControlProperty(item)"
+                :control="getControlProperty(item)"
                 :size="item.size"
                 :fileList="form[item.prop]" >
             </tp-upload-button>
@@ -200,7 +201,7 @@
             @change="setUploadImage($event, item)"
             @uploadTaskEnd="handleUploadTaskEnd"
             :mode="currentMode"
-            :control="returnControlProperty(item)"
+            v-bind="getControlProperty(item)"
             :fileList="form[item.prop]" 
             ></tp-upload-images>
             <!-- 上传下拉选择器 -->
@@ -224,7 +225,7 @@
                 </el-option>
               </el-select>
               <el-upload
-                v-bind="returnControlProperty(item)"
+                v-bind="getControlProperty(item)"
                 :file-list="form[item.prop]"
                 :show-file-list="false"
                 :on-exceed="
@@ -252,19 +253,19 @@
             <el-select-tree 
             v-else-if="isRender(item.editType, 'select-tree')"
             v-model="form[item.prop]"
-            v-bind="returnControlProperty(item)"
+            v-bind="getControlProperty(item)"
             :disabled="setDisabled(item.disabled)"
             :readonly="setReadonly(item.readonly)"
             v-on="getControlEvents(item)"
-            :data="returnOptions(item)"
+            :data="getOptions(item)"
             :size="size"
             style="width: 100%"
             />
             <RocTable v-else-if="isRender(item.editType, 'roc-table')"
             :isFormComponent="true"
             :ref="'roc-table-' + item.prop"
-            :data="returnOptions(item)" 
-            v-bind="returnControlProperty(item)"
+            :data="getRocTableData(item)" 
+            v-bind="getControlProperty(item)"
             :disabled="setDisabled(item.disabled)"
             v-on="getControlEvents(item)"/>
             <!-- 按钮组 -->
@@ -293,7 +294,9 @@
 </template>
 
 <script>
+import { deepClone } from '../../../DynamicTable/tools.js';
 import { getId, getFieldType } from "../../tools.js";
+import config from "./config.js";
 const renderColumn = {
   props: {
     data: Object,
@@ -517,33 +520,6 @@ export default {
             return item.module ? `${item.module}-${item.prop}` : item.prop;
         }
     },
-    /**
-     * 批量绑定控件事件
-     */
-    getControlEvents() {
-      return (item) => {
-        let controlEvents = {};
-        if (typeof item.controlEvents === "object") {
-          for (let i in item.controlEvents) {
-            controlEvents[i] = (value) => {
-              typeof item.controlEvents[i] === "function"
-                ? item.controlEvents[i]({
-                    value,
-                    form: this.form,
-                    dicts: this.dicts,
-                    column: item,
-                    rocForm: this,
-                  })
-                : () => {
-                  };
-            };
-          }
-          return controlEvents;
-        } else {
-          return controlEvents;
-        }
-      };
-    },
     getFormItems() {
       if (this.currentPanel) {
         // 存在面板设置但是没有数据隔离时
@@ -615,24 +591,6 @@ export default {
         return type in this.supportedComponents;
       };
     },
-    setDisabled() {
-      // 禁用表单项
-      return (disabled) => {
-        if (this.disabledForm === true) {
-          return true;
-        }
-        let type = typeof disabled;
-        return type === "boolean"
-          ? disabled
-          : type === "function"
-          ? disabled({
-              form: this.form,
-              panel: this.currentPanel,
-              mode: this.currentMode,
-            })
-          : false;
-      };
-    },
     /**
      * 设置只读
      */
@@ -651,120 +609,6 @@ export default {
       }
     },
     
-    returnOptions() {
-      return (item) => {
-        return (
-          this.dicts[item.dict] ||
-          this.$attrs[item.optionsKey] ||
-          item.options ||
-          []
-        );
-      };
-    },
-    returnControlProperty() {
-      function config() {
-        return {
-          select: {
-            filterable: true,
-            clearable: true,
-            placeholder: "请选择",
-          },
-          input: {
-            type: "input",
-            clearable: true,
-            "show-password": false,
-            "show-word-limit": false,
-            maxlength: "",
-            "suffix-icon": "", // 后缀icon
-            "prefix-icon": "", // 前缀icon
-            placeholder: "请输入内容",
-          },
-          "date-picker": {
-            type: "date",
-            // format: "yyyy-MM-dd", // 当是datetimerange报错 todo
-            // "value-format": "yyyy-MM-dd",
-            editable: false,
-            clearable: true,
-            readonly: false,
-            placeholder: "请选择",
-          },
-          "time-picker": {
-            "is-range": true,
-            valueFormat: 'HH:ss:mm',
-            "range-separator": "至",
-            "start-placeholder": "开始时间",
-            "end-placeholder": "结束时间",
-            placeholder: "选择时间范围",
-          },
-          switch: {
-            "active-text": "",
-            "inactive-text": "",
-          },
-          link: {
-            type: "primary",
-            icon: "",
-            underline: true,
-          },
-          "radio-group": {},
-          "checkbox-group": {},
-          "input-number": { size: "mini" },
-          cascader: {
-            clearable: true,
-          },
-          autocomplete: {
-            clearable: true,
-            "value-key": "dictValue",
-            "fetch-suggestions": (queryString, cb) => {
-              cb([]);
-            },
-          },
-          "upload-button": {
-            action: "",
-            "auto-upload": false,
-            multiple: true,
-            "show-file-list": false, // 不展示上传列表
-          },
-          "upload-image": {
-            action: "",
-            "auto-upload": false,
-            multiple: true,
-          },
-          "upload-select": {
-            action: "",
-            "auto-upload": false,
-            multiple: true,
-          },
-          'select-tree': {
-            clearable: true,
-          },
-          'roc-table': {}
-        };
-      }
-      return (item) => {
-        let { editType, control } = item;
-        let _config = config()[editType];
-        // 动态返回控制属性
-        if(getFieldType(control) === "Function"){
-          control = control({
-            value: this.form[item.prop],
-            form: this.form,
-            dicts: this.dicts,
-            column: item,
-            rocForm: this
-          })
-        }
-        if (getFieldType(control) === "Object") {
-          for (let i in control) {
-            _config[i] = control[i];
-          }
-        }
-        // cascader的options和lazy动态加载不能同时存在, 否则将造成选中后不能回显的问题!
-        if (editType == "cascader" && !control.prop?.lazy) {
-          _config.options = this.returnOptions(item);
-        }
-        return _config;
-      };
-    },
   },
   created() {
     if (this.currentPanel && this.splitPanelData) {
@@ -779,6 +623,91 @@ export default {
     this.$emit("created", { form: this.form });
   },
   methods: {
+    setDisabled(disabled) {
+      // 禁用表单项
+      if (this.disabledForm === true) {
+        return true;
+      }
+      let type = typeof disabled;
+      return type === "boolean"
+        ? disabled
+        : type === "function"
+        ? disabled({
+            form: this.form,
+            panel: this.currentPanel,
+            mode: this.currentMode,
+            rocForm: this
+          })
+        : false;
+    },
+    /**
+     * 返回表格data
+     */
+    getRocTableData(item){
+      let options = this.form[item.prop] || this.dicts[item.dict] || this.$attrs[item.optionsKey] || item.options;
+      if(options){
+        return options
+      }else if(Array.isArray(this.form[item.prop])){
+        return this.form[item.prop];
+      }else {
+        this.form[item.prop] = [];
+        return this.form[item.prop];
+      }
+    },
+    /**
+     * 批量绑定控件事件
+     */
+    getControlEvents(item) {
+      let controlEvents = {};
+      if (typeof item.controlEvents === "object") {
+        for (let i in item.controlEvents) {
+          controlEvents[i] = (value) => {
+            let option = this.findOption(item, value);
+            let take = {
+              value,
+              form: this.form,
+              option,
+              dicts: this.dicts,
+              column: item,
+              rocForm: this,
+            };
+            
+            typeof item.controlEvents[i] === "function"
+              ? item.controlEvents[i](take)
+              : () => {
+                };
+          };
+        }
+        return controlEvents;
+      } else {
+        return controlEvents;
+      }
+    },
+    /**
+     * 查找当前选中项
+     */
+    findOption(column, value){
+      if(column.optionsKey || column.options || column.dict){
+        let options = this.getOptions(column);
+        let valueKey = column.optionControl && column.optionControl.value || column.dict && this.dictControl.value || this.optionControl.value;
+        return options.find(item => item[valueKey] === value)
+      };
+      return null;
+    },
+    /**
+     * 返回数据列表
+     */
+    getOptions(item) {
+      return (
+        this.dicts[item.dict] ||
+        this.$attrs[item.optionsKey] ||
+        item.options ||
+        []
+      );
+    },
+    /**
+     * 返回FormItem style
+     */
     setFormItemStyle(item){
       let style = {
         width: this.formItemWidth(item),
@@ -790,7 +719,7 @@ export default {
       return style;
     },
     /**
-     * 设置FormItem class
+     * 返回FormItem class
      */
     setFormItemClass(item){
       return {
@@ -804,7 +733,7 @@ export default {
      * 返回输入控件的验证触发方式
      */
     getInputTrigger(type){
-      if(['input', 'input-number', 'autocomplete', 'roc-table'].indexOf(type) > -1){
+      if(['input', 'input-number', 'autocomplete'].indexOf(type) > -1){
         return 'blur';
       }else{
         return 'change'
@@ -823,7 +752,7 @@ export default {
     },
     // 整理数据结构
     collatingDataStructures() {
-      let hasRequired = false;
+      let hasRequired = false; // 标记是否存在必传标识
       this.formItemList.forEach((item) => {
         item.$key = getId(true);
         // 检查最长标签长度
@@ -833,8 +762,9 @@ export default {
             : this.formLabelLength;
         if (!hasRequired && item.required) {
           // 存在必传项时要加10px的宽度
-          this.formLabelFillWidth = this.formLabelFillWidth + 10;
+          this.formLabelFillWidth = this.formLabelFillWidth + 11;
           hasRequired = true;
+          console.log("存在必传项时要加10px的宽度", this.formLabelFillWidth)
         }
         if(!item.prop || item.propAsKeyOnly){return};
         item.editType =
@@ -903,7 +833,13 @@ export default {
           };
         }else{
           func = (rule, value, callback) => {
-            if(this.$refs['roc-table-' + item.prop][0].checkTableData()){
+            if(item.required && (!Array.isArray(value) || !value.length) ){
+              // 必传
+              callback(new Error(`${item.label || item.prop}不能为空`));
+              return;
+            }
+            // 此处检查表格数据不需要返回data, 并且校验成功时不需要立即移除提示信息
+            if(this.$refs['roc-table-' + item.prop][0].checkTableData(false, false)){
               callback();
             }else{
               console.log("当组件为RocTable时添加默认验证", validatorType)
@@ -1007,7 +943,8 @@ export default {
           });
         }
         if (typeof func === "function") {
-          func({valid, form: valid ? this.deepClone(Object.assign(this.deepClone(this.initFields), this.form)) : null, module: valid ? this.getFormModule() : null});
+          let mergeForm = Object.assign(this.deepClone(this.initFields), this.form);
+          func({valid, form: valid ? this.deepClone(mergeForm) : null, module: valid ? this.getFormModule() : null});
         }
       });
       return validResult;
@@ -1128,7 +1065,7 @@ export default {
      */
     isAutoUpload(name){
       if(this.$refs[name] && this.$refs[name][0]){
-        return this.$refs[name][0].control.action && true;
+        return this.$refs[name][0].action;
       }
       console.error(`ref引用名为${name}的组件不存在！`)
       return false;
@@ -1188,7 +1125,38 @@ export default {
      */
     notEmpty(value){
       return [null,undefined,''].indexOf(value) < 0
-    }
+    },
+    /**
+     * @method getControlProperty
+     * @param {Object} item - 当前表单项
+     * 返回控件属性
+     */
+    getControlProperty(item) {
+      if(config.defaultControlProperties.hasOwnProperty(item.editType)){
+        let { editType, control } = item;
+        let _config = deepClone(config.defaultControlProperties[editType]);
+        // 动态返回控制属性
+        if(getFieldType(control) === "Function"){
+          control = control({
+            value: this.form[item.prop],
+            form: this.form,
+            dicts: this.dicts,
+            column: item,
+            rocForm: this
+          })
+        };
+        if (getFieldType(control) === "Object") {
+          Object.assign(_config, control);
+        };
+
+        // cascader的options和lazy动态加载不能同时存在, 否则将造成选中后不能回显的问题!
+        if (editType == "cascader" && !control.prop?.lazy) {
+          _config.options = this.getOptions(item);
+        };
+        return _config;
+      }
+      return {};
+    },
   },
 };
 </script>

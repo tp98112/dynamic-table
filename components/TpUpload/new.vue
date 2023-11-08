@@ -1,17 +1,21 @@
 <template>
   <el-upload 
     v-if="Array.isArray(fileList)"
-    v-bind="bindValues"
     ref="upload"
     :show-file-list="true"
     :fileList="fileList"
     listType="picture-card"
+    :action="action"
+    :multiple="multiple"
+    :autoUpload="autoUpload"
+    :accept="accept"
+    :limit="limit"
+    v-bind="control"
     :on-exceed="exceedQuantityLimit"
     :on-change="handleUploadChange"
     :on-success="handleOnSuccess"
     :on-error="handleOnError"
     :before-upload="handleBeforeUpload"
-    :before-remove="handleBeforeRemove"
     :on-progress="handleOnProgress"
     :class="{'el-upload-list--picture-wrap': true, 'disabled-animation': disabledAnimation || !fileList.length}"
   >
@@ -24,7 +28,7 @@
       <el-image
         style="width: 148px; height: 148px;"
         :src="file.url"
-        :fit="control.fit ? control.fit : 'fill'"
+        :fit="fit"
         :preview-src-list="getPreviewSrcList(fileList)"
       >
       </el-image>
@@ -52,10 +56,10 @@
     </div>
 
     <!-- 上传提示 -->
-    <div class="el-upload__tip" slot="tip" v-if="bindValues.showTip" style="margin-top: 0px">
+    <div class="el-upload__tip" slot="tip" v-if="showTip" style="margin-top: 0px">
       请上传
-      <template v-if="bindValues.size"> 大小不超过 <b style="color: #f56c6c">{{ getFileSize }}</b>， </template>
-      <template v-if="bindValues.accept"> 格式为 <b style="color: #f56c6c">{{ getAcceptFileType() }}</b> </template>
+      <template v-if="size"> 大小不超过 <b style="color: #f56c6c">{{ getFileSize }}</b>， </template>
+      <template v-if="accept"> 格式为 <b style="color: #f56c6c">{{ getAcceptFileType() }}</b> </template>
       的图片
     </div>
   </el-upload>
@@ -64,6 +68,15 @@
 <script>
 export default {
   props: {
+    /**
+     * 绑定prop
+     */
+    control: {
+        type: Object,
+        default(){
+            return {}
+        }
+    },
     /**
      * 文件列表
      */
@@ -74,18 +87,48 @@ export default {
             return []
         }
     },
-    /**
-     * 绑定prop
-     */
-    control: {
-        type: Object,
-        default(){
-            return {}
-        }
+    action: {
+      // 上传地址
+      type: String
+    },
+    multiple: {
+      // 多选
+      type: Boolean,
+      default: true
+    },
+    autoUpload: {
+      // 是否自动上传
+      type: Boolean,
+      default: false
     },
     accept: {
-        type: String,
-        default: "image/png,image/jpeg,image/gif"
+      // 文件类型限制
+      type: String,
+      default: '"image/png,image/jpeg,image/gif"'
+    },
+    limit: {
+      // 文件数量限制
+      type: Number
+    },
+    size: {
+      // 文件大小限制
+      type: Number
+    },
+    fit: {
+      // 确定图片如何适应到容器框
+      // fill / contain / cover / none / scale-down
+      type: String,
+      default: 'fill'
+    },
+    showTip:  {
+      // 是否显示上传提示
+      type: Boolean,
+      default: true
+    },
+    decimalPlace: {
+      // 限制文件大小, 保留小数位数
+      type: Number,
+      default: 2
     },
     mode: {
       type: String,
@@ -111,20 +154,11 @@ export default {
       successTasks:0, // 成功的任务
       errorTasks:0, // 失败的任务
       completedTask: 0, // 已结束的任务
-      bindValues: Object.assign({
-          action: "",
-          multiple: false,
-          'auto-upload': false,
-          multiple: true,
-          accept: "image/png,image/jpeg,image/gif",
-          showTip: true,
-          decimalPlace: 2, // 保留小数位数
-      },this.control),
     };
   },
   computed: {
     getFileSize(){
-      let {size, decimalPlace} = this.bindValues;
+      let {size, decimalPlace} = this;
       let index = 0;
       if(size){
         const units = ['KB', 'MB'];
@@ -146,9 +180,8 @@ export default {
     fileList(value){
       if(Array.isArray(value)){
         this.$nextTick(() => {
-          this.setUploadElementDisplay(true);
+          this.setUploadElementDisplay(value.length && true || false);
         })
-        
       }else{
         // 重置文件列表
         this.setUrlToFileList();
@@ -162,28 +195,28 @@ export default {
   },
   created(){
     if(Array.isArray(this.fileList)){
-        this.setUploadElementDisplay();
+        this.$nextTick(() => {
+          this.setUploadElementDisplay();
+        })
       }else{
         // 重置文件列表
         this.setUrlToFileList();
       }
-  },
-  mounted(){
-    this.setUploadElementDisplay();
   },
   methods: {
     showUploadResultMessage(){
       if(!this.errorTasks){
         this.$message.success(`上传${this.tasks > 1 && '全部图片' || '图片'}成功！`);
         this.$emit("success", {success: this.successTasks, error: this.errorTasks})
-      }else if(this.tasks === this.errorTasks){
+      }else if(!this.successTasks){
         this.$message.error("上传图片失败！")
       }else{
-        this.$message.info(`${successTasks}张图片上传成功，${errorTasks}张图片上传失败！`)
+        this.$message.warning(`${this.successTasks}张图片上传成功，${this.errorTasks}张图片上传失败！`)
       }
       this.$emit("uploadTaskEnd", {success: this.successTasks, error: this.errorTasks})
       this.successTasks = 0;
       this.errorTasks = 0;
+      this.disabledAnimation = false;
     },
     handleHttpRequest(event){
       console.log("event", event)
@@ -192,7 +225,7 @@ export default {
      * 文件状态改变时
      */
     handleUploadChange(file, fileList){
-      console.log(file, file.status)
+      // console.log(file, file.status)
       if(file.status === "ready"){
         // 检查格式
         if(!this.handleCheckFormat(file)){
@@ -216,11 +249,15 @@ export default {
      */
     handleOnSuccess(response, file, fileList){
       // console.log("上传成功的回调", response, fileList)
-      this.tasks--;
-      this.successTasks++;
-      file.$loading = false;
+      let done = () => {
+        this.tasks--;
+        this.successTasks++;
+        file.$loading = false;
+      };
       if(typeof this.onSuccess === 'function'){
-        this.onSuccess(response, file, fileList)
+        this.onSuccess({response, file, fileList, done } )
+      }else{
+        done();
       }
     },
     /**
@@ -237,7 +274,7 @@ export default {
       }
     },
     handleBeforeRemove(file, fileList){
-      
+      console.log("handleBeforeRemove", file)
     },
     handleBeforeUpload(file){
       console.log(file);
@@ -249,14 +286,14 @@ export default {
      * 检查文件格式
      */
     handleCheckFormat(file){
-      if(!file.raw.type || this.bindValues.accept.indexOf(file.raw.type) < 0){
+      if(!file.raw.type || this.accept.indexOf(file.raw.type) < 0){
         this.$message.error(`请上传 ${this.getAcceptFileType()} 格式的图片！`);
         this.$refs.upload.uploadFiles.splice(this.$refs.upload.uploadFiles.findIndex(item => {item.uid === file.uid}), 1)
         return false;
       };
-      if(this.bindValues?.size && file.size / 1024 > this.bindValues.size){
+      if(this.size && file.size / 1024 > this.size){
         // 单位 kb
-        this.$message.error(`上传图片大小不能超过${this.control.size}KB！`);
+        this.$message.error(`上传图片大小不能超过${this.size}KB！`);
         this.$refs.upload.uploadFiles.splice(this.$refs.upload.uploadFiles.findIndex(item => {item.uid === file.uid}), 1)
         return false;
       }
@@ -274,7 +311,7 @@ export default {
     },
     setUploadElementDisplay(hasDelay){
       let element = document.getElementsByClassName('el-upload--picture-card');
-      if(this.mode === 'view' || this.fileList.length === this.bindValues.limit){
+      if(this.mode === 'view' || this.fileList.length === this.limit){
         element && element[0] && (element[0].style.display = 'none');
         element && element[0] && (element[0].style.visibility = 'hidden');
       }else{
@@ -305,7 +342,7 @@ export default {
       const regex = /image\/(\w+)/g;  // 匹配 image/ 后面的字符串
       let matches = [];
       let match;
-      while ((match = regex.exec(this.bindValues.accept)) !== null) {
+      while ((match = regex.exec(this.accept)) !== null) {
         matches.push(match[1]);  // 提取捕获组中的内容
       }
       const formats = matches.join(", ");
@@ -348,7 +385,7 @@ export default {
         }
       })
       if(!this.fileList.length){
-        this.setUploadElementDisplay(true)
+        this.setUploadElementDisplay()
       }
       this.$emit('change', this.fileList)
     },
@@ -356,11 +393,10 @@ export default {
      * 选择的文件超出数量限制
      */
     exceedQuantityLimit(){
-      let num = this.bindValues.limit - this.fileList.length;
-      if(num){
-        this.$message.info(`选择图片数量超出上限，当前最多还能再选${num}张！`)
+      if(!this.fileList.length){
+        this.$message.warning(`最多选择${this.limit}张图片！`)
       }else{
-        this.$message.info(`最多选择${this.bindValues.limit}张图片！`)
+        this.$message.warning(`选择图片数量超出上限，当前最多还能再选${this.limit - this.fileList.length}张！`)
       }
       
     },
