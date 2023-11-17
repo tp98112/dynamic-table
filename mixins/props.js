@@ -143,6 +143,9 @@ export default{
             type: Boolean,
             default: true
         },
+        currentRowKey: {
+            type: [Number, String]
+        },
         spanMethod: {
             // 合并方法
             type: Function,
@@ -185,7 +188,7 @@ export default{
             // 校验失败的标记样式 在el-table__cell上
             type: Object,
             default(){
-                return {backgroundSize: '20px 20px', backgroundColor: '#F2F6FC',backgroundImage: 'linear-gradient(-45deg, rgba(255, 255, 255, .2) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, .2) 50%, rgba(255, 255, 255, .2) 75%, transparent 75%, transparent)'}
+                return {backgroundSize: '20px 20px',backgroundImage: 'linear-gradient(-45deg, rgba(255, 255, 255, .2) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, .2) 50%, rgba(255, 255, 255, .2) 75%, transparent 75%, transparent)'}
             }
         },
         dblClickToEditCell: {
@@ -215,6 +218,11 @@ export default{
         },
         showAction: {
             /** 操作栏显隐状态 */ 
+            type: Boolean,
+            default: undefined
+        },
+        showTopAction: {
+            /** 顶部操作栏显隐状态 */ 
             type: Boolean,
             default: undefined
         },
@@ -287,6 +295,14 @@ export default{
           validator(obj){
 
           }
+        },
+        showLoadingOnTimeout: {
+            // 当接口超过此时间不返回时显示loading
+            type: Number,
+        },
+        minLoadingTime: {
+            // loading一旦开启,显示的最短时间,避免消失太快时的闪烁
+            type: Number,
         },
         pagination: {
             // 是否展示分页
@@ -380,6 +396,13 @@ export default{
             // 单元格双击事件
             type: Function,
         },
+        formData: {
+            // 当表格作为rocForm的子组件时，由rocForm传递的表单数据
+            type: Object,
+            default(){
+                return {};
+            }
+        },
         formColumn: {
             // 编辑表单数据项配置 该值不传时取column
             type: Array,
@@ -388,6 +411,10 @@ export default{
             // 编辑表单的不同面板是否启用数据隔离
             type: Boolean,
             default: false
+        },
+        formSize: {
+            type: String,
+            default: 'small'
         },
         formCols: {
             // 表单一行放置控件数量
@@ -415,7 +442,7 @@ export default{
         formLabelPosition: {
             // 表单标签对齐方式
             type: String,
-            default: 'left'
+            default: 'right'
         },
         formGutter: {
             // 表单项间距
@@ -453,15 +480,16 @@ export default{
             default(){
                 return [
                     {
-                        // icon: 'el-icon-refresh-right',
-                        label: '取 消',
-                        target: '$cancel'
-                    },
-                    {
                         icon: 'el-icon-circle-check',
                         label: '确 定',
                         type: 'primary',
                         target: '$update'
+                    },
+                    {
+                        label: '取 消',
+                        icon: 'el-icon-circle-close',
+                        type: 'primary',
+                        target: '$cancel',
                     },
                     {
                         // icon: 'el-icon-close',
@@ -649,6 +677,22 @@ export default{
               target: 'cancel'
           }
         ];
+      },
+      /**
+       * @computed showLoadingOnTimeout
+       * @desc 当接口超过此时间不返回时将显示loading 默认500毫秒
+       * @returns {Number} 超时时间 单位/毫秒
+       */
+       internalShowLoadingOnTimeout(){
+        return this.showLoadingOnTimeout || (this.$ROCTABLE || {}).showLoadingOnTimeout || 500;
+      },
+      /**
+       * @computed internalMinLoadingTime
+       * @desc loading一旦开启,显示的最短时间,避免消失太快时的闪烁 默认最短显示一秒
+       * @returns {Number} 时间 单位/毫秒
+       */
+       internalMinLoadingTime(){
+        return this.minLoadingTime || (this.$ROCTABLE || {}).minLoadingTime || 1000;
       },
       /**
        * @computed actionButtonExtraWidth 操作栏按钮的补充宽度

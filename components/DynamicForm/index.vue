@@ -3,11 +3,11 @@
     :model="form"
     :rules="rules"
     :disabled="disabledForm"
-    ref="dynamic-form"
+    ref="rocForm"
     @submit.native.prevent
     :label-width="getFormLabelWidth"
     :label-position="labelPosition"
-    :style="{ marginLeft: -gutter / 2 + 'px' }"
+    :size="size"
     :class="{
       'dynamic-form': true,
       'form-items-cover': formItemsCover,
@@ -24,8 +24,8 @@
       >
         <slot :name="'form-' + (item.prop || item.key)" v-bind="{ form, mode: '' }">
           <renderColumn
-            v-if="typeof item.render === 'function'"
-            :renderContent="item.render"
+            v-if="typeof item.formRender === 'function'"
+            :renderContent="item.formRender"
             :data="{ form, mode: '' }"
           ></renderColumn>
           <template v-else>
@@ -254,6 +254,7 @@
             v-else-if="isRender(item.editType, 'select-tree')"
             v-model="form[item.prop]"
             v-bind="getControlProperty(item)"
+            :props="getSelectTreeProps(item)"
             :disabled="setDisabled(item.disabled)"
             :readonly="setReadonly(item.readonly)"
             v-on="getControlEvents(item)"
@@ -267,6 +268,7 @@
             :data="getRocTableData(item)" 
             v-bind="getControlProperty(item)"
             :disabled="setDisabled(item.disabled)"
+            :formData="form"
             v-on="getControlEvents(item)"/>
             <!-- 按钮组 -->
             <div v-else-if="isRender(item.editType, 'button-group')" :style="{display: 'flex', alignItems: 'center',height: '100%', justifyContent: item.justifyContent}">
@@ -324,6 +326,11 @@ export default {
       default() {
         return [];
       },
+    },
+    isTableComponent: {
+      // 标记当前表单(RocForm)是否是表格(RocTable)的子组件
+      type: Boolean,
+      default: false
     },
     cols: {
       // 将一行分成cols份
@@ -386,7 +393,7 @@ export default {
     labelPosition: {
       // 表单标签对齐方式
       type: String,
-      default: "left",
+      default: "right",
     },
     formLabelWidth: {
       // 表单标签宽度 px
@@ -433,6 +440,7 @@ export default {
       componentId: getId(true),
       form: {}, // 表单
       rules: {}, // 验证规则
+      internalCurrentMode: '', // 保存时触发的事件类型 new/update
       backupPanelData: {},
       dicts: this.received_dicts, // 默认接收父组件传递的字典数据 避免重复请求
       formItemList: [], // 表单列表
@@ -441,6 +449,7 @@ export default {
       otherData: {}, // 文件上传-下拉选择器数据
       formLabelLength: 2, // 表单项标签文本长度
       formLabelFillWidth: 13, // 表单项标签补充宽度
+      uploadTasks: 0, // 标记上传任务总数
       supportedComponents: Object.freeze({
         "date-picker": "", // 时间选择器
         input: "", // 文本输入框
@@ -623,6 +632,69 @@ export default {
     this.$emit("created", { form: this.form });
   },
   methods: {
+    /**
+     * 保存
+     * @param {String} type - 保存类型
+     */
+    handleSave(type){
+      this.validate(({valid, form}) => {
+        if(valid){
+          this.internalCurrentMode = type || 'new'; // 标记操作类型
+          if(this.checkUploadFiles(form)){
+            // 存在需要自动上传的文件
+            return;
+          };
+          this.$emit('change', {
+            type: 'save', 
+            form: form, 
+            dicts: this.dicts, 
+            mode: this.internalCurrentMode, 
+            panel: this.currentPanel,
+          })
+        }
+      })
+    },
+    /**
+     * 检查并上传文件
+     */
+    checkUploadFiles(form){
+      this.uploadTasks =  0;
+      this.getFormItems.forEach(item => {
+        if(['upload-image'].indexOf(item.editType) > -1 ){
+          let refName = `${item.editType}-${item.prop}`;
+          if(this.isAutoUpload(refName) && this.findReadyFile(form[item.prop])){
+            this.uploadTasks++; // 标记上传任务数量
+            this.submitUpload(refName)
+          }
+        }
+      });
+      return this.uploadTasks;
+    },
+    waitForUploadTasksEnd(){
+
+    },
+    /**
+     * 是否存在未上传的文件
+     */
+    findReadyFile(arr){
+        return arr.some(item => item.status === 'ready')
+    },
+    /**
+     * 返回select-tree的props
+     */
+    getSelectTreeProps(item){
+      if(item.control && item.control.props){
+        return item.control.props;
+      }else{
+        //
+        let props = {label: 'label', value: 'value', children: 'children'};
+        if(item.optionControl){
+          return Object.assign(props, item.optionControl);
+        }else{
+          return props;
+        }
+      }
+    },
     setDisabled(disabled) {
       // 禁用表单项
       if (this.disabledForm === true) {
@@ -925,7 +997,10 @@ export default {
       if(item.target === 'reset'){
         this.resetFields();
       }
-      if(item.emit){
+      if(item.target === 'search'){
+        this.validate(); // todo
+      }
+      if(item.target || item.emit){
           this.$emit('change', {type: item.emit, form: this.form, dicts: this.dicts, mode: this.currentMode, panel: this.currentPanel})
       }
       
@@ -933,7 +1008,7 @@ export default {
     // 校验并获取表单数据
     validate(func) {
       let validResult = false;
-      this.$refs["dynamic-form"].validate((valid) => {
+      this.$refs.rocForm.validate((valid) => {
         if (valid) {
           validResult = true;
         } else if(this.showValidationFailsMessage){
@@ -994,7 +1069,7 @@ export default {
      * 提交表单验证
      */
     submitFormValidation(item, trigger){
-      this.$refs['dynamic-form'].validateField(item.prop);
+      this.$refs.rocForm.validateField(item.prop);
     },
     /**
      * 更新表单数据
@@ -1008,20 +1083,21 @@ export default {
     resetFields(manualReset) {
       this.otherData = {}; // 重置其他备用数据
       if (manualReset) {
+        let copy = this.deepClone(this.defaultFieldsValue);
         for (let i in this.form) {
-          this.form[i] = this.defaultFieldsValue[i];
+          this.form[i] = copy[i];
         };
         this.$nextTick(() => {
           this.clearValidate();
         })
       }else{
         // 当表单中中塞入非初始化的数据时,resetFields会造成数据异常
-        this.$refs["dynamic-form"].resetFields();
+        this.$refs.rocForm.resetFields();
       }
     },
     // 清理校验信息
     clearValidate(){
-      this.$refs["dynamic-form"].clearValidate();
+      this.$refs.rocForm.clearValidate();
     },
     fileSelectChange(arr, item) {
       // 设置待上传列表
@@ -1045,13 +1121,25 @@ export default {
      */
     setUploadImage(fileList, item){
       this.form[item.prop] = fileList;
-      this.submitFormValidation(item, 'change')
+      if(this.$refs.rocForm){
+        this.submitFormValidation(item, 'change')
+      }
     },
     /**
      * 图片上传结束
      */
     handleUploadTaskEnd(params){
-      this.$emit("uploadTaskEnd", params)
+      this.uploadTasks--;
+      if(!this.uploadTasks){
+        // 所有上传任务结束
+        if(!params.error){
+          this.$emit("uploadTaskEnd", params);
+          if(!this.isTableComponent){
+            // 非表格的子组件时，再次调用保存
+            this.handleSave();
+          }
+        }
+      }
     },
     // 文件超出限制数量
     exceedQuantityLimit(file, fileList, item) {
@@ -1153,6 +1241,10 @@ export default {
         if (editType == "cascader" && !control.prop?.lazy) {
           _config.options = this.getOptions(item);
         };
+
+        if(editType === 'roc-table'){
+          Object.assign(_config, this.$attrs);
+        }
         return _config;
       }
       return {};

@@ -310,7 +310,7 @@ export default {
       }
     },
     setUploadElementDisplay(hasDelay){
-      let element = document.getElementsByClassName('el-upload--picture-card');
+      let element = this.$el.getElementsByClassName('el-upload--picture-card');
       if(this.mode === 'view' || this.fileList.length === this.limit){
         element && element[0] && (element[0].style.display = 'none');
         element && element[0] && (element[0].style.visibility = 'hidden');

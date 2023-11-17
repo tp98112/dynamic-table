@@ -35,10 +35,12 @@ export default {
             formTitle: '', // 弹窗表单标题
             formConfig: {
                 // 编辑表单配置
+                isTableComponent: true,
                 initFields: this.initFields, // 初始化字段
                 cols: this.formCols, // 一行放置的表单项数量
+                size: this.formSize, // 表单大小
                 eventType: null,
-                currentMode: 'new', // 操作模式
+                currentMode: '', // 操作模式
                 currentPanel: '', // 当前面板
                 splitPanelData: this.splitPanelData, // 不同面板是否启用数据隔离
                 formLabelWidth: this.formLabelWidth, // 表单标签宽度
@@ -183,7 +185,7 @@ export default {
                 return this.$scopedSlots['edit-' + column.prop] ? this.$scopedSlots['edit-' + column.prop](scope) : setEditContent({column, scope})
             }else if(typeof column.render === 'function'){
                 // 自定义render渲染方法
-                return column.render(h, scope)
+                return column.render(h, {scope, value: scope.row[column.prop]})
             }else if(typeof column.template === 'function'){
                 // 自定义模板渲染方法
                 return customTemplate(column, scope);
@@ -313,7 +315,7 @@ export default {
                 circle={item.circle}
                 key={this.getButtonKey(item, index)}
                 disabled={this.setDisabledState(item, scope)} 
-                loading={item.target === 'save' ? this.getRowSaveLoading(scope.row) : item.target === 'delete' ? this.getRowDeleteLoading(scope.row) : false}
+                loading={this.getRowButtonLoading(item, scope)}
                 size={this.actionButtonSize}>{this.setButtonText(item, scope)}</el-button>
         }
         /**
@@ -477,6 +479,7 @@ export default {
             summary-method={this.getSummaries}
             span-method={this.spanMethod}
             default-expand-all={this.defaultExpandAll}
+            current-row-key={this.currentRowKey}
             highlight-current-row={this.highlightCurrentRow}
             default-sort={this.defaultSort}
             cell-class-name={this.getCellClassName}
@@ -620,7 +623,8 @@ export default {
                         label: item.label,
                         editType: item.editType,
                         required: typeof item.required  === 'boolean' ? item.required : false, // 默认字段非必传
-                        validator: item.validator ? item.validator : false // 验证方法
+                        validator: item.validator ? item.validator : false, // 验证方法
+                        columnVisible: item.columnVisible, // 当前列不显示时不需要校验
                     };
                     
                 }
@@ -754,6 +758,10 @@ export default {
                 this.setMappingData(row, {'$edit': true}, true); // 第三个参数为true, 编辑时需更新映射数据
             }else{
                 // 弹窗表单编辑
+                if(this.formConfig.currentMode === 'new'){
+                    // 上一次打开新增弹窗时可能存在保留内容，此处先重置
+                    this.$refs.rocForm.resetFields(true);
+                }
                 this.currentEditRow = row; // 标记当前编辑行
                 this.internalFormDialogWidth = button.formDialogWidth; // 通过按钮单独配置的弹窗宽度
                 this.formConfig.eventType = button.eventType; // 标记当前事件类型
@@ -762,7 +770,9 @@ export default {
                 this.formConfig.disabledForm = false; 
                 this.formConfig.currentPanel = button.panel; // 设置表单的当前面板
                 if(typeof button.getFormData === 'function'){
+                    let task = this.setLoadingTask(() => this.setMappingData(row, {'$updateLoading': true}, true)); // 开启loading任务
                     button.getFormData({row, callBack: data => {
+                        this.clearLoadingTask(task, () => this.setMappingData(row, {'$updateLoading': false})); // 关闭loading
                         this.formVisible = true;
                         this.$nextTick(() => {
                             this.setRocForm(data);
@@ -864,6 +874,7 @@ export default {
                                 this.executeDeleteBefore();
                                 this.setTableLoading(false);
                                 instance.confirmButtonLoading = false;
+                                this.$refs.elTable.clearSelection();
                                 done();
                                 this.executePromp(info, {type:'success', message: info ? info : '删除成功！'})
                             };
@@ -894,16 +905,29 @@ export default {
             }
             
         },
+        /**
+         * 获取页数
+         */
+        getPages(total){
+            return Math.ceil(total / this.currentPageSize);
+        },
         executeDeleteBefore(scope){
             if(!this.virtualPage && this.internalRefreshTableOnSuccess.delete){
-                if(!scope && this.data.length === 1 && this.currentPage > 1 && this.currentPage === this.getTotalPages){
+                if(scope && this.data.length === 1 && this.currentPage > 1 && this.currentPage === this.getTotalPages){
                     // 当分页总数大于1,并且当前页为最末页时, 最后一项移除时，自动翻到上一页
                     this.setPage(this.currentPage - 1)
                 }else if(this.selectionList.length ===  this.data.length && this.currentPage > 1 && this.currentPage === this.getTotalPages){
                     // 当分页总数大于1，并且当前页为最末页时，批量删除的数量刚好等于当页数量时回到上一页
                     this.setPage(this.currentPage - 1)
                 }else if(this.selectionList.length > this.data.length){
-                    this.setPage(1); // 多页批量删除时回到第一页
+                    // 多页批量删除时
+                    if(this.currentPage === this.getTotalPages){
+                        // 当前为最后一页时，跳转到删除数据后的最后一页
+                        this.setPage(this.getPages(this.total - this.selectionList.length)); 
+                    }else{
+                        // 回到第一页
+                        this.setPage(1);
+                    }
                 }else{
                     this.emitPageChange(); // 刷新
                 }
@@ -1049,6 +1073,13 @@ export default {
             // key: 当前列的prop值 | row: 当前行数据
             let value = row[key];
             let field = this.initFieldsCollection[key];
+            if(field.columnVisible === false || 
+            (typeof field.columnVisible === 'function' && field.columnVisible({form: this.formData}) === false) ){
+                // 当前列不显示时不做校验
+                return {
+                    result: true,
+                };
+            }
             if(field.required && (value === "" || value === null || value === undefined)){
                 // 必传字段不能为空
                 return {
@@ -1340,7 +1371,7 @@ export default {
         dialogConfirm(){
             this.$refs.rocForm.validate(({valid, form}) => {
                 if(valid){
-                    if(this.handelUploadFiles(form)){
+                    if(this.$refs.rocForm.checkUploadFiles(form)){
                         // 检查是否存在需要上传的文件
                         return;
                     };
@@ -1370,27 +1401,27 @@ export default {
             })
         },
         /**
-         * 检查是否存在需要上传的文件
+         * 检查是否存在需要上传的文件todo
          */
-        handelUploadFiles(form){
-            let tasks = 0;
-            this.column.forEach(item => {
-                if(['upload-image', 'test'].indexOf(item.editType) > -1 ){
-                    let refName = `${item.editType}-${item.prop}`;
-                    if(this.$refs.rocForm.isAutoUpload(refName) && this.findReadyFile(form[item.prop])){
-                        tasks++;
-                        this.$refs.rocForm.submitUpload(refName)
-                    }
-                }
-            });
-            return tasks;
-        },
+        // handelUploadFiles(form){
+        //     let tasks = 0;
+        //     this.column.forEach(item => {
+        //         if(['upload-image', 'test'].indexOf(item.editType) > -1 ){
+        //             let refName = `${item.editType}-${item.prop}`;
+        //             if(this.$refs.rocForm.isAutoUpload(refName) && this.findReadyFile(form[item.prop])){
+        //                 tasks++;
+        //                 this.$refs.rocForm.submitUpload(refName)
+        //             }
+        //         }
+        //     });
+        //     return tasks;
+        // },
         /**
          * 是否存在未上传的文件
          */
-        findReadyFile(arr){
-            return arr.some(item => item.status === 'ready')
-        },
+        // findReadyFile(arr){
+        //     return arr.some(item => item.status === 'ready')
+        // },
         /**
          * 关闭弹窗时重置表单
          */
@@ -1484,7 +1515,6 @@ export default {
                 };
             }
             this.formVisible = false;
-            // this.$refs.rocForm.resetFields(); // 确认后重置表单
         },
         /**
          * 获取表格默认展示值
@@ -1507,13 +1537,16 @@ export default {
                 let arr = this.dicts[column.dict] || this.$attrs[column.optionsKey] || column.options || [];
                 let values = Array.isArray(value) ? value : [value]; // 绑定值
                 const label = values.map(val => {
-                    const target = arr.find(item => item[column.optionControl?.value ? column.optionControl.value : this.optionControl.value] === val);
+                    const target = arr.find(item => item[column.optionControl?.value ? column.optionControl.value : this.optionControl.value] == val);
                     return target ? target[column.optionControl?.label ? column.optionControl.label : this.optionControl.label] : '/';
                 });
                 return label.length ? label.join(',') : '/';
             }else if(['upload-button', 'upload-image'].indexOf(column.editType) > -1 && Array.isArray(value)){
                 const label = value.map(item => item.name || item.raw?.name);
                 return label.length ? label.join(',') : '/';
+            }else if(column.editType === 'select-tree'){
+                // 树形选择器
+                return value; // todo
             }else if(Array.isArray(value)){
                 // 当值为对象数组时,elTable对数据进行了未知的特殊处理导致了其他bug,此处直接返回字符串
                 return '[object Array]';
@@ -1614,6 +1647,9 @@ export default {
                 }
             }
         },
+        /**
+         * 多选事件
+         */
         handleSelectionChange(selection){
             this.selectionList = selection;
             if(this.$listeners['selection-change']){
@@ -1673,10 +1709,15 @@ export default {
             return this.backupTableData[row[this.uniqueKey]] && this.backupTableData[row[this.uniqueKey]].$edit;
         },
         /**
-         * 获取数据行的保存loading
+         * 获取表格数据行的按钮loading状态
          */
-        getRowSaveLoading(row) {
-            return this.backupTableData[row[this.uniqueKey]] && this.backupTableData[row[this.uniqueKey]].$saveLoading;
+        getRowButtonLoading(item, scope){
+            let eventType = item.target || item.emit;
+            if(eventType){
+                let loadingName = '$' + eventType + 'Loading';
+                return this.backupTableData[scope.row[this.uniqueKey]] && this.backupTableData[scope.row[this.uniqueKey]][loadingName];
+            };
+            return false;
         },
         /**
          * 获取数据行的删除loading
@@ -1703,7 +1744,7 @@ export default {
         setMappingData(row, setting, updateRow){
             let target = this.getMappingData(row);
             for(let i in setting){
-                if(i in target){
+                if(target.hasOwnProperty(i)){
                     target[i] = setting[i];
                 }else{
                     this.$set(target, i, setting[i]);
@@ -1742,8 +1783,7 @@ export default {
          * 获取link按钮icon
          */
         getLinkIcon(item, scope){
-            return item.target === 'save' && this.getRowSaveLoading(scope.row) && 'el-icon-loading' 
-            || item.target === 'delete' && this.getRowDeleteLoading(scope.row) && 'el-icon-loading' || typeof item.icon === 'function' && (item.icon(scope)) 
+            return this.getRowButtonLoading(item, scope) && 'el-icon-loading' || typeof item.icon === 'function' && (item.icon({column: item, scope})) 
             || item.icon;
         },
         /**
@@ -1771,7 +1811,12 @@ export default {
          */
         getColumnVisible(item){
             let type = typeof item.columnVisible;
-            return type === 'boolean' ? item.columnVisible : (type === 'function' ? item.columnVisible() : true);
+            let take = {};
+            if(this.isFormComponent){
+                // 当表格作为表单的子组件时，携带上表单数据
+                take.form = this.formData;
+            }
+            return type === 'boolean' ? item.columnVisible : (type === 'function' ? item.columnVisible(take) : true);
         },
         /**
          * 返回单元格样式
@@ -1858,6 +1903,48 @@ export default {
                 }
             }
             return _config;
+        },
+        /**
+         * @method setLoadingTask 清除延时任务
+         * @param {Function} execute  待执行方法
+         * @param {Number} delay 执行任务的延迟时间 单位/毫秒
+         * @returns {Object} 
+         */
+        setLoadingTask(execute, delay = this.internalShowLoadingOnTimeout){
+            let obj = {
+                startTime: performance.now(), // 记录开始时间
+                delay,
+                timer: setTimeout(() => {
+                    typeof execute === 'function' && execute();
+                    obj.timer = null;
+                }, delay)
+            };
+            return obj;
+        },
+        /**
+         * @method clearLoadingTask 清除延时任务
+         * @param {Function} clearTimer 清除定时器的方法
+         * @param {Number} startTime 延时loading任务的开始时间
+         * @param {Number} delay loading任务开始之前的延时时间
+         * @param {Function} execute 待执行方法
+         */
+        clearLoadingTask({timer, startTime, delay }, execute){
+            if(timer){
+                // 未开启 直接清除任务
+                clearTimeout(timer);
+            }else{
+                // 已开启 
+                // 计算时间差，以毫秒为单位
+                let elapsedTime = performance.now() - startTime;
+                let showLoadingTime = elapsedTime - delay; // 结束时间减去loading开启前的等待时间等于loading已显示的时间
+                if(showLoadingTime > this.internalMinLoadingTime){
+                    // loading显示时间已超过最短显示时间直接执行关闭任务
+                    execute();
+                }else{
+                    // loading显示时间未达到最短显示时间 为避免闪烁延迟关闭
+                    setTimeout(execute, this.internalMinLoadingTime - showLoadingTime)
+                }
+            }
         },
         /**
          * 开启监听设置表格高度
