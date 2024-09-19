@@ -18,8 +18,6 @@ export default {
     },
     "date-picker": {
       type: "date",
-      // format: "yyyy-MM-dd", // 当是datetimerange报错 todo
-      // "value-format": "yyyy-MM-dd",
       editable: false,
       clearable: true,
       readonly: false,

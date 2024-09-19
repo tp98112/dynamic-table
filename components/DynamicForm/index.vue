@@ -17,7 +17,7 @@
         v-for="(item) in getFormItems" :key="item.$key"
         :ref="`el-form-item-${item.prop}`"
         :prop="getProp(item)"
-        :label="item.formLabel ? item.formLabel : item.label ? item.label : ''"
+        :label="setFormItemLabel(item)"
         :label-width="item.formLabelWidth"
         :class="setFormItemClass(item)"
         :style="setFormItemStyle(item)"
@@ -279,11 +279,12 @@
                 :type="opt.type"
                 :icon="opt.icon"
                 :title="opt.title"
-                :plain="opt.plain"
+                :plain="getCustomButtonPlain(opt)"
                 :round="opt.round"
                 :circle="opt.circle"
                 :disabled="setDisabled(opt.disabled)"
                 :size="opt.size"
+                :class="getCustomButtonClass(opt)"
                 >{{ opt.label }}</el-button
               >
             </div>
@@ -438,7 +439,7 @@ export default {
   data() {
     return {
       componentId: getId(true),
-      form: {}, // 表单
+      form: this.deepClone(this.initFields), // 表单
       rules: {}, // 验证规则
       internalCurrentMode: '', // 保存时触发的事件类型 new/update
       backupPanelData: {},
@@ -446,9 +447,8 @@ export default {
       formItemList: [], // 表单列表
       defaultFieldsValue: JSON.parse(JSON.stringify(this.initFields)), // 默认字段值
       timer: null, // 定时器
+      internalFormLabelWidth: 'auto', // formLabel标签宽度
       otherData: {}, // 文件上传-下拉选择器数据
-      formLabelLength: 2, // 表单项标签文本长度
-      formLabelFillWidth: 13, // 表单项标签补充宽度
       uploadTasks: 0, // 标记上传任务总数
       supportedComponents: Object.freeze({
         "date-picker": "", // 时间选择器
@@ -557,11 +557,15 @@ export default {
           : true;
       };
     },
+    /**
+     * 设置form-label标签宽度
+     */
     getFormLabelWidth() {
-      return this.formLabelWidth ? this.formLabelWidth :
-        (this.formLabelLength * this.formLabelFontSize +
-        this.formLabelFillWidth +
-        "px");
+      if(this.formLabelWidth){
+        return this.formLabelWidth
+      }else{
+        return this.internalFormLabelWidth;
+      }
     },
     formItemWidth() {
       // 返回表单项宽度
@@ -631,7 +635,19 @@ export default {
     this.collatingDataStructures();
     this.$emit("created", { form: this.form });
   },
+  mounted(){
+    this.setLabelWidth();
+  },
   methods: {
+    /**
+     * 设置标签宽度
+     */
+    setLabelWidth(){
+      let labelElements = this.$el.getElementsByClassName('el-form-item__label');
+      let labelList = Array.from(labelElements);
+      let maxWidth = labelList.reduce((acc, cur) => cur.clientWidth > acc ? cur.clientWidth : acc , 0);
+      this.internalFormLabelWidth = maxWidth + 1 + 'px'; // 实际显示中部分屏幕存在1px的误差
+    },
     /**
      * 保存
      * @param {String} type - 保存类型
@@ -791,6 +807,23 @@ export default {
       return style;
     },
     /**
+     * 返回FormItem label
+     */
+    setFormItemLabel(item){
+      let label = item.formLabel || item.label;
+      let type = typeof label;
+      if(type === 'string' || type === 'number'){
+        return label;
+      }else if(type === 'function'){
+        return label({
+          form: this.form,
+          dicts: this.dicts,
+          column: item,
+          rocForm: this,
+        })
+      };
+    },
+    /**
      * 返回FormItem class
      */
     setFormItemClass(item){
@@ -827,17 +860,6 @@ export default {
       let hasRequired = false; // 标记是否存在必传标识
       this.formItemList.forEach((item) => {
         item.$key = getId(true);
-        // 检查最长标签长度
-        this.formLabelLength =
-          item.label?.length > this.formLabelLength
-            ? item.label.length
-            : this.formLabelLength;
-        if (!hasRequired && item.required) {
-          // 存在必传项时要加10px的宽度
-          this.formLabelFillWidth = this.formLabelFillWidth + 11;
-          hasRequired = true;
-          console.log("存在必传项时要加10px的宽度", this.formLabelFillWidth)
-        }
         if(!item.prop || item.propAsKeyOnly){return};
         item.editType =
           item.editType in this.supportedComponents ? item.editType : "unknown";
@@ -994,16 +1016,61 @@ export default {
 
     // 表单 自定义按钮触发事件
     customButtonEvents(item) {
+      if(typeof item.click === 'function'){
+        item.click({
+          form: this.form,
+          dicts: this.dicts,
+          column: item,
+          rocForm: this,
+        })
+        return;
+      }
       if(item.target === 'reset'){
         this.resetFields();
       }
-      if(item.target === 'search'){
-        this.validate(); // todo
+      if(item.target === 'submit' || item.target === 'search'){
+        if(this.validate()){
+          this.$emit('change', {type: item.target, form: this.form, dicts: this.dicts, mode: this.currentMode, panel: this.currentPanel})
+          return;
+        }
       }
       if(item.target || item.emit){
-          this.$emit('change', {type: item.emit, form: this.form, dicts: this.dicts, mode: this.currentMode, panel: this.currentPanel})
+          this.$emit('change', {type: item.target || item.emit, form: this.form, dicts: this.dicts, mode: this.currentMode, panel: this.currentPanel})
       }
       
+    },
+    /**
+     * 自定义按钮plain
+     */
+    getCustomButtonPlain(item){
+      let type = typeof item.plain;
+      if(type === 'boolean'){
+        return item.plain;
+      }else if(type === 'function'){
+        return item.plain({
+          form: this.form,
+          dicts: this.dicts,
+          column: item,
+          rocForm: this,
+        })
+      };
+      return false;
+    },
+    /**
+     * 自定义按钮class
+     */
+    getCustomButtonClass(item){
+      if(typeof item.class === 'string'){
+        return item.class;
+      }else if(typeof item.class === 'function'){
+        return item.class({
+          form: this.form,
+          dicts: this.dicts,
+          column: item,
+          rocForm: this,
+        })
+      }
+      return '';
     },
     // 校验并获取表单数据
     validate(func) {
@@ -1293,6 +1360,9 @@ export default {
   }
   .form--item-label-top{
     display: block;
+    ::v-deep.el-form-item__label{
+      text-align: left;
+    }
   }
 }
 .form-items-cover {

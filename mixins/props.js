@@ -669,11 +669,13 @@ export default{
           {
               icon: 'el-icon-check',
               title: '保存',
+              type: 'primary',
               target: 'save'
           },
           {
               icon: 'el-icon-refresh-right',
               title: '取消',
+              type: 'primary',
               target: 'cancel'
           }
         ];

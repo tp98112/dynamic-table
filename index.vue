@@ -655,7 +655,7 @@ export default {
             };
             if(this.internalEditMode === 'window' && !this.unifiedEdit){
                 // 弹窗编辑
-                this.formTitle = button.actionName; // 弹窗标题
+                this.formTitle = button.actionName || button.label; // 弹窗标题
                 this.internalFormDialogWidth = button.formDialogWidth; // 通过按钮单独配置的弹窗宽度
                 this.formConfig.eventType = button.eventType; // 标记当前事件类型
                 this.formConfig.currentMode = 'new'; // 标记当前操作模式 (new/update/view)
@@ -810,6 +810,7 @@ export default {
                 this.$confirm(`确认要删除此条数据吗?`, '确认删除', {
                     confirmButtonText: '确定',
                     cancelButtonText: '取消',
+                    cancelButtonClass: 'el-button--primary',
                     lockScroll: false,
                     type: 'warning',
                     beforeClose: (action, instance, done) => {
@@ -863,6 +864,7 @@ export default {
                 this.$confirm(`确认删除选中的${this.selectionList.length}条数据吗?`, '确认删除', {
                     confirmButtonText: '确定',
                     cancelButtonText: '取消',
+                    cancelButtonClass: 'el-button--primary',
                     lockScroll: false, // 解决页面抖动
                     type: 'warning',
                     beforeClose: (action, instance, done) => {
@@ -1192,8 +1194,10 @@ export default {
                 this.setTableLoading(false);
             };
             const fail = info => {
-                this.$refs['el-pagination'].internalCurrentPage = this.currentPage;
-                this.$refs['el-pagination'].internalPageSize = this.currentPageSize;
+                if(this.$refs['el-pagination']){
+                    this.$refs['el-pagination'].internalCurrentPage = this.currentPage;
+                    this.$refs['el-pagination'].internalPageSize = this.currentPageSize;
+                }
                 this.setTableLoading(false);
                 this.executePromp(info,{
                     type: 'error',

@@ -86,17 +86,17 @@ export function recursiveTraverse(data, execute, parent){
  *  同 recursiveTraverse
  *  使用some遍历方法 可在回调函数返回true时跳出循环
  */ 
-export function recursiveTraverseBySome(data, execute, parent){
-    let loop = (arr, parent) => {
+export function recursiveTraverseBySome(data, condition, parent){
+    const start = (arr, parent) => {
         return arr.some((item, index) => {
-            if(execute(item, index, parent)){
+            if(condition(item, index, parent)){
                 return true;
             }else if(item.children && item.children.length){
-                return loop(item.children, item);
+                return start(item.children, item);
             }
         })
     }
-    loop(data, parent)
+    start(data, parent)
 }
 /**
  * 深拷贝
