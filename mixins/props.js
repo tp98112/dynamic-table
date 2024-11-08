@@ -606,7 +606,7 @@ export default{
         return Object.assign({
           cellFillWidth: 12, // 单元格填充宽度(最小值应大于左右padding之和，看情况在此基础上适量增加)
           buttonFillWidth: 32, // 按钮填充宽度
-          iconTextSpacing: 5, // 图表与文字的间距
+          iconTextSpacing: 5, // 图标与文字的间距
           buttonSpacing: 10, // 按钮之间的间距
           buttonFontSize: 12, // 按钮文本大小
           linkFontSize: 14 // 链接文本大小
