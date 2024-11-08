@@ -10,7 +10,7 @@ export default {
     mixins: [props, config, methods],
     components: {
         DynamicForm: () => import('./components/DynamicForm'), 
-        TpUploadButton: () => import('./components/TpUpload/Button.vue')
+        TuploadButton: () => import('./components/Tupload/Button.vue')
     },
     
     data(){
@@ -33,6 +33,13 @@ export default {
             uniqueKey: this.rowKey ? this.rowKey : '$rowKey', // 唯一键
             formReady: false, // 表单初始化状态
             formTitle: '', // 弹窗表单标题
+            searchConfig: {
+              // 搜索栏表单配置
+              // colsWidth: 'auto',
+              responsiveLayout: true,
+              column: [],
+              ...this.search
+            },
             formConfig: {
                 // 编辑表单配置
                 isTableComponent: true,
@@ -460,8 +467,60 @@ export default {
                 </DynamicForm>
                 { this.formReady ? renderDialogButton() : ''}
             </el-dialog>
+        };
+
+        /**
+         * @func renderSearchBar - 搜索栏
+         */
+        const renderSearchBar = () => {
+          return <DynamicForm
+            props={this.searchConfig}
+            received_dicts={this.dicts}
+            attrs={this.$attrs}
+            ref="searchForm"
+            on={{created: () => {}, change: this.handleSearchChange }}
+            {...{
+                scopedSlots: this.getSearchSlots
+            }}
+          >
+          </DynamicForm>
+        };
+
+        /**
+         * @func renderCustomToolbarButtons - 自定义工具栏新增按钮
+         */
+        const renderCustomToolbarButtons = () => {
+          if(Array.isArray(this.toolbarButtons)){
+            return this.toolbarButtons.map(item => {
+              return <el-button
+              props={item}
+              on-click={() => {this.reportEvent(item)}}
+              size={item.size || this.toolbarButtonSize}
+              >{item.label}</el-button>
+            })
+          }
         }
-        return (<div class={{'tp-dynamic-table-wrap': true, 'auto-container-height': this.autoContainerHeight}}>
+
+        /**
+         * @func renderToolsBar - 工具栏
+         */
+        const renderToolsBar = () => {
+          if(this.toolBar){
+            return <div class="t-toolbar-container">
+              {
+                renderCustomToolbarButtons()
+              }
+            </div>
+          }
+        };
+
+        return (<div class={{'tp-dynamic-table-wrap': true, 'auto-container-height': this.adaptiveHeight}}>
+            {
+              renderSearchBar()
+            }
+            {
+              renderToolsBar()
+            }
             <el-table data={this.getTableData}
             ref="elTable" 
             v-loading={this.dataLoading}
@@ -530,7 +589,22 @@ export default {
          * @desc 当操作栏按钮单独配置了formDialogWidth时返回internalFormDialogWidth
          */
         getFormDialogWidth(){
-            return this.internalFormDialogWidth || this.formDialogWidth || (this.$ROCTABLE || {}).formDialogWidth || '50%';
+            return this.internalFormDialogWidth || this.formDialogWidth || (this.$TTABLE || {}).formDialogWidth || '50%';
+        },
+        /**
+         * @computed getSearchSlots 获取搜索栏插槽
+         * @returns {Object.<string, Function>} 表单插槽渲染方法的集合
+         */
+        getSearchSlots(){
+            let scopedSlots = {};
+            for(let i in this.$scopedSlots){
+                if(i.indexOf('search-') > -1){
+                    scopedSlots[i] = params => {
+                        return this.$scopedSlots[i] ? this.$scopedSlots[i](params) : this.$slots[i];
+                    }
+                }
+            }
+            return scopedSlots;
         },
         /**
          * @computed getFormSlots 获取表单插槽
@@ -580,7 +654,6 @@ export default {
   },
     mounted(){
         this.addResizeListener();
-        console.log(this.$refs.elTable)
     },
     beforeDestroy(){
         window.removeEventListener('resize', this.setTableHeight)
@@ -591,6 +664,12 @@ export default {
          * 表头数据初始化
          */
         initTableColumn(){
+            if(!this.search?.column){
+              let arr = this.column.filter(item => item.searchVisible !== false && !item.hasOwnProperty('children') && ['index', 'selection', 'expand'].indexOf(item.type) < 0 )
+              arr.push()
+              this.searchConfig.column = arr;
+            };
+
             if(this.internalEditMode === 'window' && !this.unifiedEdit){
                 // 弹窗编辑
                 if(!this.formColumn){
@@ -1025,6 +1104,12 @@ export default {
               };
               $row.$edit = false;
             }
+        },
+        /**
+         * @func handleSearchChange - 处理搜索栏事件
+         */
+        handleSearchChange(event){
+          console.log("处理搜索栏事件", event);
         },
         /**
          * 分页器分页条数改变事件
@@ -1804,7 +1889,7 @@ export default {
             let {minWidth, label, autoMinWidth} = item;
             if(minWidth){
                 return minWidth
-            }else if(autoMinWidth === true && label){
+            }else if(label){
                 // 自动最小宽度
                 return 20 + label.length * 13 + (item.sortable ? 24 : 0) + (item.filters ? 12 : 0)
             }
@@ -1954,7 +2039,7 @@ export default {
          * 开启监听设置表格高度
          */
         addResizeListener(){
-            if(this.autoContainerHeight){
+            if(this.adaptiveHeight){
                 this.setTableHeight();
                 window.addEventListener('resize', this.setTableHeight)
             }

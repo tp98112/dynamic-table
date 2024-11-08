@@ -187,15 +187,15 @@
               style="width: 100%"
             ></el-autocomplete>
             <!-- 上传按钮 -->
-            <tp-upload-button 
+            <t-upload-button 
                 v-else-if="item.editType === 'upload-button'"
                 @change="submitFormValidation(item, 'change')"
                 :control="getControlProperty(item)"
                 :size="item.size"
                 :fileList="form[item.prop]" >
-            </tp-upload-button>
+            </t-upload-button>
             <!-- 照片墙图片上传 -->
-            <tp-upload-images 
+            <t-upload-images 
             v-else-if="item.editType === 'upload-image'"
             :ref="`upload-image-${item.prop}`"
             @change="setUploadImage($event, item)"
@@ -203,7 +203,7 @@
             :mode="currentMode"
             v-bind="getControlProperty(item)"
             :fileList="form[item.prop]" 
-            ></tp-upload-images>
+            ></t-upload-images>
             <!-- 上传下拉选择器 -->
             <div
               v-else-if="isRender(item.editType, 'upload-select')"
@@ -262,7 +262,7 @@
             :size="size"
             style="width: 100%"
             />
-            <RocTable v-else-if="isRender(item.editType, 'roc-table')"
+            <Ttable v-else-if="isRender(item.editType, 't-table')"
             :isFormComponent="true"
             :ref="'roc-table-' + item.prop"
             :data="getRocTableData(item)" 
@@ -297,7 +297,7 @@
 </template>
 
 <script>
-import { deepClone } from '../../../DynamicTable/tools.js';
+import { deepClone } from '../../tools';
 import { getId, getFieldType } from "../../tools.js";
 import config from "./config.js";
 const renderColumn = {
@@ -317,9 +317,9 @@ export default {
   inheritAttrs: false,
   components: {
     renderColumn,
-    TpUploadButton: () => import('../TpUpload/Button.vue'),
-    TpUploadImages: () => import('../TpUpload/new.vue'),
-    RocTable: () => import('../../index.vue')
+    TuploadButton: () => import('../Tupload/Button.vue'),
+    TuploadImages: () => import('../Tupload/new.vue'),
+    Ttable: () => import('../../index.vue')
   },
   props: {
     column: {
@@ -329,7 +329,7 @@ export default {
       },
     },
     isTableComponent: {
-      // 标记当前表单(RocForm)是否是表格(RocTable)的子组件
+      // 标记当前表单(RocForm)是否是表格(Ttable)的子组件
       type: Boolean,
       default: false
     },
@@ -338,9 +338,27 @@ export default {
       type: [Number, String],
       default: 1,
     },
+    responsiveLayout: {
+      // 响应式布局
+      type: Boolean,
+      default: false
+    },
     colsWidth: {
       // 设置为 'auto' 并且 formItemsCover 为false时即是elementUi表单的原始排版效果
       type: String,
+    },
+    colProps: {
+      type: Object,
+      default(){
+        return {
+          xl: 6,
+          lg: 6,
+          md: 8,
+          sm: 12,
+          xxs: 12,
+          xs: 24
+        }
+      }
     },
     size: {
       // 表单控件尺寸
@@ -441,6 +459,7 @@ export default {
       componentId: getId(true),
       form: this.deepClone(this.initFields), // 表单
       rules: {}, // 验证规则
+      internalCols: this.cols,
       internalCurrentMode: '', // 保存时触发的事件类型 new/update
       backupPanelData: {},
       dicts: this.received_dicts, // 默认接收父组件传递的字典数据 避免重复请求
@@ -509,7 +528,7 @@ export default {
      * @desc 获取字典数据
      */
     internalGetDicts(){
-        return this.getDicts || (this.$ROCFORM || this.$ROCTABLE || {}).getDicts;
+        return this.getDicts || (this.$ROCFORM || this.$TTABLE || {}).getDicts;
     },
     /**
      * 返回选项列表字段值配置
@@ -573,7 +592,7 @@ export default {
         let cols =
           typeof item.cols === "number" &&
           item.cols > 0 &&
-          item.cols <= this.cols
+          item.cols <= this.internalCols
             ? item.cols
             : 1;
 
@@ -590,7 +609,7 @@ export default {
     },
     defaultWidth() {
       // 分列宽度
-      return parseInt((100 / this.cols) * 100000) / 100000;
+      return parseInt((100 / this.internalCols) * 100000) / 100000;
     },
     isRender() {
       // 渲染控件
@@ -637,8 +656,28 @@ export default {
   },
   mounted(){
     this.setLabelWidth();
+    this.responsiveLayout && window.addEventListener("resize", this.setGrid)
+  },
+  destroyed(){
+    window.removeEventListener("resize", this.setGrid)
   },
   methods: {
+    setGrid(){
+      let width = window.innerWidth;
+      if(width >= 1920){
+        this.internalCols = 24 / this.colProps.xl;
+      }else if(width >= 1200){
+        this.internalCols = 24 / this.colProps.lg;
+      }else if(width >= 992){
+        this.internalCols = 24 / this.colProps.md;
+      }else if(width >= 768){
+        this.internalCols = 24 / this.colProps.sm;
+      }else if(width >= 520){
+        this.internalCols = 24 / this.colProps.xxs;
+      }else if(width < 520){
+        this.internalCols = 24 / this.colProps.xs;
+      }
+    },
     /**
      * 设置标签宽度
      */

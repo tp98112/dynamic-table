@@ -16,9 +16,9 @@
             placement="right"
             width="400"
             trigger="click">
-            <TpStupidTable v-bind="tableConfig" :data="fileList">
+            <Ttable v-bind="tableConfig" :data="fileList">
                 <i v-if="!bindValues.limit || (bindValues.limit && bindValues.limit > fileList.length)" @click="callUpload" slot="table-append" class="el-icon-plus tp-append-upload"></i>
-            </TpStupidTable>
+            </Ttable>
             <el-badge :value="fileList.length" :hidden="fileList.length === 0" type="primary" slot="reference">
                 <el-button @click.native="viewFileList($event)" type="primary"  size="mini" icon="el-icon-folder-opened" class="view-button"></el-button>
             </el-badge>
@@ -33,9 +33,9 @@ export default {
      * author: tan-peng
      * created: 2022-09-17
      */
-    name: 'TpUploadButton',
+    name: 'Tbutton',
     components: {
-        TpStupidTable: () => import('../../index.vue')
+        Ttable: () => import('../../index.vue')
     },
     props: {
         /**

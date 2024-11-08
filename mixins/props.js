@@ -396,8 +396,31 @@ export default{
             // 单元格双击事件
             type: Function,
         },
+        search: {
+          // 搜索栏
+          type: [Object, Boolean],
+          default(){
+            return {};
+          }
+        },
+        toolBar: {
+          // 工具栏
+          type: [Object, Boolean],
+          default(){
+            return {};
+          }
+        },
+        toolbarButtons: {
+          // 工具栏自定义新增按钮
+          type: Array
+        },
+        toolbarButtonSize: {
+          // 工具栏自定义新增按钮大小
+          type: String,
+          default: "mini"
+        },
         formData: {
-            // 当表格作为rocForm的子组件时，由rocForm传递的表单数据
+            // 当表格作为Tform的子组件时，由Tform传递的表单数据
             type: Object,
             default(){
                 return {};
@@ -489,6 +512,7 @@ export default{
                         label: '取 消',
                         icon: 'el-icon-circle-close',
                         type: 'primary',
+                        plain: true,
                         target: '$cancel',
                     },
                     {
@@ -515,28 +539,35 @@ export default{
          * @returns 编辑模式
          */
         internalEditMode(){
-            return this.editMode || (this.$ROCTABLE || {}).editMode || 'window';
+            return this.editMode || (this.$TTABLE || {}).editMode || 'window';
         },
         /**
          * @computed internalTableSize
          * @desc 表格大小
          */
         internalTableSize(){
-            return this.tableSize || (this.$ROCTABLE || {}).tableSize || 'mini';
+            return this.tableSize || (this.$TTABLE || {}).tableSize || 'mini';
         },
         /**
          * @computed internalStripe
          * @desc 斑马纹
          */
         internalStripe(){
-            return this.stripe || (this.$ROCTABLE || {}).stripe || true;
+            return this.stripe || (this.$TTABLE || {}).stripe || true;
         },
         /**
          * @computed internalGetDicts
          * @desc 获取字典数据
          */
         internalGetDicts(){
-            return this.getDicts || (this.$ROCTABLE || {}).getDicts;
+            return this.getDicts || (this.$TTABLE || {}).getDicts;
+        },
+        /**
+         * @computed internalSearchConfig
+         * @desc 搜索栏配置
+         */
+        internalSearchConfig(){
+          let obj = this.search
         },
       /**
        * @computed internalActionStatus
@@ -547,7 +578,7 @@ export default{
         if(typeof this.showAction === 'boolean'){
             return this.showAction;
         };
-        let showAction = (this.$ROCTABLE || {}).showAction;
+        let showAction = (this.$TTABLE || {}).showAction;
         if(typeof showAction === 'boolean'){
             return showAction;
         }else if(this.actionButtons){
@@ -561,7 +592,7 @@ export default{
        * @returns {String}
        */
       internalInsertDataMethod(){
-        return this.insertDataMethod || (this.$ROCTABLE || {}).insertDataMethod || 
+        return this.insertDataMethod || (this.$TTABLE || {}).insertDataMethod || 
         this.internalAddButtonControl.location === 'bottom' && 'push' || 
         this.internalAddButtonControl.location === 'header' && 'unshift';
       },
@@ -570,7 +601,7 @@ export default{
        * @returns {Object} 操作栏按钮访问控制
        */
       internalAccessControl(){
-        let obj = this.accessControl || (this.$ROCTABLE || {}).accessControl;
+        let obj = this.accessControl || (this.$TTABLE || {}).accessControl;
         return Object.assign({
             root: false, // 根节点新增
             new: true,
@@ -590,7 +621,7 @@ export default{
        * @returns {Object} 触发成功回调后需要刷新表格数据的事件集合
        */
       internalRefreshTableOnSuccess(){
-        let obj = this.refreshTableOnSuccess || (this.$ROCTABLE || {}).refreshTableOnSuccess;
+        let obj = this.refreshTableOnSuccess || (this.$TTABLE || {}).refreshTableOnSuccess;
         return Object.assign({
           new: true,
           update: true,
@@ -602,7 +633,7 @@ export default{
        * @returns 用于计算操作栏宽度的依赖参数
        */
       internalActionBarWidthParams(){
-        let obj = this.actionBarWidthParams || (this.$ROCTABLE || {}).actionBarWidthParams;
+        let obj = this.actionBarWidthParams || (this.$TTABLE || {}).actionBarWidthParams;
         return Object.assign({
           cellFillWidth: 12, // 单元格填充宽度(最小值应大于左右padding之和，看情况在此基础上适量增加)
           buttonFillWidth: 32, // 按钮填充宽度
@@ -617,7 +648,7 @@ export default{
        * @returns {Object}
        */
       internalAddButtonControl(){
-        let obj = this.addButtonControl || (this.$ROCTABLE || {}).addButtonControl;
+        let obj = this.addButtonControl || (this.$TTABLE || {}).addButtonControl;
         return Object.assign({icon: 'el-icon-plus', text: '新增', type: 'primary', location: 'bottom'}, obj)
       },
       /**
@@ -625,7 +656,7 @@ export default{
        * @returns {Array}
        */
       internalActionButtons(){
-        return this.actionButtons || (this.$ROCTABLE || {}).actionButtons || [
+        return this.actionButtons || (this.$TTABLE || {}).actionButtons || [
             {
                 // label: '新增', // 按钮或链接的标签
                 type: 'primary',
@@ -665,7 +696,7 @@ export default{
        * @returns {Array}
        */
       internalBuiltInButtons(){
-        return this.builtInButtons || (this.$ROCTABLE || {}).builtInButtons || [
+        return this.builtInButtons || (this.$TTABLE || {}).builtInButtons || [
           {
               icon: 'el-icon-check',
               title: '保存',
@@ -686,7 +717,7 @@ export default{
        * @returns {Number} 超时时间 单位/毫秒
        */
        internalShowLoadingOnTimeout(){
-        return this.showLoadingOnTimeout || (this.$ROCTABLE || {}).showLoadingOnTimeout || 500;
+        return this.showLoadingOnTimeout || (this.$TTABLE || {}).showLoadingOnTimeout || 500;
       },
       /**
        * @computed internalMinLoadingTime
@@ -694,7 +725,7 @@ export default{
        * @returns {Number} 时间 单位/毫秒
        */
        internalMinLoadingTime(){
-        return this.minLoadingTime || (this.$ROCTABLE || {}).minLoadingTime || 1000;
+        return this.minLoadingTime || (this.$TTABLE || {}).minLoadingTime || 1000;
       },
       /**
        * @computed actionButtonExtraWidth 操作栏按钮的补充宽度
