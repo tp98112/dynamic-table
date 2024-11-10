@@ -38,7 +38,7 @@ export default {
                 accessControl: {
                     root: true
                 },
-                newActionButton: [
+                actionButtons: [
                     {
                         label: '编辑',
                         target: 'update',

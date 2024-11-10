@@ -35,10 +35,11 @@ export default {
             formTitle: '', // 弹窗表单标题
             searchConfig: {
               // 搜索栏表单配置
-              // colsWidth: 'auto',
               responsiveLayout: true,
               column: [],
-              ...this.search
+              ...this.search,
+              search: true,
+              showValidationFailsMessage: false,
             },
             formConfig: {
                 // 编辑表单配置
@@ -473,17 +474,19 @@ export default {
          * @func renderSearchBar - 搜索栏
          */
         const renderSearchBar = () => {
-          return <DynamicForm
-            props={this.searchConfig}
-            received_dicts={this.dicts}
-            attrs={this.$attrs}
-            ref="searchForm"
-            on={{created: () => {}, change: this.handleSearchChange }}
-            {...{
-                scopedSlots: this.getSearchSlots
-            }}
-          >
-          </DynamicForm>
+          if(this.search !== false){
+            return <DynamicForm
+              props={this.searchConfig}
+              received_dicts={this.dicts}
+              attrs={this.$attrs}
+              ref="searchForm"
+              on={{created: () => {}, change: this.handleSearchChange }}
+              {...{
+                  scopedSlots: this.getSearchSlots
+              }}
+            >
+            </DynamicForm>
+          }
         };
 
         /**
@@ -664,9 +667,28 @@ export default {
          * 表头数据初始化
          */
         initTableColumn(){
-            if(!this.search?.column){
+            if(this.search !== false && !this.search?.column){
               let arr = this.column.filter(item => item.searchVisible !== false && !item.hasOwnProperty('children') && ['index', 'selection', 'expand'].indexOf(item.type) < 0 )
-              arr.push()
+              arr.push({
+                editType: "button-group",
+                options: [
+                  {
+                      label: '查询',
+                      type: 'primary',
+                      icon: 'el-icon-search',
+                      size: 'small',
+                      target: 'search'
+                  },
+                  {
+                      label: '重置',
+                      type: '',
+                      plain: true,
+                      icon: 'el-icon-refresh-left',
+                      size: 'small',
+                      target: 'reset'
+                  },
+                ]
+              })
               this.searchConfig.column = arr;
             };
 

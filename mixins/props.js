@@ -406,9 +406,6 @@ export default{
         toolBar: {
           // 工具栏
           type: [Object, Boolean],
-          default(){
-            return {};
-          }
         },
         toolbarButtons: {
           // 工具栏自定义新增按钮

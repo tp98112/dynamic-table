@@ -67,6 +67,7 @@
 
 <script>
 export default {
+  name: "TuploadImages",
   props: {
     /**
      * 绑定prop

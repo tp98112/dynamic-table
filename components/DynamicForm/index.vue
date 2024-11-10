@@ -187,15 +187,15 @@
               style="width: 100%"
             ></el-autocomplete>
             <!-- 上传按钮 -->
-            <t-upload-button 
+            <TuploadButton 
                 v-else-if="item.editType === 'upload-button'"
                 @change="submitFormValidation(item, 'change')"
                 :control="getControlProperty(item)"
                 :size="item.size"
                 :fileList="form[item.prop]" >
-            </t-upload-button>
+            </TuploadButton>
             <!-- 照片墙图片上传 -->
-            <t-upload-images 
+            <TuploadImages 
             v-else-if="item.editType === 'upload-image'"
             :ref="`upload-image-${item.prop}`"
             @change="setUploadImage($event, item)"
@@ -203,7 +203,7 @@
             :mode="currentMode"
             v-bind="getControlProperty(item)"
             :fileList="form[item.prop]" 
-            ></t-upload-images>
+            ></TuploadImages>
             <!-- 上传下拉选择器 -->
             <div
               v-else-if="isRender(item.editType, 'upload-select')"
@@ -328,8 +328,13 @@ export default {
         return [];
       },
     },
+    search: {
+      // 作为表格的搜索栏使用
+      type: Boolean,
+      default: false
+    },
     isTableComponent: {
-      // 标记当前表单(RocForm)是否是表格(Ttable)的子组件
+      // 标记当前表单是否是表格(Ttable)的子组件
       type: Boolean,
       default: false
     },
@@ -349,16 +354,6 @@ export default {
     },
     colProps: {
       type: Object,
-      default(){
-        return {
-          xl: 6,
-          lg: 6,
-          md: 8,
-          sm: 12,
-          xxs: 12,
-          xs: 24
-        }
-      }
     },
     size: {
       // 表单控件尺寸
@@ -417,12 +412,6 @@ export default {
     formLabelWidth: {
       // 表单标签宽度 px
       type: [Number, String],
-    },
-    formLabelFontSize: {
-      // 表单标签字体大小 用以自动计算表单标签宽度,
-      // 如若通过css修改了字体大小 ,请传递该值告知或在此处修改默认值
-      type: [Number, String],
-      default: 14,
     },
     formItemsCover: {
       // 表单项是否铺满容器
@@ -498,7 +487,6 @@ export default {
       this.$emit("created", { form: this.form });
     },
     currentPanel(newValue, oldValue) {
-    
       // 切换面板
       if (this.splitPanelData) {
         // 数据隔离 重置表单和验证规则
@@ -515,20 +503,31 @@ export default {
           this.collatingDataStructures();
           // this.$emit("created", { form: this.form }); // todo
         }
-        // 设置新面板
-          this.formItemList = this.column.filter((item) => {
-            return item.panel === this.currentPanel;
-          });
-      }
+      };
+      this.internalFormLabelWidth = "auto";
+      this.$nextTick(() => {
+        this.setLabelWidth();
+      })
     },
   },
   computed: {
+    internalColProps(){
+      let obj =  this.colProps || (this.$TFORM || this.$TTABLE || {}).colProps;
+      return Object.assign({
+        xl: 6,
+        lg: 6,
+        md: 8,
+        sm: 12,
+        xxs: 12,
+        xs: 24
+      }, obj)
+    },
     /**
      * @computed internalGetDicts
      * @desc 获取字典数据
      */
     internalGetDicts(){
-        return this.getDicts || (this.$ROCFORM || this.$TTABLE || {}).getDicts;
+        return this.getDicts || (this.$TFORM || this.$TTABLE || {}).getDicts;
     },
     /**
      * 返回选项列表字段值配置
@@ -551,11 +550,15 @@ export default {
     getFormItems() {
       if (this.currentPanel) {
         // 存在面板设置但是没有数据隔离时
-        return this.formItemList.filter((item) => {
+        return this.column.filter((item) => {
           return item.panel === this.currentPanel && this.getFormVisible(item);
         });
-      } else {
-        return this.formItemList.filter(item => {
+      } else if(this.search){
+        return this.column.filter(item => {
+          return this.getFormVisible(item);
+        });
+      }else {
+        return this.column.filter(item => {
           return !item.hasOwnProperty('panel') && this.getFormVisible(item);
         });
       }
@@ -643,20 +646,13 @@ export default {
     
   },
   created() {
-    if (this.currentPanel && this.splitPanelData) {
-      // 存在面板设置与数据隔离时
-      this.formItemList = this.column.filter((item) => {
-        return item.panel === this.currentPanel;
-      });
-    } else {
-      this.formItemList = this.column;
-    }
+    
     this.collatingDataStructures();
     this.$emit("created", { form: this.form });
   },
   mounted(){
     this.setLabelWidth();
-    this.responsiveLayout && window.addEventListener("resize", this.setGrid)
+    this.responsiveLayout && this.setGrid() && window.addEventListener("resize", this.setGrid)
   },
   destroyed(){
     window.removeEventListener("resize", this.setGrid)
@@ -665,18 +661,19 @@ export default {
     setGrid(){
       let width = window.innerWidth;
       if(width >= 1920){
-        this.internalCols = 24 / this.colProps.xl;
+        this.internalCols = 24 / this.internalColProps.xl;
       }else if(width >= 1200){
-        this.internalCols = 24 / this.colProps.lg;
+        this.internalCols = 24 / this.internalColProps.lg;
       }else if(width >= 992){
-        this.internalCols = 24 / this.colProps.md;
+        this.internalCols = 24 / this.internalColProps.md;
       }else if(width >= 768){
-        this.internalCols = 24 / this.colProps.sm;
+        this.internalCols = 24 / this.internalColProps.sm;
       }else if(width >= 520){
-        this.internalCols = 24 / this.colProps.xxs;
+        this.internalCols = 24 / this.internalColProps.xxs;
       }else if(width < 520){
-        this.internalCols = 24 / this.colProps.xs;
-      }
+        this.internalCols = 24 / this.internalColProps.xs;
+      };
+      return true;
     },
     /**
      * 设置标签宽度
@@ -685,6 +682,7 @@ export default {
       let labelElements = this.$el.getElementsByClassName('el-form-item__label');
       let labelList = Array.from(labelElements);
       let maxWidth = labelList.reduce((acc, cur) => cur.clientWidth > acc ? cur.clientWidth : acc , 0);
+      
       this.internalFormLabelWidth = maxWidth + 1 + 'px'; // 实际显示中部分屏幕存在1px的误差
     },
     /**
@@ -816,7 +814,7 @@ export default {
     findOption(column, value){
       if(column.optionsKey || column.options || column.dict){
         let options = this.getOptions(column);
-        let valueKey = column.optionControl && column.optionControl.value || column.dict && this.dictControl.value || this.optionControl.value;
+        let valueKey = (column.optionControl && column.optionControl.value) || (column.dict && this.dictControl.value) || this.optionControl.value;
         return options.find(item => item[valueKey] === value)
       };
       return null;
@@ -825,12 +823,10 @@ export default {
      * 返回数据列表
      */
     getOptions(item) {
-      return (
-        this.dicts[item.dict] ||
+      return this.dicts[item.dict] ||
         this.$attrs[item.optionsKey] ||
         item.options ||
-        []
-      );
+        [];
     },
     /**
      * 返回FormItem style
@@ -894,10 +890,13 @@ export default {
       });
       return arr;
     },
+    getCurrentPanelColumns(){
+      return this.column.filter(item => item.panel === this.currentPanel);
+    },
     // 整理数据结构
     collatingDataStructures() {
-      let hasRequired = false; // 标记是否存在必传标识
-      this.formItemList.forEach((item) => {
+      let columns = this.currentPanel && this.splitPanelData ? this.getCurrentPanelColumns() : this.column;
+      columns.forEach((item) => {
         item.$key = getId(true);
         if(!item.prop || item.propAsKeyOnly){return};
         item.editType =
@@ -924,6 +923,10 @@ export default {
           }else{
             console.error('The getDicts must be of type function')
           }
+        };
+
+        if(this.search){
+          return;
         }
 
         // 校验
@@ -1138,7 +1141,7 @@ export default {
         let copyForm = this.deepClone(this.form);
         if(name){
             // 获取指定模块
-            this.formItemList.forEach(item => {
+            this.column.forEach(item => {
                 if(item.module === name){
                     let prop = `${item.module}-${item.prop}`;
                     if(item.module in module){
@@ -1152,7 +1155,7 @@ export default {
             })
         }else{
             // 全部模块和未划分模块
-            this.formItemList.forEach(item => {
+            this.column.forEach(item => {
                 let prop = item.prop;
                 if(item.module){
                     prop = `${item.module}-${item.prop}`;

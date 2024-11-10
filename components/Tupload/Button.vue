@@ -33,7 +33,7 @@ export default {
      * author: tan-peng
      * created: 2022-09-17
      */
-    name: 'Tbutton',
+    name: 'TuploadButton',
     components: {
         Ttable: () => import('../../index.vue')
     },
@@ -67,10 +67,11 @@ export default {
                 multiple: true,
             }),
             tableConfig: {
+                search: false,
                 dynamic: true,
                 unifiedEdit: true,
                 actionButtonType: 'button',
-                newActionButton: [
+                actionButtons: [
                     {
                         // label: '移除',
                         icon: 'el-icon-close',
