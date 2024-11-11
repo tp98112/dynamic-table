@@ -20,7 +20,7 @@ export default{
                 return []
             }
         },
-        queryForPage: {
+        params: {
             // 请求表格数据时携带的额外参数 todo
             type: Object,
             default(){
@@ -399,13 +399,12 @@ export default{
         search: {
           // 搜索栏
           type: [Object, Boolean],
-          default(){
-            return {};
-          }
+          default: false
         },
         toolBar: {
           // 工具栏
           type: [Object, Boolean],
+          default: false
         },
         toolbarButtons: {
           // 工具栏自定义新增按钮

@@ -264,7 +264,7 @@
             />
             <Ttable v-else-if="isRender(item.editType, 't-table')"
             :isFormComponent="true"
-            :ref="'roc-table-' + item.prop"
+            :ref="'t-table-' + item.prop"
             :data="getRocTableData(item)" 
             v-bind="getControlProperty(item)"
             :disabled="setDisabled(item.disabled)"
@@ -475,7 +475,7 @@ export default {
         "upload-button": [], // 上传-按钮
         "upload-select": [], // 上传-下拉框
         'select-tree': '', // 选择树
-        'roc-table': null,
+        't-table': null,
         "button-group": "",
         unknown: "", // 未知的
       }), // 受支持的预设控件
@@ -648,7 +648,7 @@ export default {
   created() {
     
     this.collatingDataStructures();
-    this.$emit("created", { form: this.form });
+    this.$emit("created", { form: this.deepClone(this.form) });
   },
   mounted(){
     this.setLabelWidth();
@@ -961,7 +961,7 @@ export default {
      */
     setSpecialItemsValidator(validate, validator, validatorType, item){
       let func = null;
-      if(item.editType === 'roc-table'){
+      if(item.editType === 't-table'){
         // 当组件为RocTable时添加默认验证
         if(validatorType === "Function"){
           func = (rule, value, callback) => {
@@ -975,7 +975,7 @@ export default {
               return;
             }
             // 此处检查表格数据不需要返回data, 并且校验成功时不需要立即移除提示信息
-            if(this.$refs['roc-table-' + item.prop][0].checkTableData(false, false)){
+            if(this.$refs['t-table-' + item.prop][0].checkTableData(false, false)){
               callback();
             }else{
               console.log("当组件为RocTable时添加默认验证", validatorType)
@@ -1351,7 +1351,7 @@ export default {
           _config.options = this.getOptions(item);
         };
 
-        if(editType === 'roc-table'){
+        if(editType === 't-table'){
           Object.assign(_config, this.$attrs);
         }
         return _config;

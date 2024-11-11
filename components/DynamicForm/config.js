@@ -72,6 +72,6 @@ export default {
     'select-tree': {
       clearable: true,
     },
-    'roc-table': {}
+    't-table': {}
   }
 }

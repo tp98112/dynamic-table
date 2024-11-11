@@ -33,6 +33,7 @@ export default {
             uniqueKey: this.rowKey ? this.rowKey : '$rowKey', // 唯一键
             formReady: false, // 表单初始化状态
             formTitle: '', // 弹窗表单标题
+            currentSearchParams: null, // 当前查询栏表单值
             searchConfig: {
               // 搜索栏表单配置
               responsiveLayout: true,
@@ -68,14 +69,19 @@ export default {
         loading(state){
             this.dataLoading = state;
         },
-        
+        // params: {
+        //   deep: true,
+        //   handler(val){
+        //     console.log("params", val)
+        //   }
+        // }
     },
     created(){
         /**
          * 初始化
          */
         this.initTableColumn();
-        if(this.loadData){
+        if(this.loadData && !this.search){
             // 触发分页事件 获取数据
             this.reload()
         }
@@ -480,7 +486,7 @@ export default {
               received_dicts={this.dicts}
               attrs={this.$attrs}
               ref="searchForm"
-              on={{created: () => {}, change: this.handleSearchChange }}
+              on={{created: this.handleSearchCreated, change: this.handleSearchChange }}
               {...{
                   scopedSlots: this.getSearchSlots
               }}
@@ -508,7 +514,7 @@ export default {
          * @func renderToolsBar - 工具栏
          */
         const renderToolsBar = () => {
-          if(this.toolBar){
+          if(this.toolBar || this.toolbarButtons?.length){
             return <div class="t-toolbar-container">
               {
                 renderCustomToolbarButtons()
@@ -1128,10 +1134,29 @@ export default {
             }
         },
         /**
+         * @func handleSearchCreated - 搜索栏加载
+         */
+        handleSearchCreated({form}){
+          if(this.loadData){
+            this.currentSearchParams = form;
+            this.emitPageChange({
+              page: 1, 
+              pageSize: this.pageSize,
+              query: form
+            })
+          }
+        },
+        /**
          * @func handleSearchChange - 处理搜索栏事件
          */
-        handleSearchChange(event){
-          console.log("处理搜索栏事件", event);
+        handleSearchChange({form}){
+          console.log("处理搜索栏事件", form);
+          this.currentSearchParams = form;
+          this.emitPageChange({
+            page: 1, 
+            pageSize: this.pageSize,
+            query: form
+          })
         },
         /**
          * 分页器分页条数改变事件
@@ -1159,11 +1184,15 @@ export default {
             }
         },
         /**
-         * 刷新当前页 reset todo
+         * 刷新当前页
          */
-        reload(query, reset){
+        reload(query){
             this.setTableLoading(true);
             this.emitPageChange({query: deepClone(query)});
+            if(getFieldType(query) === "Object" && this.currentSearchParams){
+              // 如果reload携带了对象参数并且存在搜索栏时，更新搜索栏表单
+              this.$refs.searchForm.updateFields(query);
+            }
         },
         /**
          * 设置表格数据加载loading
@@ -1304,7 +1333,7 @@ export default {
                 if(this.$refs['el-pagination']){
                     this.$refs['el-pagination'].internalCurrentPage = this.currentPage;
                     this.$refs['el-pagination'].internalPageSize = this.currentPageSize;
-                }
+                };
                 this.setTableLoading(false);
                 this.executePromp(info,{
                     type: 'error',
@@ -1325,14 +1354,21 @@ export default {
          * 获取查询列表参数
          */
         getQuryParams(query){
-            let queryType = getFieldType(query);
-            if(["String", 'Number'].indexOf(queryType) > -1 ){
-                return query;
-            }else if(getFieldType(this.queryForPage) === 'Object' && queryType === 'Object'){
-                return Object.assign(this.queryForPage, query);
-            }else{
-                return this.queryForPage
-            }
+          const queryType = getFieldType(query);
+          if(getFieldType(this.params) === 'Object'){
+            // 当传递了params时，合并搜索栏参数到params上
+            if(queryType === 'Object'){
+              console.log("queryType === 'Object'", query)
+              return Object.assign(this.params,  query);
+            }else if(query !== undefined){
+              return Object.assign(this.params, this.currentSearchParams, {$param: query});
+            };
+            return Object.assign(this.params, this.currentSearchParams );
+          }else{
+            // this.params和入参query都不是对象时，只取其一
+            let $param = (query !== undefined && queryType !== 'Object') ? query : this.params;
+            return Object.assign({$param}, this.currentSearchParams, queryType === 'Object' && query)
+          }
         },
          /**
          * 设置预置控件的禁用状态
