@@ -22,7 +22,7 @@
         :class="setFormItemClass(item)"
         :style="setFormItemStyle(item)"
       >
-        <slot :name="'form-' + (item.prop || item.key)" v-bind="{ form, mode: '' }">
+        <slot :name="'form-' + (item.prop || item.key)" v-bind="{ form, mode: currentMode, value: form[item.prop], validateField,  }">
           <renderColumn
             v-if="typeof item.formRender === 'function'"
             :renderContent="item.formRender"
@@ -262,7 +262,7 @@
             :size="size"
             style="width: 100%"
             />
-            <Ttable v-else-if="isRender(item.editType, 't-table')"
+            <RocTable v-else-if="isRender(item.editType, 't-table')"
             :isFormComponent="true"
             :ref="'t-table-' + item.prop"
             :data="getRocTableData(item)" 
@@ -319,7 +319,7 @@ export default {
     renderColumn,
     TuploadButton: () => import('../Tupload/Button.vue'),
     TuploadImages: () => import('../Tupload/new.vue'),
-    Ttable: () => import('../../index.vue')
+    RocTable: () => import('../../index.vue')
   },
   props: {
     column: {
@@ -334,7 +334,7 @@ export default {
       default: false
     },
     isTableComponent: {
-      // 标记当前表单是否是表格(Ttable)的子组件
+      // 标记当前表单是否是表格(RocTable)的子组件
       type: Boolean,
       default: false
     },
@@ -1179,6 +1179,11 @@ export default {
      */
     submitFormValidation(item, trigger){
       this.$refs.rocForm.validateField(item.prop);
+    },
+    validateField(prop){
+      if(prop){
+        this.$refs.rocForm.validateField(prop);
+      }
     },
     /**
      * 更新表单数据

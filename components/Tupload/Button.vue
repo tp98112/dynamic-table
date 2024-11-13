@@ -16,9 +16,9 @@
             placement="right"
             width="400"
             trigger="click">
-            <Ttable v-bind="tableConfig" :data="fileList">
+            <RocTable v-bind="tableConfig" :data="fileList">
                 <i v-if="!bindValues.limit || (bindValues.limit && bindValues.limit > fileList.length)" @click="callUpload" slot="table-append" class="el-icon-plus tp-append-upload"></i>
-            </Ttable>
+            </RocTable>
             <el-badge :value="fileList.length" :hidden="fileList.length === 0" type="primary" slot="reference">
                 <el-button @click.native="viewFileList($event)" type="primary"  size="mini" icon="el-icon-folder-opened" class="view-button"></el-button>
             </el-badge>
@@ -35,7 +35,7 @@ export default {
      */
     name: 'TuploadButton',
     components: {
-        Ttable: () => import('../../index.vue')
+        RocTable: () => import('../../index.vue')
     },
     props: {
         /**
