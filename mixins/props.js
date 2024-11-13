@@ -530,6 +530,44 @@ export default{
         }
     },
     computed: {
+        internalSearch(){
+          const search = Object.assign({}, this.$TTABLE?.search, this.search);
+          return {
+            responsiveLayout: true, // 响应式布局
+            ...search,
+            /** --------------------- */
+            showValidationFailsMessage: false, // 不显示弹窗校验提示
+            search: true, // 标记为查询栏表单
+            column: [
+              ...(search?.column || this.internalSearchColumns), 
+              {
+                editType: "button-group",
+                options: [
+                  {
+                      label: search.searchText || '查询',
+                      type: 'primary',
+                      icon: 'el-icon-search',
+                      size: 'small',
+                      ...search?.searchButtonProps,
+                      target: 'search'
+                  },
+                  {
+                      label: search.resetText || '重置',
+                      type: '',
+                      plain: true,
+                      icon: 'el-icon-refresh-left',
+                      size: 'small',
+                      ...search?.resetButtonProps,
+                      target: 'reset'
+                  },
+                ]
+              }
+            ],
+          }
+        },
+        internalSearchColumns(){
+          return this.column.filter(item => item.searchVisible !== false && !item.hasOwnProperty('children') && ['index', 'selection', 'expand'].indexOf(item.type) < 0 );
+        },
         /**
          * @computed internalEditMode
          * @returns 编辑模式

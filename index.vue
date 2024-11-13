@@ -34,14 +34,6 @@ export default {
             formReady: false, // 表单初始化状态
             formTitle: '', // 弹窗表单标题
             currentSearchParams: null, // 当前查询栏表单值
-            searchConfig: {
-              // 搜索栏表单配置
-              responsiveLayout: true,
-              column: [],
-              ...this.search,
-              search: true,
-              showValidationFailsMessage: false,
-            },
             formConfig: {
                 // 编辑表单配置
                 isTableComponent: true,
@@ -482,7 +474,7 @@ export default {
         const renderSearchBar = () => {
           if(this.search !== false){
             return <DynamicForm
-              props={this.searchConfig}
+              props={this.internalSearch}
               received_dicts={this.dicts}
               attrs={this.$attrs}
               ref="searchForm"
@@ -673,30 +665,6 @@ export default {
          * 表头数据初始化
          */
         initTableColumn(){
-            if(this.search !== false && !this.search?.column){
-              let arr = this.column.filter(item => item.searchVisible !== false && !item.hasOwnProperty('children') && ['index', 'selection', 'expand'].indexOf(item.type) < 0 )
-              arr.push({
-                editType: "button-group",
-                options: [
-                  {
-                      label: '查询',
-                      type: 'primary',
-                      icon: 'el-icon-search',
-                      size: 'small',
-                      target: 'search'
-                  },
-                  {
-                      label: '重置',
-                      type: '',
-                      plain: true,
-                      icon: 'el-icon-refresh-left',
-                      size: 'small',
-                      target: 'reset'
-                  },
-                ]
-              })
-              this.searchConfig.column = arr;
-            };
 
             if(this.internalEditMode === 'window' && !this.unifiedEdit){
                 // 弹窗编辑

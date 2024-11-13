@@ -4,6 +4,7 @@
        
         </DynamicTable>
       <el-button @click="checkTableData">获取表格数据</el-button>
+      <el-button @click="handleTest">测试</el-button>
     </div>
 </template>
 
@@ -37,6 +38,10 @@ export default {
                         },
                     ],
             tableConfig: {
+                search: {
+                  searchText: "hahha"
+                 //responsiveLayout: true,
+                },
                 height: 500,
                 // maxHeight: 200,
                 dynamic: true, 
@@ -79,7 +84,23 @@ export default {
                         type: 'index',
                         label: '序号'
                     },
-                   
+                   {
+                    label: "formList",
+                    editType: "formList",
+                    columns: [
+                      {
+                        label: "输入框",
+                        prop: "input",
+                      },
+                      {
+                        label: "下拉框",
+                        prop: "select",
+                        align: "center",
+                        editType: "select",
+                        optionsKey: 'selectOptions',
+                      },
+                    ]
+                   },
                     
                 {
                     label: "输入框",
@@ -220,6 +241,9 @@ export default {
        
     },
     methods: {
+      handleTest(){
+        this.tableConfig.search.responsiveLayout = false;
+      },
         checkTableData(){
            
         },
