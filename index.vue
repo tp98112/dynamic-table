@@ -1388,13 +1388,16 @@ export default {
             if(trigger.target){
                 this[this.builtInEvent(trigger)](scope, trigger);
             }else if(trigger.emit){
+              if(scope){
                 // 表单触发
                 if(scope.form){
                     this.handleEmit({type: trigger.emit, trigger, scope, cancel: this.resetFormOnClose, save: this.dialogConfirm, reload: this.reload})
                 }else{
                     this.handleEmit({type: trigger.emit, trigger, scope, row: scope.row, $row: this.getMappingData(scope.row), reload: this.reload})
                 }
-                
+              }else{
+                this.handleEmit({type: trigger.emit, trigger, reload: this.reload})
+              }
             }  
         },
         /**
