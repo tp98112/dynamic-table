@@ -38,6 +38,7 @@ export default {
                         },
                     ],
             tableConfig: {
+                loadData: true,
                 search: {
                   searchText: "hahha"
                  //responsiveLayout: true,
@@ -55,7 +56,6 @@ export default {
                 initFields: {
                     input: '输入框',
                     select: 24,
-                   
                 },
                 accessControl: {
                     update: true,
@@ -87,10 +87,15 @@ export default {
                    {
                     label: "formList",
                     editType: "formList",
+                    prop: "formList",
+                    required: true,
+                    defaultValue: [{list: []}],
+                    cols: 2,
                     columns: [
                       {
                         label: "输入框",
                         prop: "input",
+                        editType: "input",
                       },
                       {
                         label: "下拉框",
@@ -99,6 +104,19 @@ export default {
                         editType: "select",
                         optionsKey: 'selectOptions',
                       },
+                      {
+                        label: "ER",
+                        editType: "formList",
+                        prop: "list",
+                        cols: 2,
+                        columns: [
+                          {
+                            // label: "输入框2",
+                            prop: "input2",
+                            editType: "input",
+                          },
+                        ]
+                      }
                     ]
                    },
                     
@@ -108,20 +126,18 @@ export default {
                     align: "center",
                     editType: "input",
                     required: true,
+                    
                     // sortable: true,
                     // formVisible({form}){
                     //     return form.select == 1
                     // },
                     // columnVisible: false
-                    panel: 1, // 面板
-                    eventName: 'blur',
-                    // controlMethod(params){
-                    // },
-                     controlEvents: {
-                            change(params){
-                              console.log(params)
-                            },
-                        }
+                    
+                    controlEvents: {
+                        change(params){
+                          console.log(params)
+                        },
+                    }
                 },
                 {
                     panel: 1, // 面板
@@ -188,14 +204,15 @@ export default {
                     prop: 'select-tree',
                     editType: 'select-tree',
                     searchVisible: false,
+                    optionControl: {label: "name"},
                     options: [
                         {
-                            label: '乌鲁木齐市',
+                            name: '乌鲁木齐市',
                             value: '2',
                             children: [
-                            { label: '达坂城区', value: '7' },
-                            { label: '头屯河区', value: '8' },
-                            { label: '乌鲁木齐县', value: '9' }
+                            { name: '达坂城区', value: '7' },
+                            { name: '头屯河区', value: '8' },
+                            { name: '乌鲁木齐县', value: '9' }
                             ]
                         }
                     ]

@@ -72,6 +72,7 @@ export default {
     'select-tree': {
       clearable: true,
     },
-    't-table': {}
+    't-table': {},
+    formList: {}
   }
 }

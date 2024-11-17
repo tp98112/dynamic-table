@@ -566,7 +566,7 @@ export default{
           }
         },
         internalSearchColumns(){
-          return this.column.filter(item => item.searchVisible !== false && !item.hasOwnProperty('children') && ['index', 'selection', 'expand'].indexOf(item.type) < 0 );
+          return this.column.filter(item => item.searchVisible !== false && !item.hasOwnProperty('children') && ['index', 'selection', 'expand'].indexOf(item.type) < 0 && item.editType !== "formList" );
         },
         /**
          * @computed internalEditMode

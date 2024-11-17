@@ -9,7 +9,7 @@ export default {
     inheritAttrs: false,
     mixins: [props, config, methods],
     components: {
-        DynamicForm: () => import('./components/DynamicForm'), 
+        DynamicForm: () => import('./components/DynamicForm/index_new'), 
         TuploadButton: () => import('./components/Tupload/Button.vue')
     },
     
@@ -1326,7 +1326,6 @@ export default {
           if(getFieldType(this.params) === 'Object'){
             // 当传递了params时，合并搜索栏参数到params上
             if(queryType === 'Object'){
-              console.log("queryType === 'Object'", query)
               return Object.assign(this.params,  query);
             }else if(query !== undefined){
               return Object.assign(this.params, this.currentSearchParams, {$param: query});
