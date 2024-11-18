@@ -389,8 +389,7 @@ export default {
           {
             this.getOptions(item).map((opt, optIndex) => <el-radio
               key={optIndex}
-              label={this.returnOptionsFields(item, opt, 'label')}
-              value={this.returnOptionsFields(item, opt, 'value')}
+              label={this.returnOptionsFields(item, opt, 'value')}
             >
               {this.returnOptionsFields(item, opt, 'label')}
             </el-radio>)
@@ -438,8 +437,7 @@ export default {
           {
             this.getOptions(item).map((opt, optIndex) => <el-checkbox
               key={optIndex}
-              label={this.returnOptionsFields(item, opt, 'label')}
-              value={this.returnOptionsFields(item, opt, 'value')}
+              label={this.returnOptionsFields(item, opt, 'value')}
             >
               {this.returnOptionsFields(item, opt, 'label')}
             </el-checkbox>)
@@ -825,10 +823,13 @@ export default {
      * 返回数据列表
      */
     getOptions(item) {
-      return this.dicts[item.dict] ||
-        this.$attrs[item.optionsKey] ||
-        item.options ||
-        [];
+      if(this.dicts[item.dict]){
+        return this.dicts[item.dict];
+      }else if(typeof item.options === "string" && this.$attrs[item.options]){
+        return this.$attrs[item.options];
+      }else{
+        return item.options || [];
+      };
     },
     /**
      * 返回FormItem style
@@ -1466,6 +1467,14 @@ export default {
       .el-checkbox__label {
         cursor: default;
       }
+    }
+
+    .el-radio input[aria-hidden="true"] {
+      display: none !important;
+    }
+
+    .el-radio:focus:not(.is-focus):not(:active):not(.is-disabled) .el-radio__inner {
+      box-shadow: none !important;
     }
   }
   .form--item-label-top{

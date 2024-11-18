@@ -848,10 +848,14 @@ export default {
                     let task = this.setLoadingTask(() => this.setMappingData(row, {'$updateLoading': true}, true)); // 开启loading任务
                     button.getFormData({row, callBack: data => {
                         this.clearLoadingTask(task, () => this.setMappingData(row, {'$updateLoading': false})); // 关闭loading
-                        this.formVisible = true;
-                        this.$nextTick(() => {
-                            this.setRocForm(data);
-                        })
+                        if(getFieldType(data) === "Object"){
+                          this.formVisible = true;
+                          this.$nextTick(() => {
+                              this.setRocForm(data);
+                          })
+                        }else{
+                          this.$message.error("获取表单数据失败！"); // ???
+                        }
                     }})
                 }else{
                     this.formVisible = true;
@@ -1392,7 +1396,20 @@ export default {
                 if(scope.form){
                     this.handleEmit({type: trigger.emit, trigger, scope, cancel: this.resetFormOnClose, save: this.dialogConfirm, reload: this.reload})
                 }else{
-                    this.handleEmit({type: trigger.emit, trigger, scope, row: scope.row, $row: this.getMappingData(scope.row), reload: this.reload})
+                    this.handleEmit({
+                      type: trigger.emit, 
+                      trigger, 
+                      scope, 
+                      row: scope.row, 
+                      $row: this.getMappingData(scope.row), 
+                      startLoading: () => {
+                        this.setMappingData(scope.row, {[`$${trigger.emit}Loading`]: true})
+                      },
+                      stopLoading: () => {
+                        this.setMappingData(scope.row, {[`$${trigger.emit}Loading`]: false})
+                      },
+                      reload: this.reload
+                    })
                 }
               }else{
                 this.handleEmit({type: trigger.emit, trigger, reload: this.reload})
@@ -1511,7 +1528,7 @@ export default {
                         row.parent = deepClone(this.currentEditRow);
                     }
                     let type = this.formConfig.eventType || this.formConfig.currentMode; // 注释：新增了事件类型
-                    this.handleEmit({type, row, form, panel: this.formConfig.currentPanel, rocTable: this, success, fail})
+                    this.handleEmit({type, row, form, panel: this.formConfig.currentPanel, TTABLE: this, success, fail})
                 }else{
 
                 }
@@ -1650,8 +1667,8 @@ export default {
                     label.push(target ? target['dictLabel'] : '/')
                 })
                 return label.length ? label.join(',') : '/';
-            }else if(['select', 'checkbox-group'].indexOf(column.editType) > -1){
-                let arr = this.dicts[column.dict] || this.$attrs[column.optionsKey] || column.options || [];
+            }else if(['select', 'checkbox-group', 'radio-group'].indexOf(column.editType) > -1){
+                let arr = this.dicts[column.dict] || this.$attrs[column.options] || column.options || [];
                 let values = Array.isArray(value) ? value : [value]; // 绑定值
                 const label = values.map(val => {
                     const target = arr.find(item => item[column.optionControl?.value ? column.optionControl.value : this.optionControl.value] == val);
@@ -1978,7 +1995,7 @@ export default {
                     controlEvents[i] = value => {
                         let option = this.findOption(column, value);
                         let take = {
-                            value, option, scope, column, rocTable: this
+                            value, option, scope, column, TTABLE: this
                         };
                         typeof column.controlEvents[i] === 'function' ? column.controlEvents[i](take) : () => {}
                     }
@@ -2000,7 +2017,7 @@ export default {
          * 返回控件选项列表
          */
         getOptions(item){
-            return this.dicts[item.dict] || this.$attrs[item.optionsKey] || item.options || [];
+            return this.dicts[item.dict] || this.$attrs[item.options] || item.options || [];
         },
         /**
          * 返回选项列表字段值配置
