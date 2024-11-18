@@ -504,12 +504,12 @@ export default {
           style="width: 100%"
           />
       }else if(item.editType === 't-table'){
-        <RocTable
+        return <RocTable
+          ref={'t-table-' + item.prop}
           data={this.getRocTableData(item)}
           disabled={this.setDisabled(item.disabled)} 
           props={{...this.getControlProperty(item)}}
-          ref={'t-table-' + item.prop}
-          isFormComponent
+          isFormComponent={true}
           formData={this.form}
           on={this.getControlEvents(item)}
         />
@@ -976,8 +976,9 @@ export default {
               callback(new Error(`${item.label || item.prop}不能为空`));
               return;
             }
+            
             // 此处检查表格数据不需要返回data, 并且校验成功时不需要立即移除提示信息
-            if(this.$refs['t-table-' + item.prop][0].checkTableData(false, false)){
+            if(this.$refs['t-table-' + item.prop].checkTableData(false, false)){
               callback();
             }else{
               console.log("当组件为RocTable时添加默认验证", validatorType)
