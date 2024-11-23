@@ -438,7 +438,7 @@ export default{
         formCols: {
             // 表单一行放置控件数量
             type: [Number, String],
-            default: 2
+            default: 1
         },
         closeOnClickModal: {
             // 是否可以通过点击 modal 关闭 Dialog

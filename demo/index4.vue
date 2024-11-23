@@ -81,8 +81,8 @@ export default {
                 ],
                 column: [
                     {
-                        type: 'index',
-                        label: '序号'
+                      type: 'index',
+                      label: '序号'
                     },
                    {
                     label: "formList",
@@ -109,6 +109,7 @@ export default {
                         editType: "formList",
                         prop: "list",
                         cols: 2,
+                        defaultValue: [{}],
                         columns: [
                           {
                             // label: "输入框2",

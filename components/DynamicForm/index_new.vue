@@ -219,6 +219,7 @@ export default {
     internalColProps(){
       let obj =  this.colProps || (this.$TFORM || this.$TTABLE || {}).colProps;
       return Object.assign({
+        span: 24,
         xl: 6,
         lg: 6,
         md: 8,
@@ -306,7 +307,7 @@ export default {
           }]}
           label-width={item.formLabelWidth} // ???
           class={this.setFormItemClass(item)}
-          style={this.setFormItemStyle(item)} // ???
+          style={this.setFormListItemStyle(item)} // ???
         >
           {
             formComponentRender(item, modelForm, curProp)
@@ -569,6 +570,7 @@ export default {
         label-position={this.labelPosition}
         class={{
           'dynamic-form': true,
+          'has-form-list': true,
           'form-items-cover': this.formItemsCover,
         }}
       >
@@ -844,6 +846,17 @@ export default {
       return style;
     },
     /**
+     * @func setFormListItemStyle - formListItem style
+     */
+    setFormListItemStyle(item){
+      let style = {
+        width: this.formItemWidth(item),
+        flex: item.flex
+      };
+      item.editType === 'upload-image' && (style.marginBottom = '7.6px');
+      return style;
+    },
+    /**
      * 返回FormItem label
      */
     setFormItemLabel(item){
@@ -864,7 +877,33 @@ export default {
      * 返回FormItem class
      */
     setFormItemClass(item){
+      let classList = {};
+      // let colProps = Object.assign({}, this.internalColProps, item.colProps);
+      // ['span', 'offset', 'pull', 'push'].forEach(prop => {
+      //   if (colProps[prop] || colProps[prop] === 0) {
+      //     classList[prop !== 'span'
+      //         ? `el-col-${prop}-${colProps[prop]}`
+      //         : `el-col-${colProps[prop]}`] = true;
+         
+      //   }
+      // });
+      
+      // ['xs', 'sm', 'md', 'lg', 'xl'].forEach(size => {
+      //   if (typeof colProps[size] === 'number') {
+      //     classList[`el-col-${size}-${colProps[size]}`] = true;
+      //   } else if (typeof colProps[size] === 'object') {
+      //     let props = colProps[size];
+      //     Object.keys(props).forEach(prop => {
+      //       classList[prop !== 'span'
+      //           ? `el-col-${size}-${prop}-${props[prop]}`
+      //           : `el-col-${size}-${props[prop]}`] = true;
+      //     });
+      //   }
+      // });
+      
+
       return {
+        ...classList,
         'form--item-label-left': item.labelPosition === 'left',
         'form--item-label-center': item.labelPosition === 'center',
         'form--item-label-right': item.labelPosition === 'right',
@@ -1398,9 +1437,12 @@ export default {
       margin-left: 0px !important;
       .form-list{
         .form-list-item {
+          position: relative;
           display: flex;
           flex-wrap: wrap;
           &-action {
+            position: absolute;
+            right: -42px;
             white-space: nowrap;
             i + i {
               margin-inline-start: 8px;
@@ -1477,6 +1519,10 @@ export default {
   .ml-4 {
     margin-left: 4px;
   }
+}
+
+.has-form-list{
+  padding-right: 42px;
 }
 .form-items-cover {
   ::v-deep.el-form-item__content {
