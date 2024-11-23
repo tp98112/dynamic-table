@@ -390,8 +390,7 @@ export default {
           {
             this.getOptions(item).map((opt, optIndex) => <el-radio
               key={optIndex}
-              label={this.returnOptionsFields(item, opt, 'label')}
-              value={this.returnOptionsFields(item, opt, 'value')}
+              label={this.returnOptionsFields(item, opt, 'value')}
             >
               {this.returnOptionsFields(item, opt, 'label')}
             </el-radio>)
@@ -439,8 +438,7 @@ export default {
           {
             this.getOptions(item).map((opt, optIndex) => <el-checkbox
               key={optIndex}
-              label={this.returnOptionsFields(item, opt, 'label')}
-              value={this.returnOptionsFields(item, opt, 'value')}
+              label={this.returnOptionsFields(item, opt, 'value')}
             >
               {this.returnOptionsFields(item, opt, 'label')}
             </el-checkbox>)
@@ -505,12 +503,12 @@ export default {
           style="width: 100%"
           />
       }else if(item.editType === 't-table'){
-        <RocTable
+        return <RocTable
+          ref={'t-table-' + item.prop}
           data={this.getRocTableData(item)}
           disabled={this.setDisabled(item.disabled)} 
           props={{...this.getControlProperty(item)}}
-          ref={'t-table-' + item.prop}
-          isFormComponent
+          isFormComponent={true}
           formData={this.form}
           on={this.getControlEvents(item)}
         />
@@ -827,10 +825,13 @@ export default {
      * 返回数据列表
      */
     getOptions(item) {
-      return this.dicts[item.dict] ||
-        this.$attrs[item.optionsKey] ||
-        item.options ||
-        [];
+      if(this.dicts[item.dict]){
+        return this.dicts[item.dict];
+      }else if(typeof item.options === "string" && this.$attrs[item.options]){
+        return this.$attrs[item.options];
+      }else{
+        return item.options || [];
+      };
     },
     /**
      * 返回FormItem style
@@ -1015,8 +1016,9 @@ export default {
               callback(new Error(`${item.label || item.prop}不能为空`));
               return;
             }
+            
             // 此处检查表格数据不需要返回data, 并且校验成功时不需要立即移除提示信息
-            if(this.$refs['t-table-' + item.prop][0].checkTableData(false, false)){
+            if(this.$refs['t-table-' + item.prop].checkTableData(false, false)){
               callback();
             }else{
               console.log("当组件为RocTable时添加默认验证", validatorType)
@@ -1507,6 +1509,14 @@ export default {
       .el-checkbox__label {
         cursor: default;
       }
+    }
+
+    .el-radio input[aria-hidden="true"] {
+      display: none !important;
+    }
+
+    .el-radio:focus:not(.is-focus):not(:active):not(.is-disabled) .el-radio__inner {
+      box-shadow: none !important;
     }
   }
   .form--item-label-top{

@@ -1381,18 +1381,18 @@ export default {
       margin-left: 0px !important;
     }
     .el-range-editor.is-disabled{
-      background-color: transparent;
+      // background-color: transparent;
     }
     .is-disabled {
       cursor: default;
       .el-input__inner,
       input {
-        cursor: default;
-        background-color: transparent;
+        // cursor: default;
+        // background-color: transparent;
       }
       .el-textarea__inner {
-        cursor: default;
-        background-color: transparent;
+        // cursor: default;
+        // background-color: transparent;
       }
       .el-switch__core {
         cursor: default;
