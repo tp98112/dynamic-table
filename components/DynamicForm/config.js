@@ -73,6 +73,20 @@ export default {
       clearable: true,
     },
     't-table': {},
-    formList: {}
+    'form-list': {
+      creatorButtonProps: {
+        text: '添加一行数据',
+        plain: true,
+        icon: 'el-icon-plus'
+      },
+      copyIconProps: {
+        icon: 'el-icon-document-copy',
+        title: '复制此项到末尾'
+      },
+      deleteIconProps: {
+        icon: 'el-icon-circle-close',
+        title: '删除'
+      },
+    }
   }
 }

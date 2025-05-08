@@ -1,7 +1,7 @@
 
 
 <script>
-import { deepClone } from '../../tools';
+import { deepClone, deepMerge, debounce, getCurrentCols } from '../../tools';
 import { getId, getFieldType } from "../../tools.js";
 import config from "./config.js";
 const customRender = {
@@ -13,6 +13,51 @@ const customRender = {
     return this.renderContent(h, this.data);
   },
 };
+
+
+const Cols = {
+  props: {
+    cols: {
+      type: [Number, Object],
+      default: 1
+    },
+    breakpoint: {
+      type: Object
+    }
+  },
+  data(){
+    return {
+      internalCols: typeof this.cols === 'number' ? this.cols : (typeof this.cols?.span === 'number' ? this.cols.span : 1)
+    }
+  },
+  computed: {
+    averageWidth(){
+      return parseInt((100 / this.internalCols) * 100000) / 100000;
+    },
+  },
+  created(){
+    getFieldType(this.cols) === 'Object' && this.setInternalCols() && window.addEventListener('resize', this.debounceSetInternalCols);
+    // setTimeout(() => {
+    //   window.removeEventListener("resize", debounce(this.setInternalCols, 100))
+    // }, 3000)
+  },
+  destroyed(){
+    window.removeEventListener("resize", this.setInternalCols)
+  },
+  methods: {
+    debounceSetInternalCols(){
+      debounce(this.setInternalCols, 100)
+    },
+    setInternalCols(){
+      this.internalCols = getCurrentCols(this.breakpoint, this.cols);
+      return true;
+    }
+  },
+  render(h) {
+    return this.$scopedSlots.default({cols: this.internalCols, averageWidth: this.averageWidth});
+  },
+};
+
 export default {
   /**
    * 动态表单
@@ -21,6 +66,7 @@ export default {
   inheritAttrs: false,
   components: {
     customRender,
+    Cols,
     TuploadButton: () => import('../Tupload/Button.vue'),
     TuploadImages: () => import('../Tupload/new.vue'),
     RocTable: () => import('../../index.vue')
@@ -44,19 +90,21 @@ export default {
     },
     cols: {
       // 将一行分成cols份
-      type: [Number, String],
+      type: [Number, String, Object],
       default: 1,
     },
-    responsiveLayout: {
-      // 响应式布局
+    grid: {
       type: Boolean,
-      default: false
+      default: false,
     },
     colsWidth: {
       // 设置为 'auto' 并且 formItemsCover 为false时即是elementUi表单的原始排版效果
       type: String,
     },
     colProps: {
+      type: Object,
+    },
+    breakPoint: {
       type: Object,
     },
     size: {
@@ -152,16 +200,16 @@ export default {
       componentId: getId(true),
       form: this.deepClone(this.initFields), // 表单
       rules: {}, // 验证规则
-      internalCols: this.cols,
+      internalCols: typeof this.cols === 'number' ? this.cols : 1,
       internalCurrentMode: '', // 保存时触发的事件类型 new/update
       backupPanelData: {},
       dicts: this.received_dicts, // 默认接收父组件传递的字典数据 避免重复请求
       formItemList: [], // 表单列表
-      defaultFieldsValue: JSON.parse(JSON.stringify(this.initFields)), // 默认字段值
-      timer: null, // 定时器
+      defaultFieldsValue: deepClone(this.initFields), // 默认字段值
       internalFormLabelWidth: 'auto', // formLabel标签宽度
       otherData: {}, // 文件上传-下拉选择器数据
       uploadTasks: 0, // 标记上传任务总数
+      hasFormList: false, // 标记是否存在form-list
       supportedComponents: Object.freeze({
         "date-picker": "", // 时间选择器
         input: "", // 文本输入框
@@ -181,7 +229,7 @@ export default {
         'select-tree': '', // 选择树
         't-table': null,
         "button-group": "",
-        formList: [],
+        "form-list": [],
         unknown: "", // 未知的
       }), // 受支持的预设控件
     };
@@ -216,9 +264,19 @@ export default {
     },
   },
   computed: {
+    internalBreakpoint(){
+      return Object.assign({
+        xl: 1920,
+        lg: 1200,
+        md: 992,
+        sm: 768,
+        xxs: 520,
+        xs: 520
+      }, (this.breakPoint || this.$TFOM?.breakPoint))
+    },
     internalColProps(){
       let obj =  this.colProps || (this.$TFORM || this.$TTABLE || {}).colProps;
-      return Object.assign({
+      return obj || {
         span: 24,
         xl: 6,
         lg: 6,
@@ -226,7 +284,7 @@ export default {
         sm: 12,
         xxs: 12,
         xs: 24
-      }, obj)
+      };
     },
     /**
      * @computed internalGetDicts
@@ -270,44 +328,73 @@ export default {
     
   },
   created() {
-    
     this.collatingDataStructures();
+    getFieldType(this.cols) === 'Object' && this.setGrid() && window.addEventListener("resize", this.setGrid)
     this.$emit("created", { form: this.deepClone(this.form) });
   },
   
   render(h){
-
-    const formListRender = (columns, list = [], {listProp, prop}) => {
-      return <div class="form-list">
-        {
-          list.map((item, listIndex) => <div key={listIndex} class="form-list-item">
-          {formListItemsRender({columns, modelForm: item, listProp, listIndex, prop})}
-          <div class="form-list-item-action">
-            <i class="el-icon-document-copy"></i>
-            <i onClick={() => this.handleFormListItemDelete(list, listIndex)} class="el-icon-circle-close"></i>
-          </div>
-        </div>)
-        }
-        <div class="form-list-creator-button" onClick={() => this.handleFormListCreator(columns, list) }>
-          <i class="el-icon-plus"></i>
-          <span class="ml-4">添加一行数据</span>
+    /**
+     * @param {Object} params.column - formList column配置项
+     * @param {Object} params.modelForm - 数据绑定对象
+     * @param {String} params.listProp - 逐层传递的prop, 用于动态增减表单项formList内的<form-item/>的prop
+     * @param {Number} params.cols - formList内部分列数
+     * @param {Number} params.averageWidth - 根据formList内部分列数计算出的宽度
+     * @param {Number} params.colsWidth - formList内部设置的子项统一宽度
+     */
+    const formListRender = ({column, modelForm, listProp, cols, averageWidth, colsWidth }) => {
+      const {prop, columns, control} = column;
+      if(Array.isArray(modelForm[prop])){
+        let { creatorButtonProps, copyIconProps, deleteIconProps} = this.getFormListBindValues({control, value: modelForm[prop]});
+        return <div class="form-list">
+          {
+            modelForm[prop].map((item, listIndex) => <div key={listIndex} class="form-list-item">
+            {formListItemsRender({columns, modelForm: item, listProp, listIndex, prop, cols, averageWidth, colsWidth })}
+            {
+              (copyIconProps !== false || deleteIconProps !== false) && <div class="form-list-item-action">
+                {copyIconProps !== false && <i onClick={() => this.handleFormListItemCopy({modelForm, prop, item})} class={copyIconProps.icon} title={copyIconProps.title}></i>}
+                {deleteIconProps !== false && <i onClick={() => this.handleFormListItemDelete(modelForm[prop], listIndex)} title={deleteIconProps.title} class={deleteIconProps.icon}></i>}
+              </div>
+              }
+          </div>)
+          }
+          <el-button 
+            onClick={() => this.handleFormListCreator({modelForm, creatorRecord: control?.creatorRecord, prop, columns}) } 
+            props={{...creatorButtonProps}}
+            class="form-list-creator-button">
+            {creatorButtonProps.text}
+          </el-button>
         </div>
-      </div>
+      }else{
+        console.error(`❌${column.label ? `标签名为🔖${column.label}的`: ""}表单项👉`, column, `应用的组件 form-list 的期望值必须是数组，当前却是${getValueTypeText(modelForm[prop])}`, modelForm[prop])
+      }
+      
     };
 
-    const formListItemsRender = ({columns, modelForm, listProp, listIndex, prop}) => {
+    const getValueTypeText = (value) => {
+      let type = getFieldType(value);
+      let textObj = {
+        'String': '字符串',
+        'Number': '数字',
+        'Object': '对象💑',
+        'Array': '数组',
+        'Null': 'Null',
+        'Undefined': 'Undefined'
+      };
+      return textObj[type] ? textObj[type] : "";
+    };
+
+    const formListItemsRender = ({columns, modelForm, listProp, listIndex, prop, cols, averageWidth, colsWidth}) => {
       return columns.map((item) => {
         const curProp = listProp ? `${listProp}.${listIndex}.${item.prop}` : `${prop}.${listIndex}.${item.prop}`;
         return <el-form-item
           key={item.prop}
           prop={curProp} // 
           label={this.setFormItemLabel(item)}
-          rules={[{
-            required: true,  trigger: 'change'
-          }]}
+          rules={this.getFormListItemRules(item)}
           label-width={item.formLabelWidth} // ???
           class={this.setFormItemClass(item)}
-          style={this.setFormListItemStyle(item)} // ???
+          style={this.setFormListItemStyle({item, cols, averageWidth, colsWidth})} // ???
         >
           {
             formComponentRender(item, modelForm, curProp)
@@ -332,7 +419,7 @@ export default {
     const formComponentRender = (item, modelForm, listProp) => {
       const slotName = `form-${item.prop || item.key}`; // ??? listProp
       if(this.$scopedSlots[slotName] || this.$slots[slotName]){
-        // formList row???
+        // form-list row???
         return this.$scopedSlots[slotName]({form: this.form, mode: this.currentMode, value: item.prop ? this.form[item.prop] : undefined}) || this.$slots[slotName];
       };
 
@@ -512,9 +599,24 @@ export default {
           formData={this.form}
           on={this.getControlEvents(item)}
         />
-      }else if(item.editType === 'formList' && Array.isArray(item.columns)){
-        return formListRender(item.columns, modelForm[item.prop], {listProp, prop: item.prop} );
-        
+      }else if(item.editType === 'form-list' && Array.isArray(item.columns)){
+        return h('Cols', {
+          props: {
+            breakpoint: this.internalBreakpoint,
+            cols: typeof item.control === 'function' ? item.control({
+              value: modelForm[item.prop],
+              form: this.form,
+              dicts: this.dicts,
+              column: item,
+              instance: this
+            }).cols : item.control?.cols,
+          },
+          scopedSlots: {
+            default: ({cols, averageWidth}) => {
+              return formListRender({column: item, modelForm, listProp, cols, averageWidth, colsWidth: item.colsWidth})
+            }
+          }
+        })
       }else if(item.editType ===  'button-group'){
         return <div style={{display: 'flex', alignItems: 'center',height: '100%', justifyContent: item.justifyContent}}>
           {
@@ -568,7 +670,7 @@ export default {
         label-position={this.labelPosition}
         class={{
           'dynamic-form': true,
-          'has-form-list': true,
+          'has-form-list': this.hasFormList,
           'form-items-cover': this.formItemsCover,
         }}
       >
@@ -580,27 +682,14 @@ export default {
   },
   mounted(){
     this.setLabelWidth();
-    this.responsiveLayout && this.setGrid() && window.addEventListener("resize", this.setGrid)
+    
   },
   destroyed(){
     window.removeEventListener("resize", this.setGrid)
   },
   methods: {
     setGrid(){
-      let width = window.innerWidth;
-      if(width >= 1920){
-        this.internalCols = 24 / this.internalColProps.xl;
-      }else if(width >= 1200){
-        this.internalCols = 24 / this.internalColProps.lg;
-      }else if(width >= 992){
-        this.internalCols = 24 / this.internalColProps.md;
-      }else if(width >= 768){
-        this.internalCols = 24 / this.internalColProps.sm;
-      }else if(width >= 520){
-        this.internalCols = 24 / this.internalColProps.xxs;
-      }else if(width < 520){
-        this.internalCols = 24 / this.internalColProps.xs;
-      };
+      this.internalCols = getCurrentCols(this.internalBreakpoint, this.cols);
       return true;
     },
     /**
@@ -613,14 +702,32 @@ export default {
       
       this.internalFormLabelWidth = maxWidth + 1 + 'px'; // 实际显示中部分屏幕存在1px的误差
     },
-    /**
-     * @func handleFormListCreator - formList 新增数据行
-     */
-    handleFormListCreator(columns, list){
-      list.push({});
+    // 返回组件form-list的绑定属性
+    getFormListBindValues({control, value}){
+      let initial = config.defaultControlProperties['form-list'];
+      let newValue = typeof control === "function" ? control({value, form: this.form}) : control;
+      return deepMerge({}, initial, newValue);
     },
     /**
-     * @func handleFormListItemDelete - formList 删除数据行
+     * @func handleFormListCreator - form-list 新增数据行
+     */
+    handleFormListCreator({modelForm, prop, creatorRecord, columns}){
+      let record = {};
+      columns.forEach(item => {
+        item.editType === "form-list" && Array.isArray(item.columns) && (record[item.prop] = [])
+      })
+      Object.assign(record, creatorRecord);
+      modelForm[prop] && modelForm[prop].push(record) || this.$set(modelForm, prop, [record])
+      
+    },
+    /**
+     * @func handleFormListItemCopy - form-list 复制数据行到末尾
+     */
+    handleFormListItemCopy({modelForm, prop, item}){
+      modelForm[prop].push(this.deepClone(item));
+    },
+    /**
+     * @func handleFormListItemDelete - form-list 删除数据行
      */
     handleFormListItemDelete(list, index){
       list.splice(index, 1);
@@ -688,28 +795,41 @@ export default {
               form: this.form,
               panel: this.currentPanel,
               mode: this.currentMode,
-              Tform: this
+              instance: this
             })
           : true;
     },
+    getFormItemCols(data){
+      let width = window.innerWidth;
+      if(width >= 1920 && data.xl){
+        return data.xl ;
+      }else if(width >= 1200 && data.lg){
+        return data.lg;
+      }else if(width >= 992 && data.md){
+        return data.md;
+      }else if(width >= 768 && data.sm){
+        return data.sm;
+      }else if(width >= 520 && data.xxs){
+        return data.xxs;
+      }else if(width < 520 && data.xs){
+        return data.xs;
+      }else{
+        return data.span || 1;
+      }
+    },
     formItemWidth(item) {
       // 返回表单项宽度
-      let cols =
-          typeof item.cols === "number" &&
-          item.cols > 0 &&
-          item.cols <= this.internalCols
-            ? item.cols
-            : 1;
-
-        return item.colWidth
-          ? typeof item.colWidth === "number"
-            ? item.colWidth + "px"
-            : item.colWidth
-          : this.colsWidth
-          ? typeof this.colsWidth === "number"
-            ? this.colsWidth + "px"
-            : this.colsWidth
-          : cols * this.defaultWidth + "%";
+      if(item.colWidth){
+        return typeof item.colWidth === "number" ? item.colWidth + "px" : item.colWidth;
+      }else if(item.cols){
+        let itemCols = typeof item.cols === "number" ? item.cols : (getFieldType(item.cols) === 'Object' ? this.getFormItemCols(item.cols) : 1);
+        let cols = itemCols > 0 && itemCols <= this.internalCols ? itemCols : 1;
+        return cols * this.defaultWidth + "%";
+      }else if(this.colsWidth){
+        return typeof this.colsWidth === "number" ? this.colsWidth + "px" : this.colsWidth;
+      }else{
+        return this.defaultWidth + "%"
+      };
     },
     /**
      * 返回select-tree的props
@@ -763,7 +883,7 @@ export default {
             form: this.form,
             panel: this.currentPanel,
             mode: this.currentMode,
-            Tform: this
+            instance: this
           })
         : undefined;
     },
@@ -771,7 +891,7 @@ export default {
      * 返回表格data
      */
     getRocTableData(item){
-      let options = this.form[item.prop] || this.dicts[item.dict] || this.$attrs[item.optionsKey] || item.options;
+      let options = this.form[item.prop] || this.dicts[item.dict] || (typeof item.options === "string" && this.$attrs[item.options]) || item.options;
       if(options){
         return options
       }else if(Array.isArray(this.form[item.prop])){
@@ -796,7 +916,7 @@ export default {
               option,
               dicts: this.dicts,
               column: item,
-              Tform: this,
+              instance: this,
             };
             
             typeof item.controlEvents[i] === "function"
@@ -814,7 +934,7 @@ export default {
      * 查找当前选中项
      */
     findOption(column, value){
-      if(column.optionsKey || column.options || column.dict){
+      if(column.options || column.dict){
         let options = this.getOptions(column);
         let valueKey = (column.fieldNames && column.fieldNames.value) || (column.dict && this.dictFieldNames.value) || this.fieldNames.value;
         return options.find(item => item[valueKey] === value)
@@ -838,7 +958,7 @@ export default {
      */
     setFormItemStyle(item){
       let style = {
-        width: this.formItemWidth(item),
+        width: this.grid ? undefined : this.formItemWidth(item),
         paddingLeft: this.gutter / 2 + 'px',
         paddingRight: this.gutter / 2 + 'px',
         flex: item.flex
@@ -846,14 +966,36 @@ export default {
       item.editType === 'upload-image' && (style.marginBottom = '7.6px');
       return style;
     },
+    /*
+    * @param {Object} params.item - 当前表单项
+    * @param {number} params.cols - 来自<form-list/>，表单布局的列数，用于计算每列宽度的比例
+    * @param {number} params.averageWidth - 根据 cols 计算出的平均宽度
+    * @param {string|number} params.colsWidth - 来自<form-list/>，可统一设置每列的宽度
+    * @returns {string} 计算得到的宽度
+    */
+    getFormListItemStyleWidth({item, cols, averageWidth, colsWidth}){
+      if(item.colWidth){
+        return typeof item.colWidth === "number" ? item.colWidth + "px" : item.colWidth;
+      }else if(item.cols){
+        let itemCols = typeof item.cols === "number" && item.cols > 0 && item.cols <= cols ? item.cols : 1;
+        return itemCols * averageWidth + "%";
+      }else if(colsWidth){
+        // 如果form-list设置了表单项统一宽度colsWidth
+        return typeof colsWidth === "number" ? colsWidth + "px" : colsWidth;
+      }else{
+        return averageWidth + "%";
+      }
+    },
     /**
      * @func setFormListItemStyle - formListItem style
      */
-    setFormListItemStyle(item){
+    setFormListItemStyle({item, cols, averageWidth, colsWidth}){
+      
       let style = {
-        width: this.formItemWidth(item),
+        width: this.getFormListItemStyleWidth({item, cols, averageWidth, colsWidth}),
         flex: item.flex
       };
+      console.log("setFormListItemStyle", style)
       item.editType === 'upload-image' && (style.marginBottom = '7.6px');
       return style;
     },
@@ -870,7 +1012,7 @@ export default {
           form: this.form,
           dicts: this.dicts,
           column: item,
-          Tform: this,
+          instance: this,
         })
       };
     },
@@ -879,29 +1021,30 @@ export default {
      */
     setFormItemClass(item){
       let classList = {};
-      // let colProps = Object.assign({}, this.internalColProps, item.colProps);
-      // ['span', 'offset', 'pull', 'push'].forEach(prop => {
-      //   if (colProps[prop] || colProps[prop] === 0) {
-      //     classList[prop !== 'span'
-      //         ? `el-col-${prop}-${colProps[prop]}`
-      //         : `el-col-${colProps[prop]}`] = true;
-         
-      //   }
-      // });
-      
-      // ['xs', 'sm', 'md', 'lg', 'xl'].forEach(size => {
-      //   if (typeof colProps[size] === 'number') {
-      //     classList[`el-col-${size}-${colProps[size]}`] = true;
-      //   } else if (typeof colProps[size] === 'object') {
-      //     let props = colProps[size];
-      //     Object.keys(props).forEach(prop => {
-      //       classList[prop !== 'span'
-      //           ? `el-col-${size}-${prop}-${props[prop]}`
-      //           : `el-col-${size}-${props[prop]}`] = true;
-      //     });
-      //   }
-      // });
-      
+      if(this.grid === true){
+        let colProps = Object.assign({}, this.internalColProps, item.colProps);
+        ['span', 'offset', 'pull', 'push'].forEach(prop => {
+          if (colProps[prop] || colProps[prop] === 0) {
+            classList[prop !== 'span'
+                ? `el-col-${prop}-${colProps[prop]}`
+                : `el-col-${colProps[prop]}`] = true;
+          
+          }
+        });
+        
+        ['xs', 'sm', 'md', 'lg', 'xl'].forEach(size => {
+          if (typeof colProps[size] === 'number') {
+            classList[`el-col-${size}-${colProps[size]}`] = true;
+          } else if (typeof colProps[size] === 'object') {
+            let props = colProps[size];
+            Object.keys(props).forEach(prop => {
+              classList[prop !== 'span'
+                  ? `el-col-${size}-${prop}-${props[prop]}`
+                  : `el-col-${size}-${props[prop]}`] = true;
+            });
+          }
+        });
+      }
 
       return {
         ...classList,
@@ -912,11 +1055,34 @@ export default {
       }
     },
     /**
+     * @method getFormListItemRules - 返回组件<form-list/>中<form-item/>的验证规则rules
+     */
+    getFormListItemRules(column){
+      let validator = column.formValidator || column.validator;
+        if (Array.isArray(validator)) {
+          return validator; // 数组 直接返回
+        }
+        let validate = {
+          required: column.required === true ? true : false,
+          trigger: column.validateTrigger ? column.validateTrigger : this.getInputTrigger(column.editType),
+        }; // 验证
+
+        let validatorType = getFieldType(validator);
+        // 优先设置特殊组件验证规则
+        this.setSpecialItemsValidator(validate, validator, validatorType, column);
+        // 其他验证
+        if(!validate.validator){
+          this.setValidator(validate, validator, validatorType, column)
+        }
+        
+        return [validate];
+    },
+    /**
      * 返回输入控件的验证触发方式
      */
     getInputTrigger(type){
       if(['input', 'input-number', 'autocomplete'].indexOf(type) > -1){
-        return 'blur';
+        return ['blur', 'change'];
       }else{
         return 'change'
       }
@@ -942,13 +1108,18 @@ export default {
         item.$key = getId(true);
         if(!item.prop || item.propAsKeyOnly){return};
         item.editType =
-          item.editType in this.supportedComponents ? item.editType : "unknown";
+          this.supportedComponents[item.editType] !== undefined ? item.editType : "unknown";
         const prop = item.module ? `${item.module}-${item.prop}` : item.prop; // 分模块
-        let defaultValue = item.hasOwnProperty('defaultValue') ? item.defaultValue : 
-        (this.initFields.hasOwnProperty(prop) ? this.initFields[prop] : 
+        let defaultValue = item.defaultValue !== undefined ? item.defaultValue : 
+        (this.initFields[prop] !== undefined ? this.deepClone(this.initFields[prop]) : 
         this.supportedComponents[item.editType]);
+
+        if(item.editType === "form-list" && Array.isArray(item.columns)){
+          this.hasFormList = true;
+          this.setFormListDefaultValue(item.columns, defaultValue);
+        };
         
-        this.$set(this.form, prop, defaultValue); // 初始化表单字段数据
+        this.$set(this.form, prop, this.deepClone(defaultValue)); // 初始化表单字段数据
         this.defaultFieldsValue[prop] = JSON.parse(JSON.stringify(defaultValue)); // 初始化字段默认值
         
 
@@ -992,6 +1163,17 @@ export default {
         
         this.rules[prop] = [validate];
       });
+    },
+    // 设置form-list默认值
+    setFormListDefaultValue(columns, value){
+      columns.forEach(column => {
+        if(column.editType === "form-list" && Array.isArray(column.columns) && column.defaultValue){
+          this.setFormListDefaultValue(column.columns, column.defaultValue);
+          value.forEach(val => {
+            val[column.prop] = column.defaultValue;
+          })
+        }
+      })
     },
     /**
      * * 优先设置特殊组件验证规则
@@ -1106,7 +1288,7 @@ export default {
           form: this.form,
           dicts: this.dicts,
           column: item,
-          Tform: this,
+          instance: this,
         })
         return;
       }
@@ -1133,7 +1315,7 @@ export default {
           form: this.form,
           dicts: this.dicts,
           column: item,
-          Tform: this,
+          instance: this,
         })
       }else{
         return item[prop];
@@ -1151,7 +1333,7 @@ export default {
           form: this.form,
           dicts: this.dicts,
           column: item,
-          Tform: this,
+          instance: this,
         })
       };
       return false;
@@ -1167,7 +1349,7 @@ export default {
           form: this.form,
           dicts: this.dicts,
           column: item,
-          Tform: this,
+          instance: this,
         })
       }
       return '';
@@ -1402,7 +1584,7 @@ export default {
             form: this.form,
             dicts: this.dicts,
             column: item,
-            Tform: this
+            instance: this
           })
         };
         if (getFieldType(control) === "Object") {
@@ -1444,7 +1626,8 @@ export default {
           flex-wrap: wrap;
           &-action {
             position: absolute;
-            right: -42px;
+            right: -10px;
+            transform: translateX(100%);
             white-space: nowrap;
             i + i {
               margin-inline-start: 8px;
@@ -1461,18 +1644,13 @@ export default {
           }
         }
         .form-list-creator-button{
-          height: 32px;
-          font-size: 14px;
-          display: flex;
-          justify-content: center;
-          align-items: center;
+          width: 100%;
           color: rgba(42, 46, 54);
           box-shadow: 0 2px 0 rgba(42, 46, 54, 0.02);
           border-radius: 6px;
           border: 1px dashed #d9d9d9;
           transition: .2s;
           user-select: none;
-          box-sizing: border-box;
           &:hover {
             border-color: #66B1FF;
             color: #66B1FF;

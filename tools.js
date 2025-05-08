@@ -171,3 +171,79 @@ export function dateFormat(date, fmt = 'YYYY-mm-dd HH:MM:SS') {
     };
     return fmt
 }
+
+export function deepMerge(...objects) {
+  return objects.reduce((target, source) => {
+    // 如果 source 不是对象，直接返回 target
+    if (typeof source !== 'object' || source === null) {
+        return target;
+    }
+
+    // 遍历 source 对象的每个属性
+    for (const key in source) {
+        if (source.hasOwnProperty(key)) {
+            const targetValue = target[key];
+            const sourceValue = source[key];
+
+            // 如果 targetValue 和 sourceValue 都是对象，则递归合并
+            if (typeof targetValue === 'object' && targetValue !== null && typeof sourceValue === 'object' && sourceValue !== null) {
+                target[key] = deepMerge(targetValue, sourceValue);
+            } else {
+                // 否则，直接赋值 source 的值到 target 中
+                target[key] = sourceValue;
+            }
+        }
+    }
+    return target;
+  }, {});
+};
+
+export function debounce(func, wait = 100, immediate = false) {
+  let timeout;
+  
+  return function(...args) {
+    const context = this;
+
+    // 如果设置 immediate 为 true，第一次触发时立即执行
+    const later = () => {
+      timeout = null;
+      if (!immediate) {
+        func.apply(context, args);
+      }
+    };
+
+    // 是否是第一次触发
+    const callNow = immediate && !timeout;
+    
+    // 清除上一次的定时器，重新计时
+    clearTimeout(timeout);
+
+    timeout = setTimeout(later, wait);
+
+    // 如果设置了立即执行并且是第一次触发，则立即调用
+    if (callNow) {
+        console.log("===", context, args)
+      func.apply(context, args);
+    }
+  };
+}
+
+export const getCurrentCols = (breakpoint, colProps) => {
+  console.log("getCurrentCols", breakpoint)
+  let width = window.innerWidth;
+  if(width >= breakpoint.xl && colProps.xl){
+    return colProps.xl ;
+  }else if(width >= breakpoint.lg && colProps.lg){
+    return colProps.lg;
+  }else if(width >= breakpoint.md && colProps.md){
+    return colProps.md;
+  }else if(width >= breakpoint.sm && colProps.sm){
+    return colProps.sm;
+  }else if(width >= breakpoint.xxs && colProps.xxs){
+    return colProps.xxs;
+  }else if(width < breakpoint.xs && colProps.xs){
+    return colProps.xs;
+  }else{
+    return colProps.span || 1;
+  }
+}

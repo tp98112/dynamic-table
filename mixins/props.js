@@ -437,8 +437,12 @@ export default{
         },
         formCols: {
             // 表单一行放置控件数量
-            type: [Number, String],
+            type: [Number, String, Object],
             default: 1
+        },
+        breakPoint: {
+          // 断点
+          type: Object
         },
         closeOnClickModal: {
             // 是否可以通过点击 modal 关闭 Dialog
@@ -533,7 +537,7 @@ export default{
         internalSearch(){
           const search = Object.assign({}, this.$TTABLE?.search, this.search);
           return {
-            responsiveLayout: true, // 响应式布局
+            cols: {xl: 4, lg: 4, md: 3, sm: 2, xxs: 2, xs: 1}, // 响应式布局
             ...search,
             /** --------------------- */
             showValidationFailsMessage: false, // 不显示弹窗校验提示
@@ -566,7 +570,17 @@ export default{
           }
         },
         internalSearchColumns(){
-          return this.column.filter(item => item.searchVisible !== false && !item.hasOwnProperty('children') && ['index', 'selection', 'expand'].indexOf(item.type) < 0 && item.editType !== "formList" );
+          return this.column.filter(item => item.searchVisible !== false && !item.hasOwnProperty('children') && ['index', 'selection', 'expand'].indexOf(item.type) < 0 && item.editType !== "form-list" );
+        },
+        internalBreakpoint(){
+          return Object.assign({
+            xl: 1920,
+            lg: 1200,
+            md: 992,
+            sm: 768,
+            xxs: 520,
+            xs: 520
+          }, (this.breakPoint || this.$TTABLE?.breakPoint));
         },
         /**
          * @computed internalEditMode

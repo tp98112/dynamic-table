@@ -43,6 +43,7 @@ export default {
                   searchText: "hahha"
                  //responsiveLayout: true,
                 },
+                formCols: 1,
                 height: 500,
                 // maxHeight: 200,
                 dynamic: true, 
@@ -56,6 +57,9 @@ export default {
                 initFields: {
                     input: '输入框',
                     select: 24,
+                },
+                formCols: {
+                  lg: 2
                 },
                 accessControl: {
                     update: true,
@@ -85,40 +89,58 @@ export default {
                       label: '序号'
                     },
                    {
-                    label: "formList",
-                    editType: "formList",
+                    // label: "formList",
+                    editType: "form-list",
                     prop: "formList",
                     required: true,
-                    defaultValue: [{list: []}],
+                    defaultValue: [{}],
                     cols: 2,
+                    control: {
+                      cols: {lg: 2, md:1}, // formList 内部表单项列数
+                      creatorRecord: {input: "ceshi"},
+                      creatorButtonProps: {
+                        text: "新建1",
+                      },
+                      
+                    },
                     columns: [
-                      {
-                        label: "输入框",
-                        prop: "input",
-                        editType: "input",
-                      },
-                      {
-                        label: "下拉框",
-                        prop: "select",
-                        align: "center",
-                        editType: "select",
-                        optionsKey: 'selectOptions',
-                      },
-                      {
-                        label: "ER",
-                        editType: "formList",
-                        prop: "list",
-                        cols: 2,
-                        defaultValue: [{}],
-                        columns: [
-                          {
-                            // label: "输入框2",
-                            prop: "input2",
-                            editType: "input",
-                          },
-                        ]
-                      }
-                    ]
+                        {
+                          label: "输入框",
+                          prop: "input",
+                          editType: "input",
+                          required: true,
+                        },
+                        {
+                          label: "下拉框",
+                          prop: "select",
+                          align: "center",
+                          editType: "select",
+                          options: 'selectOptions',
+                        },
+                        // {
+                        //   // label: "二级",
+                        //   editType: "form-list",
+                        //   prop: "list",
+                        //   cols: 2,
+                        //   control: {
+                        //     cols: 1,
+                        //   },
+                        //   defaultValue: [{input2: "hahha"}],
+                        //   columns: [
+                        //     {
+                        //       label: "输入框2",
+                        //       prop: "input2",
+                        //       editType: "input",
+                        //     },
+                        //     {
+                        //       label: "输入框2",
+                        //       prop: "input3",
+                        //       editType: "input",
+                        //     },
+                        //   ]
+                        // }
+                      ]
+                    
                    },
                     
                 {

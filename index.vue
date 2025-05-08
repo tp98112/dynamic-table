@@ -51,6 +51,8 @@ export default {
                 gutter: this.formGutter, // 表单项间距
                 colsWidth: this.formColsWidth, // 表单项固定宽度
                 disabledForm: false,
+                breakPoint: this.internalBreakpoint,
+                colProps: {span: 24},
             },
         }
     },
