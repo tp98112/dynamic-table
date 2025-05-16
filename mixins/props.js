@@ -59,7 +59,7 @@ export default{
               return {}
             }
         },
-        optionControl: {
+        optionFieldNames: {
             // 选项列表字段控制
             type: Object,
             default(){
@@ -74,14 +74,8 @@ export default{
             type: Function,
         },
         // 字典数据字段控制
-        dictControl: {
+        dictFieldNames: {
             type: Object,
-            default() {
-                return {
-                    label: 'dictLabel',
-                    value: 'dictValue'
-                };
-            },
         },
         loading: {
             // 表格数据loading
@@ -307,7 +301,7 @@ export default{
         pagination: {
             // 是否展示分页
             type: Boolean,
-            default: false
+            default: true
         },
         virtualPage: {
             // 假分页
@@ -380,7 +374,7 @@ export default{
             if(result){
               return true
             }else{
-              console.error("The builtInButtons property must contain one save button and one cancel button, with their target attribute values set to 'save' and 'cancel' respectively")
+              console.error("builtInButtons属性必须包含一个保存按钮和一个取消按钮，它们的目标属性值分别设置为save和cancel")
             } 
           }
         },
@@ -401,6 +395,11 @@ export default{
           type: [Object, Boolean],
           default: false
         },
+        headerTitle: {
+          // 表格标题
+          type: String,
+          default: ""
+        },
         toolBar: {
           // 工具栏
           type: [Object, Boolean],
@@ -414,6 +413,11 @@ export default{
           // 工具栏自定义新增按钮大小
           type: String,
           default: "mini"
+        },
+        useDialogForm: {
+          // 是否强制使用dialog表单组件
+          type: Boolean,
+          default: false
         },
         formData: {
             // 当表格作为Tform的子组件时，由Tform传递的表单数据
@@ -497,31 +501,9 @@ export default{
             type: Boolean,
             default: false
         },
-        formDialogButton: {
+        formDialogButtons: {
             // 表单弹窗按钮
             type: Array,
-            default(){
-                return [
-                    {
-                        icon: 'el-icon-circle-check',
-                        label: '确 定',
-                        type: 'primary',
-                        target: '$update'
-                    },
-                    {
-                        label: '取 消',
-                        icon: 'el-icon-circle-close',
-                        type: 'primary',
-                        plain: true,
-                        target: '$cancel',
-                    },
-                    {
-                        // icon: 'el-icon-close',
-                        label: '关 闭',
-                        target: '$close'
-                    },
-                ]
-            }
         },
         beforeFormClose: {
             // 表单弹框关闭时调用自定义事件
@@ -531,6 +513,20 @@ export default{
             // 标记当前表格(RocTable)是否是表单(RocForm)的子组件
             type: Boolean,
             default: false
+        },
+        useStrictEquality: {
+          // 用来控制是否启用严格比较, 翻译时需要用到
+          type: Boolean,
+          default: undefined
+        },
+        toolBarAlign: {
+          // 表格工具栏的对齐方式 start/space-between/center/end
+          type: String,
+          default: 'space-between'
+        },
+        subCellStyle: {
+          // 子集数据行单元格样式
+          type: Function
         }
     },
     computed: {
@@ -760,6 +756,32 @@ export default{
         ];
       },
       /**
+       * @computed internalFormDialogButtons 弹窗按钮
+       * @returns {Array}
+       */
+      internalFormDialogButtons(){
+        return this.formDialogButtons || (this.$TTABLE || {}).formDialogButtons || [
+          {
+              icon: 'el-icon-circle-check',
+              label: '确 定',
+              type: 'primary',
+              target: '$update'
+          },
+          {
+              label: '取 消',
+              icon: 'el-icon-circle-close',
+              type: 'primary',
+              plain: true,
+              target: '$cancel',
+          },
+          {
+              // icon: 'el-icon-close',
+              label: '关 闭',
+              target: '$close'
+          },
+        ];
+      },
+      /**
        * @computed showLoadingOnTimeout
        * @desc 当接口超过此时间不返回时将显示loading 默认500毫秒
        * @returns {Number} 超时时间 单位/毫秒
@@ -774,6 +796,31 @@ export default{
        */
        internalMinLoadingTime(){
         return this.minLoadingTime || (this.$TTABLE || {}).minLoadingTime || 1000;
+      },
+      /**
+       * @computed internalDictFieldNames
+       * @desc 字典字段名称
+       */
+      internalDictFieldNames(){
+        return Object.assign({
+          label: 'dictLabel',
+          value: 'dictValue'
+        }, (this.$TTABLE || {}).dictFieldNames, this.dictFieldNames)
+      },
+      /**
+       * @computed internalUseStrictEquality
+       * @desc 是否使用严格比较 == 或者 === 的区别，此属性会影响列表翻译展示
+       */
+      internalUseStrictEquality(){
+        if(typeof this.useStrictEquality === 'boolean'){
+          return this.useStrictEquality;
+        };
+        let useStrictEquality = (this.$TTABLE || {}).useStrictEquality;
+        if(typeof useStrictEquality === 'boolean'){
+          return useStrictEquality
+        }else{
+          return false;
+        }
       },
       /**
        * @computed actionButtonExtraWidth 操作栏按钮的补充宽度

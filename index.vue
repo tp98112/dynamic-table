@@ -2,14 +2,14 @@
 import props from './mixins/props.js';
 import config from './mixins/config.js';
 import methods from './mixins/methods.js';
-import {recursiveTraverse, recursiveTraverseBySome, dateFormat, getFieldType, deepClone, getId, isEmpty, getTextWidth, getPageNumber } from "./tools.js";
+import {recursiveTraverse, recursiveTraverseBySome, dateFormat, getFieldType, deepClone, getId, isEmpty, getTextWidth, getPageNumber, getClassNameByObject } from "./tools.js";
 
 export default {
     name: 'RocTable',
     inheritAttrs: false,
     mixins: [props, config, methods],
     components: {
-        DynamicForm: () => import('./components/DynamicForm/index_new'), 
+        Tform: () => import('./components/Tform/index_new'), 
         TuploadButton: () => import('./components/Tupload/Button.vue')
     },
     
@@ -31,6 +31,8 @@ export default {
             formVisible: false, // 编辑弹窗显隐
             dialogConfirmLoading: false, // 弹窗loading
             uniqueKey: this.rowKey ? this.rowKey : '$rowKey', // 唯一键
+            hasSubRows: false, // 标记是否存在子集数据行
+            
             formReady: false, // 表单初始化状态
             formTitle: '', // 弹窗表单标题
             currentSearchParams: null, // 当前查询栏表单值
@@ -99,26 +101,29 @@ export default {
          */
         const customTemplate = (column, scope) => {
             let template = column.template(scope);
-            let type = getFieldType(column.template(scope));
-            if(type === 'String' || (type === 'Object' && getFieldType(template.content) === 'String')){
-                return h('span', {
-                    class: `cell-text ${typeof template.emit === 'string' && 'cursor-pointer'}`,
+            let type = getFieldType(template);
+            if(['Number', 'String'].indexOf(type) > -1 || (type === 'Object' && ['Number', 'String'].indexOf(getFieldType(template.content)) > -1)){
+                return h('div', {
+                    class: `cell-template${typeof template.emit === 'string' ? ' cursor-pointer' : ''}`,
                     on: {
                         click: () => {template.emit ? this.handleEmit({type: template.emit, scope}) : ''}
                     },
                     domProps: {
-                        innerHTML: template.content ? template.content : column.template(scope)
+                        innerHTML: template.content ? template.content : template
                     }
                 })
             }else{
-                return this.getDefaultCellValue(column, scope.row[scope.column.property]);
+                return '/';
             }
         };
         /**
          * 预设编辑时控件
          */
         const setEditControl = ({column, scope}) => {
-            if(typeof column.editRender === 'function'){
+            if(isSubRowsRender({column, scope})){
+              // 渲染子集数据行
+              return subRowsRender({column, scope})
+            }else if(typeof column.editRender === 'function'){
                 // 自定义render渲染方法
                 return column.editRender(h, scope)
             }else if(column.editType === 'input'){
@@ -147,8 +152,8 @@ export default {
                 // 多选框组
                 return <el-checkbox-group v-model={scope.row[scope.column.property]} props={this.setControlProperty(column)} on={this.getControlEvents(column, scope)} disabled={this.setDisabledState(column, scope)}>
                     {this.getOptions(column).map(opt => {
-                        return <el-checkbox label={column.optionControl?.value ? opt[column.optionControl.value] : opt[this.optionControl.value]}>
-                            {column.optionControl?.label ? opt[column.optionControl.label] : opt[this.optionControl.label]}
+                        return <el-checkbox label={column.optionFieldNames?.value ? opt[column.optionFieldNames.value] : opt[this.optionFieldNames.value]}>
+                            {column.optionFieldNames?.label ? opt[column.optionFieldNames.label] : opt[this.optionFieldNames.label]}
                         </el-checkbox>
                     })}
                 </el-checkbox-group>
@@ -172,10 +177,10 @@ export default {
                         style="width: 100%">
                     </el-time-picker>
             }else if(column.editType === 'upload-button'){
-                return <tp-upload-button 
+                return <t-upload-button 
                     contol={this.setControlProperty(column)} 
                     fileList={scope.row[scope.column.property]} >
-                </tp-upload-button>
+                </t-upload-button>
             }else if(typeof column.template === 'function'){
                 // 编辑状态时预设控件不存在 默认的模板渲染方法同样生效
                 return customTemplate(column, scope);
@@ -185,18 +190,106 @@ export default {
             }
         }
         /**
+         * @func tableBodyCellRender 表格主体内容单元格渲染
+         */
+        const tableBodyCellRender = ({scope, column}) => {
+          if(this.getRowEditStatus(scope.row) || this.unifiedEdit){
+              let propName = 'edit-' + column.prop;
+              return this.$scopedSlots[propName] ? this.$scopedSlots[propName](scope) : setEditContent({column, scope})
+          }else{
+              let propName = 'default-' + column.prop;
+              return this.$scopedSlots[propName] ? this.$scopedSlots[propName](scope) : setDefaultContent({column, scope})
+          }
+        }
+        /**
+         * @func getNextSubRowsKey - 获取递归子集数据列的key
+         */
+        const getNextSubRowsKey = ({column, scope}) => {
+          let subRowsKey = scope.parentRow ? scope.$subRowsKey : column.subRowsKey;
+          if(subRowsKey){
+            let start = subRowsKey.indexOf('/');
+            if(start > 0){
+              /** /斜杠不能在最前 */
+              return {
+                $subRowsKey: subRowsKey.substring(start + 1, subRowsKey.length)
+              }
+            }
+          };
+          return {};
+        }
+        /**
+         * @func getSubCellStyle - 自己数据行单元格样式
+         */
+        const getSubCellStyle = ({column, row}) => {
+          if(typeof this.subCellStyle === 'function'){
+            return this.subCellStyle({column, row});
+          }
+        }
+        /**
+         * @func subRowsRender - 渲染子集数据行
+         */
+        const subRowsRender = ({column, scope}) => {
+          let list = scope.row[scope.$subRowsKey || column.subRowsKey];
+          if(Array.isArray(list)){
+            this.hasSubRows = true; // 标记存在子集数据行
+            let obj = getNextSubRowsKey({column, scope});
+            return list.map((row, index) => {
+              return <div class="sub-cell" key={index} style={getSubCellStyle({column, row})}>
+                {
+                  tableBodyCellRender({
+                    column, 
+                    scope: {
+                      ...obj,
+                      store: scope.store,
+                      _self: scope._self,
+
+                      row, // 当前子集数据行
+                      parentRow: scope.row, // 当前子集数据行的父节点数据
+                      column: scope.column, 
+                      subRowIndex: index, // 当前子集数据行下标
+                      rootRow: scope.rootRow || scope.row, // 根节点数据行
+                    } 
+                  })
+                }
+              </div>
+            })
+          }else{
+            return null;
+          }
+        }
+        /**
+         * @func isSubRowsRender - 是否渲染子集数据行
+         * @desc 根据rootRow/parentRow 判断是否属于子集数据行
+         */
+        const isSubRowsRender = ({column, scope}) => {
+          if(!scope.rootRow && column.subRowsKey && typeof column.subRowsKey === 'string'){
+            // 首次渲染 scope中不存在rootRow，column.subRowsKey为有内容的字符串
+            return true;
+          }else if(scope.$subRowsKey){
+            // 递归渲染
+            return true;
+          };
+          return false;
+        }
+        /**
          * =======
          * 预设内容
         */ 
         const setDefaultContent = ({column, scope}) => {
             if(column.$edit || column.prop in this.toolsObject || `${column.prop}-${scope.row[this.uniqueKey]}` in this.toolsObject){
                 return this.$scopedSlots['edit-' + column.prop] ? this.$scopedSlots['edit-' + column.prop](scope) : setEditContent({column, scope})
+            }else if(isSubRowsRender({column, scope})){
+              // 渲染子集数据行
+              return subRowsRender({column, scope})
             }else if(typeof column.render === 'function'){
                 // 自定义render渲染方法
                 return column.render(h, {scope, value: scope.row[column.prop]})
             }else if(typeof column.template === 'function'){
                 // 自定义模板渲染方法
                 return customTemplate(column, scope);
+            }else if(isSubRowsRender({column, scope})){
+              // 渲染子集数据行
+              return subRowsRender({column, scope})
             }else{
                 // 默认内容
                 return this.getDefaultCellValue(column, scope.row[scope.column.property])
@@ -264,22 +357,17 @@ export default {
                                 align: column.align ? column.align : this.align,
                                 "min-width": this.getColumnMinWidth(column),
                                 fixed: column.fixed,
-                                'show-overflow-tooltip': column.showOverflowTooltip === false ? false : true
+                                'show-overflow-tooltip': column.showOverflowTooltip === false ? false : true,
+                                className: getClassNameByObject({
+                                  't-table-sub__cell': column.subRowsKey && typeof column.subRowsKey === 'string'
+                                })
                             },
                             scopedSlots: {
                                 header: scope => {
                                     let propName = 'header-' + column.prop;
                                     return this.$scopedSlots[propName] ? this.$scopedSlots[propName]({scope, $edit: () => {this.headerClick(column, scope)}}) : setDefaultHeader(column,scope)
                                 },
-                                default: scope => {
-                                    if(this.getRowEditStatus(scope.row) || this.unifiedEdit){
-                                        let propName = 'edit-' + column.prop;
-                                        return this.$scopedSlots[propName] ? this.$scopedSlots[propName](scope) : setEditContent({column, scope})
-                                    }else{
-                                        let propName = 'default-' + column.prop;
-                                        return this.$scopedSlots[propName] ? this.$scopedSlots[propName](scope) : setDefaultContent({column, scope})
-                                    }
-                                }
+                                default: scope => tableBodyCellRender({scope, column})
                             }
                         })
                     }
@@ -422,7 +510,7 @@ export default {
         const renderDialogButton = () => {
             return <div slot="footer" class="dialog-footer">
                 {
-                    this.formDialogButton.map((item, index) => {
+                    this.internalFormDialogButtons.map((item, index) => {
                         if(this.getRenderConditions(item.target || item.emit) && (item.target ? this.builtInButtonConditions(item) : true) ){
                             return <el-button on-click={() => {this.reportEvent(item, {form: this.$refs.rocForm?.form})}} 
                             type={typeof item.type === 'function' ? (item.type({form: this.$refs.rocForm?.form})) : item.type} 
@@ -455,7 +543,7 @@ export default {
             modal={this.formDialogModal}
             close-on-click-modal={this.closeOnClickModal} 
             class="dynamicTable-dialog">
-                <DynamicForm
+                <Tform
                     props={this.formConfig}
                     received_dicts={this.dicts}
                     attrs={this.$attrs}
@@ -465,7 +553,7 @@ export default {
                         scopedSlots: this.getFormSlots
                     }}
                 >
-                </DynamicForm>
+                </Tform>
                 { this.formReady ? renderDialogButton() : ''}
             </el-dialog>
         };
@@ -475,7 +563,7 @@ export default {
          */
         const renderSearchBar = () => {
           if(this.search !== false){
-            return <DynamicForm
+            return <Tform
               props={this.internalSearch}
               received_dicts={this.dicts}
               attrs={this.$attrs}
@@ -485,7 +573,7 @@ export default {
                   scopedSlots: this.getSearchSlots
               }}
             >
-            </DynamicForm>
+            </Tform>
           }
         };
 
@@ -495,11 +583,27 @@ export default {
         const renderCustomToolbarButtons = () => {
           if(Array.isArray(this.toolbarButtons)){
             return this.toolbarButtons.map(item => {
-              return <el-button
-              props={item}
-              on-click={() => {this.reportEvent(item)}}
-              size={item.size || this.toolbarButtonSize}
-              >{item.label}</el-button>
+              // 使用popover时必须自定key
+              if((item.hasOwnProperty('popover') && (getFieldType(item.popover) === 'Object' || typeof item.popover === 'function')) && item.key){
+                return <el-popover
+                  placement="top"
+                  trigger="click"
+                  props={this.getPopoverProps(item.popover)}
+                  {...{
+                    scopedSlots: {
+                      reference: this.$scopedSlots[`tool-popover-reference-${item.key}`] ? this.$scopedSlots[`tool-popover-reference-${item.key}`] : () => <el-button props={item} size={item.size || this.toolbarButtonSize}>{item.label}</el-button>
+                    }
+                  }}
+                >
+                  {this.$scopedSlots[`tool-popover-content-${item.key}`] && this.$scopedSlots[`tool-popover-content-${item.key}`]()}
+                </el-popover>
+              }else{
+                return <el-button
+                props={item}
+                on-click={ () => {this.reportEvent(item)} }
+                size={item.size || this.toolbarButtonSize}
+                >{item.label}</el-button>
+              };
             })
           }
         }
@@ -508,19 +612,27 @@ export default {
          * @func renderToolsBar - 工具栏
          */
         const renderToolsBar = () => {
-          if(this.toolBar || this.toolbarButtons?.length){
-            return <div class="t-toolbar-container">
-              {
-                renderCustomToolbarButtons()
-              }
+          if(this.headerTitle || this.toolBar || this.toolbarButtons?.length){
+            return <div class={`t-toolbar-container t-toolbar-container-${this.toolBarAlign}`}>
+              {this.headerTitle && <div class="t-toolbar-container-title">{this.headerTitle}</div>}
+              <div class="t-toolbar-container-tools">
+                {
+                  renderCustomToolbarButtons()
+                }
+              </div>
             </div>
           }
         };
 
-        return (<div class={{'tp-dynamic-table-wrap': true, 'auto-container-height': this.adaptiveHeight}}>
-            {
-              renderSearchBar()
-            }
+        /**
+         * @func tableTopInsertContentRender - 表格上方插入内容 位于搜索栏和表格之间
+         */
+        const tableTopInsertContentRender = () => {
+          return this.$slots['table-top-insert'] && this.$slots['table-top-insert'];
+        }
+
+        const elTableRender = () => {
+          return <div class="t-table-container">
             {
               renderToolsBar()
             }
@@ -552,14 +664,34 @@ export default {
                 'cell-dblclick': this.handleCellDblclick,
                 'selection-change': this.handleSelectionChange
             }} 
-            class={this.dynamic && (this.internalEditMode === 'inline' || this.unifiedEdit) ? 'dynamic-table' : ''}>
+            class={{
+              'dynamic-table': this.dynamic && (this.internalEditMode === 'inline' || this.unifiedEdit),
+              't-table-has-sub-rows': this.hasSubRows
+            }}>
                 {renderColumns(this.column)}{renderActionColumn()}
                 <template slot="empty">{this.$slots['table-empty']}</template>
                 <template slot="append">{getContentAppendToTable()}</template>
             </el-table>
+
             {renderAddButtonInAppend('bottom')}
-            {this.pagination ? renderPagination() : ''}
+
+            {this.pagination ? renderPagination() : null}
+            
             {this.dynamic && this.internalEditMode === 'window' &&  !this.unifiedEdit && renderEditDialog() || null}
+          </div>
+        }
+
+        return (<div class={{'t-table-wrap': true, 'auto-container-height': this.adaptiveHeight}}>
+            {
+              renderSearchBar()
+            }
+            {
+              tableTopInsertContentRender() // 表格上方插入内容 位于搜索栏和表格之间
+            }
+            
+            {
+              elTableRender()
+            }
         </div>)
     },
     computed: {
@@ -636,7 +768,7 @@ export default {
             if(typeof this.actionBarWidth === 'number'){
               // 固定宽度
                 return this.actionBarWidth
-            }else if(typeof this.actionBarWidth === 'number'){
+            }else if(typeof this.actionBarWidth === 'function'){
               // 自定义计算操作栏宽度的方法
               return this.actionBarWidth(this.internalActionButtons, this.internalActionBarWidthParams);
             }else{
@@ -692,7 +824,7 @@ export default {
                 // propAsKeyOnly为true时, 当前prop不加入到表单
                 if(item.prop && !item.propAsKeyOnly && item.columnVisible !== false){
                     if(item.prop in this.initFieldsCollection){
-                        console.error(`[RocTable warn]: Duplicate prop detected: '${item.prop || item.transferProp}'. This may cause an update error`)
+                        console.error(`[Ttable warn]: Duplicate prop detected: '${item.prop || item.transferProp}'. This may cause an update error`)
                         return;
                     }
                     this.initFieldsCollection[item.prop] = {
@@ -730,7 +862,8 @@ export default {
                 // 未通过前置条件
                 return;
             };
-            if(this.internalEditMode === 'window' && !this.unifiedEdit){
+            // useDialogForm todo
+            if(this.internalEditMode === 'window' && !this.unifiedEdit || this.useDialogForm){
                 // 弹窗编辑
                 this.formTitle = button.actionName || button.label; // 弹窗标题
                 this.internalFormDialogWidth = button.formDialogWidth; // 通过按钮单独配置的弹窗宽度
@@ -1129,7 +1262,9 @@ export default {
           this.emitPageChange({
             page: 1, 
             pageSize: this.pageSize,
-            query: form
+            query: form,
+
+            trigger: 'search'
           })
         },
         /**
@@ -1159,14 +1294,23 @@ export default {
         },
         /**
          * 刷新当前页
+         * trigger 触发reload的来源
          */
-        reload(query){
+        reload(query, trigger = 'table'){
             this.setTableLoading(true);
-            this.emitPageChange({query: deepClone(query)});
+            this.emitPageChange({query: deepClone(query), trigger});
             if(getFieldType(query) === "Object" && this.currentSearchParams){
               // 如果reload携带了对象参数并且存在搜索栏时，更新搜索栏表单
               this.$refs.searchForm.updateFields(query);
             }
+        },
+        /**
+         * 重置数据 回到第一页
+         */
+        reset(){
+          this.setTableLoading(true);
+          this.$refs.searchForm.resetFields();
+          this.emitPageChange({page: 1});
         },
         /**
          * 设置表格数据加载loading
@@ -1297,7 +1441,7 @@ export default {
         /**
          * 上报分页器事件
          */
-        emitPageChange({page, pageSize, query} = {}){
+        emitPageChange({page, pageSize, query, trigger} = {}){
             const success = info => {
                 page && (this.currentPage = page);
                 pageSize && (this.currentPageSize = pageSize);
@@ -1321,7 +1465,7 @@ export default {
                 query: this.getQuryParams(query),
                 success,
                 fail,
-                
+                trigger // 触发器
             })
         },
         /**
@@ -1653,6 +1797,18 @@ export default {
             this.formVisible = false;
         },
         /**
+         * 返回字典字段名
+         */
+        getDictFieldNames(item){
+          return Object.assign({}, this.internalDictFieldNames, item.dictFieldNames)
+        },
+        /**
+         * 根据是否使用严格比较判断数值是否相等
+         */
+        compareValues(a, b, strict = this.internalUseStrictEquality) {
+          return strict ? a === b : a == b
+        },
+        /**
          * 获取表格默认展示值
          */
         getDefaultCellValue(column, value){
@@ -1663,18 +1819,19 @@ export default {
                 // 系统字典
                 let arr = this.dicts[column.dict] ? this.dicts[column.dict] : [];
                 let values = Array.isArray(value) ? value : [value]; // 绑定值
-                let label = [];
+                let labelList = []; // 翻译的label集合
+                let {label: labelName, value: valueName} = this.getDictFieldNames(column);
                 values.forEach(val=> {
-                    let target = arr.find(item => item['dictValue'] == val);
-                    label.push(target ? target['dictLabel'] : '/')
+                    let target = arr.find(item => this.compareValues(item[valueName], val));
+                    labelList.push(target ? target[labelName] : '/')
                 })
-                return label.length ? label.join(',') : '/';
+                return labelList.length ? labelList.join(',') : '/';
             }else if(['select', 'checkbox-group', 'radio-group'].indexOf(column.editType) > -1){
                 let arr = this.dicts[column.dict] || this.$attrs[column.options] || column.options || [];
                 let values = Array.isArray(value) ? value : [value]; // 绑定值
                 const label = values.map(val => {
-                    const target = arr.find(item => item[column.optionControl?.value ? column.optionControl.value : this.optionControl.value] == val);
-                    return target ? target[column.optionControl?.label ? column.optionControl.label : this.optionControl.label] : '/';
+                    const target = arr.find(item => item[column.optionFieldNames?.value ? column.optionFieldNames.value : this.optionFieldNames.value] == val);
+                    return target ? target[column.optionFieldNames?.label ? column.optionFieldNames.label : this.optionFieldNames.label] : '/';
                 });
                 return label.length ? label.join(',') : '/';
             }else if(['upload-button', 'upload-image'].indexOf(column.editType) > -1 && Array.isArray(value)){
@@ -2012,22 +2169,28 @@ export default {
          */
         findOption(column, value){
             let options = this.getOptions(column);
-            let valueKey = column.optionControl && column.optionControl.value || column.dict && this.dictControl.value || this.optionControl.value;
+            let valueKey = column.dict && this.getDictFieldNames(column).value || column.optionFieldNames && column.optionFieldNames.value || this.optionFieldNames.value;
             return options.find(item => item[valueKey] === value)
         },
         /**
          * 返回控件选项列表
          */
         getOptions(item){
-            return this.dicts[item.dict] || this.$attrs[item.options] || item.options || [];
+            let list = this.dicts[item.dict] || this.$attrs[item.options] || item.options || [];
+            return  Array.isArray(list) ? list : [];
         },
         /**
          * 返回选项列表字段值配置
          */
         getOptionsFields(item, opt, field){
-            return item.optionControl
-                ? opt[item.optionControl[field]]
-                : (item.dict ? opt[this.dictControl[field]] : opt[this.optionControl[field]])    
+          if(item.dict){
+            let key = this.getDictFieldNames(item)[field];
+            return opt[key];
+          }else if(item.optionFieldNames){
+            return opt[item.optionFieldNames[field]];
+          }else{
+            return opt[this.optionFieldNames[field]];
+          };   
         },
         // 返回控件默认属性
         setControlProperty(item) {
@@ -2110,7 +2273,17 @@ export default {
             }
             this.tableHeight = tableHeight;
             
-        }
+        },
+        /**
+         * getPopoverProps - 返回popover属性
+         */
+        getPopoverProps(attrs){
+          if(getFieldType(attrs) === 'Object'){
+            return attrs;
+          }else if(typeof attrs === 'function'){
+            return attrs({data: this.data})
+          }
+        },
     },
 }
 </script>

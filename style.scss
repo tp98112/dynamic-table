@@ -1,7 +1,44 @@
-.tp-dynamic-table-wrap{
+.t-table-wrap{
   .t-toolbar-container{
     padding: 4px 0;
+    display: flex;
+    align-items: center;
+    &-title{
+      font-weight: bold;
+    }
   }
+  .t-toolbar-container-space-between{
+    justify-content: space-between;
+  }
+  .t-toolbar-container-start{
+    justify-content: flex-start;
+  }
+  .t-toolbar-container-center{
+    justify-content: center;
+  }
+  .t-toolbar-container-end{
+    justify-content: flex-end;
+  }
+  .t-toolbar-container-start, .t-toolbar-container-center, .t-toolbar-container-end{
+    .t-toolbar-container-title + .t-toolbar-container-tools{
+      margin-left: 10px;
+    }
+  }
+
+  .cell-template {
+    width: 100%;
+  }
+
+  .t-table-container {
+    padding: 6px 10px;
+    border: 1px solid #F2F6FC;
+    border-radius: 4px;
+  }
+  .dynamic-form + .t-table-container{
+    margin-top: 10px;
+  }
+
+
     ::v-deep .cell{
         padding-left:5px;
         padding-right:5px;
@@ -13,6 +50,7 @@
     ::v-deep.el-table__fixed-right{
         height: 100% !important;
     }
+
     .dynamic-table{
         // 开启编辑行时
         ::v-deep.cell{
@@ -27,7 +65,7 @@
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                .cell-text{
+                .cell-template{
                     // 默认展示文本内容
                     max-width: 100%;
                     overflow: hidden;
@@ -49,9 +87,23 @@
         
         
     }
+
+    .t-table-has-sub-rows {
+      ::v-deep.el-table__body {
+        .t-table-sub__cell, .t-table-sub__cell .cell {
+          padding: 0;
+        }
+        .sub-cell{
+          display: flex;
+          align-items: center;
+        }
+        .sub-cell + .sub-cell {
+          border-top: 1px solid #ebeef5;
+        }
+      }
+    }
     .action-button-wrap{
         display: flex;
-        // white-space:nowrap
     }
     .el-link+.el-link{
         margin-left: 10px;
@@ -88,8 +140,11 @@
     }
 }
 
-.full-height{
-    // height: 100%;
+// 存在子集数据行的mini表格
+.el-table--mini.t-table-has-sub-rows {
+  .sub-cell {
+    padding: 6px 5px;
+  }
 }
 
 .dynamicTable-dialog{

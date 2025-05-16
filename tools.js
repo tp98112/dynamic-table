@@ -1,3 +1,9 @@
+
+export function getClassNameByObject(obj) {
+  return Object.keys(obj)
+    .filter(key => obj[key] === true)
+    .join(' ');
+}
 /**
  * 获取指定字符串在指定字体大小下所占据的实际宽度
  * @param {string} text - 要计算宽度的字符串

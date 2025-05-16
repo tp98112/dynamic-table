@@ -14,7 +14,6 @@ export default {
       maxlength: "",
       "suffix-icon": "", // 后缀icon
       "prefix-icon": "", // 前缀icon
-      placeholder: "请输入内容",
     },
     "date-picker": {
       type: "date",

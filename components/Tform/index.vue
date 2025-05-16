@@ -418,7 +418,7 @@ export default {
       type: Boolean,
       default: true,
     },
-    optionControl: {
+    optionFieldNames: {
       // 选项列表字段控制
       type: Object,
       default() {
@@ -534,9 +534,9 @@ export default {
      */
     returnOptionsFields(){
       return (item, opt, field) => {
-        return item.optionControl
-              ? opt[item.optionControl[field]]
-              : (item.dict ? opt[this.dictControl[field]] : opt[this.optionControl[field]])
+        return item.optionFieldNames
+              ? opt[item.optionFieldNames[field]]
+              : (item.dict ? opt[this.dictControl[field]] : opt[this.optionFieldNames[field]])
       }        
     },
     /**
@@ -741,8 +741,8 @@ export default {
       }else{
         //
         let props = {label: 'label', value: 'value', children: 'children'};
-        if(item.optionControl){
-          return Object.assign(props, item.optionControl);
+        if(item.optionFieldNames){
+          return Object.assign(props, item.optionFieldNames);
         }else{
           return props;
         }
@@ -814,7 +814,7 @@ export default {
     findOption(column, value){
       if(column.optionsKey || column.options || column.dict){
         let options = this.getOptions(column);
-        let valueKey = (column.optionControl && column.optionControl.value) || (column.dict && this.dictControl.value) || this.optionControl.value;
+        let valueKey = (column.optionFieldNames && column.optionFieldNames.value) || (column.dict && this.dictControl.value) || this.optionFieldNames.value;
         return options.find(item => item[valueKey] === value)
       };
       return null;

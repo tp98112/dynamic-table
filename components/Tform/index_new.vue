@@ -69,7 +69,7 @@ export default {
     Cols,
     TuploadButton: () => import('../Tupload/Button.vue'),
     TuploadImages: () => import('../Tupload/new.vue'),
-    RocTable: () => import('../../index.vue')
+    Ttable: () => import('../../index.vue')
   },
   props: {
     column: {
@@ -84,7 +84,7 @@ export default {
       default: false
     },
     isTableComponent: {
-      // 标记当前表单是否是表格(RocTable)的子组件
+      // 标记当前表单是否是表格(Ttable)的子组件
       type: Boolean,
       default: false
     },
@@ -170,7 +170,7 @@ export default {
       type: Boolean,
       default: true,
     },
-    fieldNames: {
+    optionFieldNames: {
       // 选项列表字段控制
       type: Object,
       default() {
@@ -183,12 +183,6 @@ export default {
     // 字典数据字段控制
     dictFieldNames: {
         type: Object,
-        default() {
-            return {
-                label: 'dictLabel',
-                value: 'dictValue'
-            };
-        },
     },
     showValidationFailsMessage: {
       type: Boolean,
@@ -292,6 +286,16 @@ export default {
      */
     internalGetDicts(){
         return this.getDicts || (this.$TFORM || this.$TTABLE || {}).getDicts;
+    },
+    /**
+     * @computed internalDictFieldNames
+     * @desc 字典字段名称
+     */
+    internalDictFieldNames(){
+      return Object.assign({
+        label: 'dictLabel',
+        value: 'dictValue'
+      }, (this.$TFORM || this.$TTABLE || {}).dictFieldNames, this.dictFieldNames)
     },
     getFormItems() {
       if (this.currentPanel) {
@@ -433,6 +437,7 @@ export default {
         disabled={this.setDisabled(item.disabled)}
         readonly={this.setReadonly(item.readonly)}
         props={{...this.getControlProperty(item)}}
+        placeholder={this.getPlaceholder(item)}
         >
           {
             inputAppendRender(item)
@@ -590,14 +595,18 @@ export default {
           style="width: 100%"
           />
       }else if(item.editType === 't-table'){
-        return <RocTable
+        return <Ttable
           ref={'t-table-' + item.prop}
-          data={this.getRocTableData(item)}
+          data={this.getTtableData(item)}
           disabled={this.setDisabled(item.disabled)} 
           props={{...this.getControlProperty(item)}}
           isFormComponent={true}
           formData={this.form}
           on={this.getControlEvents(item)}
+          attrs={this.$attrs}
+          {...{
+            scopedSlots: this.getTtableSlots(item)
+          }}
         />
       }else if(item.editType === 'form-list' && Array.isArray(item.columns)){
         return h('Cols', {
@@ -840,8 +849,8 @@ export default {
       }else{
         //
         let props = {label: 'label', value: 'value', children: 'children'};
-        if(item.fieldNames){
-          return Object.assign(props, item.fieldNames);
+        if(item.optionFieldNames){
+          return Object.assign(props, item.optionFieldNames);
         }else{
           return props;
         }
@@ -863,12 +872,23 @@ export default {
       }
     },
     /**
+     * 返回字典字段名
+     */
+    getDictFieldNames(item){
+      return Object.assign({}, this.internalDictFieldNames, item.dictFieldNames)
+    },
+    /**
      * 返回选项列表字段值配置
      */
     returnOptionsFields(item, opt, field){
-      return item.fieldNames
-            ? opt[item.fieldNames[field]]
-            : (item.dict ? opt[this.dictFieldNames[field]] : opt[this.fieldNames[field]])
+      if(item.dict){
+        let key = this.getDictFieldNames(item)[field];
+        return opt[key];
+      }else if(item.optionFieldNames){
+        return opt[item.optionFieldNames[field]];
+      }else{
+        return opt[this.optionFieldNames[field]];
+      }; 
     },
     setDisabled(disabled) {
       // 禁用表单项
@@ -890,7 +910,7 @@ export default {
     /**
      * 返回表格data
      */
-    getRocTableData(item){
+    getTtableData(item){
       let options = this.form[item.prop] || this.dicts[item.dict] || (typeof item.options === "string" && this.$attrs[item.options]) || item.options;
       if(options){
         return options
@@ -900,6 +920,24 @@ export default {
         this.form[item.prop] = [];
         return this.form[item.prop];
       }
+    },
+    /**
+     * @func getTtableSlots 获取表格插槽
+     * @returns {Object.<string, Function>} 表单插槽渲染方法的集合
+     */
+    getTtableSlots(item){
+      let scopedSlots = {};
+      for(let i in this.$scopedSlots){
+          if(i.indexOf(`form-${item.prop}/`) > -1){
+            let j = i.split('/')[1];
+            if(j){
+              scopedSlots[j] = params => {
+                return this.$scopedSlots[i] ? this.$scopedSlots[i](params) : this.$slots[i];
+              }
+            }
+          }
+      }
+      return scopedSlots;
     },
     /**
      * 批量绑定控件事件
@@ -936,7 +974,7 @@ export default {
     findOption(column, value){
       if(column.options || column.dict){
         let options = this.getOptions(column);
-        let valueKey = (column.fieldNames && column.fieldNames.value) || (column.dict && this.dictFieldNames.value) || this.fieldNames.value;
+        let valueKey = (column.dict && this.getDictFieldNames().value) || (column.optionFieldNames && column.optionFieldNames.value) || this.optionFieldNames.value;
         return options.find(item => item[valueKey] === value)
       };
       return null;
@@ -945,13 +983,8 @@ export default {
      * 返回数据列表
      */
     getOptions(item) {
-      if(this.dicts[item.dict]){
-        return this.dicts[item.dict];
-      }else if(typeof item.options === "string" && this.$attrs[item.options]){
-        return this.$attrs[item.options];
-      }else{
-        return item.options || [];
-      };
+      let list = this.dicts[item.dict] || this.$attrs[item.options] || item.options || [];
+      return  Array.isArray(list) ? list : [];
     },
     /**
      * 返回FormItem style
@@ -961,7 +994,8 @@ export default {
         width: this.grid ? undefined : this.formItemWidth(item),
         paddingLeft: this.gutter / 2 + 'px',
         paddingRight: this.gutter / 2 + 'px',
-        flex: item.flex
+        flex: item.flex,
+        ...item.formItemStyle
       };
       item.editType === 'upload-image' && (style.marginBottom = '7.6px');
       return style;
@@ -1186,7 +1220,7 @@ export default {
     setSpecialItemsValidator(validate, validator, validatorType, item){
       let func = null;
       if(item.editType === 't-table'){
-        // 当组件为RocTable时添加默认验证
+        // 当组件为Ttable时添加默认验证
         if(validatorType === "Function"){
           func = (rule, value, callback) => {
             validator({value, form: this.form, callback});
@@ -1203,7 +1237,7 @@ export default {
             if(this.$refs['t-table-' + item.prop].checkTableData(false, false)){
               callback();
             }else{
-              console.log("当组件为RocTable时添加默认验证", validatorType)
+              console.log("当组件为Ttable时添加默认验证", validatorType)
               callback(new Error('校验失败, 请检查后重新输入'));
             }
           };
@@ -1592,16 +1626,23 @@ export default {
         };
 
         // cascader的options和lazy动态加载不能同时存在, 否则将造成选中后不能回显的问题!
-        if (editType == "cascader" && !control.prop?.lazy) {
+        if (editType == "cascader" && !control?.prop?.lazy) {
           _config.options = this.getOptions(item);
         };
 
         if(editType === 't-table'){
           Object.assign(_config, this.$attrs);
-        }
+        };
+
         return _config;
       }
       return {};
+    },
+
+    getPlaceholder(item){
+      if(item.editType === 'input'){
+        return '请输入'
+      }
     },
   },
 };
